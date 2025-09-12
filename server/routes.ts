@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -247,6 +247,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching milestones:", error);
       res.status(500).json({ message: "Failed to fetch milestones" });
+    }
+  });
+
+  // Lesson routes
+  app.get('/api/modules/:moduleId/lessons', isAuthenticated, async (req: any, res) => {
+    try {
+      const { moduleId } = req.params;
+      const lessons = await storage.getLessonsByModule(moduleId);
+      res.json(lessons);
+    } catch (error) {
+      console.error("Error fetching lessons:", error);
+      res.status(500).json({ message: "Failed to fetch lessons" });
+    }
+  });
+
+  app.get('/api/lessons/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const lesson = await storage.getLesson(id);
+      
+      if (!lesson) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+      
+      res.json(lesson);
+    } catch (error) {
+      console.error("Error fetching lesson:", error);
+      res.status(500).json({ message: "Failed to fetch lesson" });
+    }
+  });
+
+  // User progress routes
+  app.get('/api/progress/lesson/:lessonId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { lessonId } = req.params;
+      const progress = await storage.getUserProgress(userId, lessonId);
+      res.json(progress || { isCompleted: false, score: null });
+    } catch (error) {
+      console.error("Error fetching lesson progress:", error);
+      res.status(500).json({ message: "Failed to fetch lesson progress" });
+    }
+  });
+
+  app.get('/api/progress/module/:moduleId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { moduleId } = req.params;
+      const progress = await storage.getUserProgressForModule(userId, moduleId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching module progress:", error);
+      res.status(500).json({ message: "Failed to fetch module progress" });
+    }
+  });
+
+  app.post('/api/progress/lesson/:lessonId/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { lessonId } = req.params;
+      
+      // Validate input data
+      const progressSchema = z.object({
+        score: z.number().int().min(0).max(100).optional(),
+        timeSpent: z.number().int().min(0).optional(),
+      });
+      
+      const { score, timeSpent } = progressSchema.parse(req.body);
+      
+      const progress = await storage.markLessonComplete(userId, lessonId, score, timeSpent);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error marking lesson complete:", error);
+      res.status(500).json({ message: "Failed to mark lesson complete" });
     }
   });
 

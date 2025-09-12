@@ -7,6 +7,7 @@ import {
   lessons,
   milestones,
   deliverables,
+  userProgress,
   mentorProfiles,
   mentorSessions,
   investors,
@@ -30,6 +31,8 @@ import {
   type Milestone,
   type Deliverable,
   type InsertDeliverable,
+  type UserProgress,
+  type InsertUserProgress,
   type Message,
   type InsertMessage,
   type AiConversation,
@@ -64,7 +67,14 @@ export interface IStorage {
   // Curriculum operations
   getModulesByCohort(cohortId: string): Promise<Module[]>;
   getLessonsByModule(moduleId: string): Promise<Lesson[]>;
+  getLesson(id: string): Promise<Lesson | undefined>;
   getMilestonesByCohort(cohortId: string): Promise<Milestone[]>;
+  
+  // User progress operations
+  getUserProgress(userId: string, lessonId: string): Promise<UserProgress | undefined>;
+  getUserProgressForModule(userId: string, moduleId: string): Promise<UserProgress[]>;
+  createOrUpdateUserProgress(progress: InsertUserProgress): Promise<UserProgress>;
+  markLessonComplete(userId: string, lessonId: string, score?: number, timeSpent?: number): Promise<UserProgress>;
   
   // Deliverable operations
   createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable>;
@@ -246,12 +256,66 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(lessons.orderIndex));
   }
 
+  async getLesson(id: string): Promise<Lesson | undefined> {
+    const [lesson] = await db
+      .select()
+      .from(lessons)
+      .where(eq(lessons.id, id));
+    return lesson;
+  }
+
   async getMilestonesByCohort(cohortId: string): Promise<Milestone[]> {
     return await db
       .select()
       .from(milestones)
       .where(eq(milestones.cohortId, cohortId))
       .orderBy(asc(milestones.orderIndex));
+  }
+
+  // User progress operations
+  async getUserProgress(userId: string, lessonId: string): Promise<UserProgress | undefined> {
+    const [progress] = await db
+      .select()
+      .from(userProgress)
+      .where(and(eq(userProgress.userId, userId), eq(userProgress.lessonId, lessonId)));
+    return progress;
+  }
+
+  async getUserProgressForModule(userId: string, moduleId: string): Promise<UserProgress[]> {
+    return await db
+      .select()
+      .from(userProgress)
+      .innerJoin(lessons, eq(userProgress.lessonId, lessons.id))
+      .where(and(eq(userProgress.userId, userId), eq(lessons.moduleId, moduleId)))
+      .then(rows => rows.map(row => row.user_progress));
+  }
+
+  async createOrUpdateUserProgress(progress: InsertUserProgress): Promise<UserProgress> {
+    const [result] = await db
+      .insert(userProgress)
+      .values(progress)
+      .onConflictDoUpdate({
+        target: [userProgress.userId, userProgress.lessonId],
+        set: {
+          ...progress,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  async markLessonComplete(userId: string, lessonId: string, score?: number, timeSpent?: number): Promise<UserProgress> {
+    const progressData: InsertUserProgress = {
+      userId,
+      lessonId,
+      isCompleted: true,
+      completedAt: new Date(),
+      score,
+      timeSpent,
+      attempts: 1, // TODO: Increment existing attempts
+    };
+    return this.createOrUpdateUserProgress(progressData);
   }
 
   // Deliverable operations

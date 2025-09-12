@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
   pgEnum,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -187,6 +188,22 @@ export const quizzes = pgTable("quizzes", {
   maxAttempts: integer("max_attempts").default(3),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// User progress tracking
+export const userProgress = pgTable("user_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  lessonId: varchar("lesson_id").notNull().references(() => lessons.id),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  timeSpent: integer("time_spent"), // in minutes
+  score: integer("score"), // quiz score if applicable
+  attempts: integer("attempts").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("user_progress_user_lesson_unq").on(table.userId, table.lessonId),
+]);
 
 // Milestones and deliverables
 export const milestones = pgTable("milestones", {
@@ -460,6 +477,22 @@ export const deliverablesRelations = relations(deliverables, ({ one }) => ({
   owner: one(users, { fields: [deliverables.ownerId], references: [users.id] }),
 }));
 
+export const modulesRelations = relations(modules, ({ one, many }) => ({
+  cohort: one(cohorts, { fields: [modules.cohortId], references: [cohorts.id] }),
+  lessons: many(lessons),
+}));
+
+export const lessonsRelations = relations(lessons, ({ one, many }) => ({
+  module: one(modules, { fields: [lessons.moduleId], references: [modules.id] }),
+  quiz: one(quizzes, { fields: [lessons.quizId], references: [quizzes.id] }),
+  userProgress: many(userProgress),
+}));
+
+export const userProgressRelations = relations(userProgress, ({ one }) => ({
+  user: one(users, { fields: [userProgress.userId], references: [users.id] }),
+  lesson: one(lessons, { fields: [userProgress.lessonId], references: [lessons.id] }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -504,6 +537,22 @@ export const insertAiConversationSchema = createInsertSchema(aiConversations).om
   updatedAt: true,
 });
 
+export const insertModuleSchema = createInsertSchema(modules).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertLessonSchema = createInsertSchema(lessons).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserProgressSchema = createInsertSchema(userProgress).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -514,10 +563,14 @@ export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Cohort = typeof cohorts.$inferSelect;
 export type Module = typeof modules.$inferSelect;
+export type InsertModule = z.infer<typeof insertModuleSchema>;
 export type Lesson = typeof lessons.$inferSelect;
+export type InsertLesson = z.infer<typeof insertLessonSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 export type Deliverable = typeof deliverables.$inferSelect;
 export type InsertDeliverable = z.infer<typeof insertDeliverableSchema>;
+export type UserProgress = typeof userProgress.$inferSelect;
+export type InsertUserProgress = z.infer<typeof insertUserProgressSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type AiConversation = typeof aiConversations.$inferSelect;
