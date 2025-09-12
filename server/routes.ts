@@ -1,0 +1,432 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
+import { aiCoachService } from "./aiCoach";
+import { z } from "zod";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema } from "@shared/schema";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Application routes
+  app.post('/api/applications', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const applicationData = insertApplicationSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const application = await storage.createApplication(applicationData);
+      res.json(application);
+    } catch (error) {
+      console.error("Error creating application:", error);
+      res.status(400).json({ message: "Failed to create application" });
+    }
+  });
+
+  app.get('/api/applications/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const applications = await storage.getApplicationsByUser(userId);
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching applications:", error);
+      res.status(500).json({ message: "Failed to fetch applications" });
+    }
+  });
+
+  app.put('/api/applications/:id/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status, reviewerNotes } = req.body;
+      
+      // Check if user has admin/mentor role for status updates
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || !['administrator', 'mentor'].includes(user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      const application = await storage.updateApplicationStatus(id, status, reviewerNotes);
+      res.json(application);
+    } catch (error) {
+      console.error("Error updating application status:", error);
+      res.status(500).json({ message: "Failed to update application status" });
+    }
+  });
+
+  // Project routes
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projectData = insertProjectSchema.parse({
+        ...req.body,
+        ownerId: userId
+      });
+      
+      const project = await storage.createProject(projectData);
+      res.json(project);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      res.status(400).json({ message: "Failed to create project" });
+    }
+  });
+
+  app.get('/api/projects/my', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const projects = await storage.getProjectsByUser(userId);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.put('/api/projects/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const project = await storage.getProject(id);
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check ownership or admin permissions
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (project.ownerId !== userId && user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      const updatedProject = await storage.updateProject(id, req.body);
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.get('/api/projects/cohort/:cohortId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { cohortId } = req.params;
+      const projects = await storage.getProjectsByCohort(cohortId);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching cohort projects:", error);
+      res.status(500).json({ message: "Failed to fetch cohort projects" });
+    }
+  });
+
+  // Cohort routes
+  app.get('/api/cohorts', async (req, res) => {
+    try {
+      const cohorts = await storage.getActiveCohorts();
+      res.json(cohorts);
+    } catch (error) {
+      console.error("Error fetching cohorts:", error);
+      res.status(500).json({ message: "Failed to fetch cohorts" });
+    }
+  });
+
+  app.get('/api/cohorts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const cohort = await storage.getCohort(id);
+      
+      if (!cohort) {
+        return res.status(404).json({ message: "Cohort not found" });
+      }
+      
+      res.json(cohort);
+    } catch (error) {
+      console.error("Error fetching cohort:", error);
+      res.status(500).json({ message: "Failed to fetch cohort" });
+    }
+  });
+
+  // Curriculum routes
+  app.get('/api/cohorts/:cohortId/modules', isAuthenticated, async (req: any, res) => {
+    try {
+      const { cohortId } = req.params;
+      const modules = await storage.getModulesByCohort(cohortId);
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+      res.status(500).json({ message: "Failed to fetch modules" });
+    }
+  });
+
+  app.get('/api/modules/:moduleId/lessons', isAuthenticated, async (req: any, res) => {
+    try {
+      const { moduleId } = req.params;
+      const lessons = await storage.getLessonsByModule(moduleId);
+      res.json(lessons);
+    } catch (error) {
+      console.error("Error fetching lessons:", error);
+      res.status(500).json({ message: "Failed to fetch lessons" });
+    }
+  });
+
+  app.get('/api/cohorts/:cohortId/milestones', isAuthenticated, async (req: any, res) => {
+    try {
+      const { cohortId } = req.params;
+      const milestones = await storage.getMilestonesByCohort(cohortId);
+      res.json(milestones);
+    } catch (error) {
+      console.error("Error fetching milestones:", error);
+      res.status(500).json({ message: "Failed to fetch milestones" });
+    }
+  });
+
+  // Deliverable routes
+  app.get('/api/projects/:projectId/deliverables', isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectId } = req.params;
+      const deliverables = await storage.getDeliverablesByProject(projectId);
+      res.json(deliverables);
+    } catch (error) {
+      console.error("Error fetching deliverables:", error);
+      res.status(500).json({ message: "Failed to fetch deliverables" });
+    }
+  });
+
+  // Mentor routes
+  app.get('/api/mentors', isAuthenticated, async (req: any, res) => {
+    try {
+      const mentors = await storage.getMentors();
+      res.json(mentors);
+    } catch (error) {
+      console.error("Error fetching mentors:", error);
+      res.status(500).json({ message: "Failed to fetch mentors" });
+    }
+  });
+
+  // Investor routes
+  app.get('/api/investors', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user has appropriate permissions
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || !['administrator', 'investor', 'participant'].includes(user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      const investors = await storage.getInvestors();
+      res.json(investors);
+    } catch (error) {
+      console.error("Error fetching investors:", error);
+      res.status(500).json({ message: "Failed to fetch investors" });
+    }
+  });
+
+  // AI Coach routes
+  app.post('/api/ai-coach/chat', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { messages, mode = "process_guide", conversationId } = req.body;
+      
+      const user = await storage.getUser(userId);
+      const response = await aiCoachService.generateResponse(
+        messages, 
+        mode, 
+        user?.role || "participant",
+        user?.locale || "en"
+      );
+      
+      // Update or create conversation
+      if (conversationId) {
+        await storage.updateAiConversation(conversationId, messages);
+      } else {
+        await storage.createAiConversation({
+          userId,
+          title: messages[0]?.content?.substring(0, 50) || "New conversation",
+          mode,
+          messages
+        });
+      }
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error in AI Coach chat:", error);
+      res.status(500).json({ message: "Failed to process AI Coach request" });
+    }
+  });
+
+  app.get('/api/ai-coach/conversations', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const conversations = await storage.getAiConversations(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching AI conversations:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  app.post('/api/ai-coach/analyze-project', isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectId } = req.body;
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check permissions
+      const userId = req.user.claims.sub;
+      if (project.ownerId !== userId) {
+        const user = await storage.getUser(userId);
+        if (!user || !['administrator', 'mentor'].includes(user.role)) {
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+      }
+      
+      const analysis = await aiCoachService.analyzeProject(project);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing project:", error);
+      res.status(500).json({ message: "Failed to analyze project" });
+    }
+  });
+
+  // Object storage routes for file uploads
+  app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  app.post("/api/objects/upload", isAuthenticated, async (req: any, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ error: "Failed to get upload URL" });
+    }
+  });
+
+  app.put("/api/documents", isAuthenticated, async (req: any, res) => {
+    if (!req.body.documentURL) {
+      return res.status(400).json({ error: "documentURL is required" });
+    }
+
+    const userId = req.user?.claims?.sub;
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.documentURL,
+        {
+          owner: userId,
+          visibility: "private", // Documents are private by default
+        },
+      );
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting document ACL:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Search routes
+  app.get('/api/search/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const { q: query, role } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Query parameter required" });
+      }
+      
+      const users = await storage.searchUsers(query, role);
+      res.json(users);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Failed to search users" });
+    }
+  });
+
+  app.get('/api/search/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const { q: query } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Query parameter required" });
+      }
+      
+      const projects = await storage.searchProjects(query);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error searching projects:", error);
+      res.status(500).json({ message: "Failed to search projects" });
+    }
+  });
+
+  // Message routes
+  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const messageData = insertMessageSchema.parse({
+        ...req.body,
+        senderId: userId
+      });
+      
+      const message = await storage.createMessage(messageData);
+      res.json(message);
+    } catch (error) {
+      console.error("Error creating message:", error);
+      res.status(400).json({ message: "Failed to create message" });
+    }
+  });
+
+  app.get('/api/messages/thread/:threadId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { threadId } = req.params;
+      const messages = await storage.getMessagesByThread(threadId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
