@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import type { Module, Lesson, Milestone, UserProgress } from "@shared/schema";
 import {
   BookOpen,
   PlayCircle,
@@ -21,101 +24,71 @@ import {
   Lightbulb
 } from "lucide-react";
 
-interface Module {
-  id: string;
-  title: string;
-  description: string;
-  week: number;
-  objectives: string[];
-  resources: string[];
-  orderIndex: number;
-  lessons?: Lesson[];
-}
-
-interface Lesson {
-  id: string;
-  title: string;
-  content: string;
-  media: string[];
-  prerequisites: string[];
-  orderIndex: number;
-  completed?: boolean;
-}
-
-interface Milestone {
-  id: string;
-  title: string;
-  description: string;
-  criteria: string[];
-  requiredArtifacts: string[];
-  dueDate: string;
-  orderIndex: number;
-  completed?: boolean;
-}
-
 export default function CurriculumView() {
+  const { user } = useAuth();
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
-  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
-  // Fetch cohort data - using first active cohort for demo
-  const { data: cohorts = [] } = useQuery({
+  // Fetch cohort data - using first active cohort for user
+  const { data: cohorts = [] } = useQuery<any[]>({
     queryKey: ["/api/cohorts"],
   });
 
   const currentCohort = cohorts[0];
 
   // Fetch modules for current cohort
-  const { data: modules = [], isLoading: modulesLoading } = useQuery({
-    queryKey: ["/api/cohorts", currentCohort?.id, "modules"],
+  const { data: modules = [], isLoading: modulesLoading } = useQuery<Module[]>({
+    queryKey: [`/api/cohorts/${currentCohort?.id}/modules`],
     enabled: !!currentCohort?.id,
   });
 
   // Fetch milestones for current cohort
-  const { data: milestones = [] } = useQuery({
-    queryKey: ["/api/cohorts", currentCohort?.id, "milestones"],
+  const { data: milestones = [] } = useQuery<Milestone[]>({
+    queryKey: [`/api/cohorts/${currentCohort?.id}/milestones`],
     enabled: !!currentCohort?.id,
   });
 
-  // Mock lessons for modules (in real app, would fetch from API)
-  const moduleLessons: Record<string, Lesson[]> = {
-    [modules[0]?.id]: [
-      {
-        id: "1",
-        title: "Introduction to AI Entrepreneurship",
-        content: "Overview of AI startup landscape and opportunities",
-        media: ["intro-video.mp4", "slides.pdf"],
-        prerequisites: [],
-        orderIndex: 1,
-        completed: true
-      },
-      {
-        id: "2", 
-        title: "Problem Identification Framework",
-        content: "Systematic approach to identifying market problems suitable for AI solutions",
-        media: ["framework-video.mp4", "template.pdf"],
-        prerequisites: ["1"],
-        orderIndex: 2,
-        completed: false
-      }
-    ]
-  };
+  // Fetch lessons for selected module
+  const { data: lessons = [], isLoading: lessonsLoading } = useQuery<Lesson[]>({
+    queryKey: ['/api/modules', selectedModule, 'lessons'],
+    enabled: !!selectedModule,
+  });
 
-  const toggleLessonComplete = (lessonId: string) => {
-    const newCompleted = new Set(completedLessons);
-    if (newCompleted.has(lessonId)) {
-      newCompleted.delete(lessonId);
-    } else {
-      newCompleted.add(lessonId);
+  // Fetch user progress for current module lessons
+  const { data: userProgress = [], isLoading: progressLoading } = useQuery<UserProgress[]>({
+    queryKey: ['/api/progress/module', selectedModule],
+    enabled: !!selectedModule,
+  });
+
+  // Create progress map for easy lookup
+  const progressMap = new Map(userProgress.map(p => [p.lessonId, p]));
+
+  // Mutation to mark lesson complete
+  const markCompleteMutation = useMutation({
+    mutationFn: async ({ lessonId, score }: { lessonId: string; score?: number }) => {
+      return apiRequest('POST', `/api/progress/lesson/${lessonId}/complete`, { score, timeSpent: 0 });
+    },
+    onSuccess: () => {
+      // Invalidate progress queries
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/module', selectedModule] });
+    },
+    onError: (error) => {
+      console.error('Failed to mark lesson complete:', error);
+      // Could show toast notification here
     }
-    setCompletedLessons(newCompleted);
+  });
+
+  const toggleLessonComplete = async (lessonId: string) => {
+    const progress = progressMap.get(lessonId);
+    if (!progress?.isCompleted) {
+      await markCompleteMutation.mutateAsync({ lessonId });
+    }
   };
 
   const getCompletionPercentage = () => {
-    if (!modules.length) return 0;
-    const totalLessons = modules.reduce((acc, module) => 
-      acc + (moduleLessons[module.id]?.length || 0), 0);
-    if (totalLessons === 0) return 0;
-    return Math.round((completedLessons.size / totalLessons) * 100);
+    if (!userProgress.length) return 0;
+    const completedCount = userProgress.filter(p => p.isCompleted).length;
+    return Math.round((completedCount / userProgress.length) * 100);
   };
 
   const getCurrentWeekModules = () => {
@@ -128,6 +101,25 @@ export default function CurriculumView() {
       return dueWeek === selectedWeek;
     });
   };
+
+  // Set selected module when week changes
+  const handleWeekChange = (week: number) => {
+    setSelectedWeek(week);
+    const weekModules = modules.filter((module: Module) => module.week === week);
+    if (weekModules.length > 0) {
+      setSelectedModule(weekModules[0].id);
+    }
+  };
+
+  // Auto-select first module on initial load
+  useEffect(() => {
+    if (modules.length > 0 && !selectedModule) {
+      const weekModules = modules.filter((module: Module) => module.week === selectedWeek);
+      if (weekModules.length > 0) {
+        setSelectedModule(weekModules[0].id);
+      }
+    }
+  }, [modules, selectedModule, selectedWeek]);
 
   if (modulesLoading) {
     return (
@@ -171,13 +163,13 @@ export default function CurriculumView() {
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-accent" data-testid="stat-lessons">
-                  {Object.values(moduleLessons).reduce((acc, lessons) => acc + lessons.length, 0)}
+                  {lessons.length}
                 </p>
                 <p className="text-sm text-muted-foreground">Lessons</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-400" data-testid="stat-completed">
-                  {completedLessons.size}
+                  {userProgress.filter(p => p.isCompleted).length}
                 </p>
                 <p className="text-sm text-muted-foreground">Completed</p>
               </div>
@@ -206,7 +198,7 @@ export default function CurriculumView() {
                 key={week}
                 variant={selectedWeek === week ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedWeek(week)}
+                onClick={() => handleWeekChange(week)}
                 className={selectedWeek === week ? "bg-primary" : ""}
                 data-testid={`button-week-${week}`}
               >
@@ -267,24 +259,36 @@ export default function CurriculumView() {
                     {/* Lessons */}
                     <Accordion type="single" collapsible>
                       <AccordionItem value="lessons">
-                        <AccordionTrigger className="text-sm font-semibold">
-                          Lessons ({moduleLessons[module.id]?.length || 0})
+                        <AccordionTrigger 
+                          className="text-sm font-semibold"
+                          onClick={() => setSelectedModule(module.id)}
+                        >
+                          Lessons ({selectedModule === module.id ? lessons.length : 0})
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-3">
-                            {moduleLessons[module.id]?.map((lesson) => (
-                              <div key={lesson.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            {selectedModule === module.id && (lessonsLoading || progressLoading) ? (
+                              <div className="space-y-2">
+                                {[1, 2].map((i) => (
+                                  <div key={i} className="h-16 bg-secondary/30 rounded-lg animate-pulse"></div>
+                                ))}
+                              </div>
+                            ) : selectedModule === module.id && lessons.map((lesson) => {
+                              const progress = progressMap.get(lesson.id);
+                              return (
+                                <div key={lesson.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                                 <div className="flex items-center space-x-3">
                                   <button
                                     onClick={() => toggleLessonComplete(lesson.id)}
                                     className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                      completedLessons.has(lesson.id) || lesson.completed
+                                      progress?.isCompleted
                                         ? 'bg-green-400 text-green-900' 
                                         : 'bg-secondary border border-border'
                                     }`}
                                     data-testid={`button-complete-lesson-${lesson.id}`}
+                                    disabled={markCompleteMutation.isPending}
                                   >
-                                    {(completedLessons.has(lesson.id) || lesson.completed) && (
+                                    {progress?.isCompleted && (
                                       <CheckCircle className="w-4 h-4" />
                                     )}
                                   </button>
@@ -299,13 +303,13 @@ export default function CurriculumView() {
                                 </div>
                                 
                                 <div className="flex items-center space-x-2">
-                                  {lesson.media?.includes('.mp4') && (
+                                  {lesson.media?.some(m => m.includes('.mp4')) && (
                                     <Button size="sm" variant="outline" data-testid={`button-play-${lesson.id}`}>
                                       <PlayCircle className="w-3 h-3 mr-1" />
                                       Play
                                     </Button>
                                   )}
-                                  {lesson.media?.includes('.pdf') && (
+                                  {lesson.media?.some(m => m.includes('.pdf')) && (
                                     <Button size="sm" variant="outline" data-testid={`button-download-${lesson.id}`}>
                                       <Download className="w-3 h-3 mr-1" />
                                       PDF
@@ -313,7 +317,8 @@ export default function CurriculumView() {
                                   )}
                                 </div>
                               </div>
-                            ))}
+                            );
+                            })}
                           </div>
                         </AccordionContent>
                       </AccordionItem>
@@ -361,14 +366,8 @@ export default function CurriculumView() {
                     <Card key={milestone.id} className="bg-secondary/30">
                       <CardContent className="p-4">
                         <div className="flex items-start space-x-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            milestone.completed ? 'bg-green-400/20' : 'bg-yellow-400/20'
-                          }`}>
-                            {milestone.completed ? (
-                              <CheckCircle className="w-4 h-4 text-green-400" />
-                            ) : (
-                              <Clock className="w-4 h-4 text-yellow-400" />
-                            )}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-yellow-400/20`}>
+                            <Clock className="w-4 h-4 text-yellow-400" />
                           </div>
                           <div className="flex-1">
                             <p className="font-medium text-sm" data-testid={`milestone-title-${milestone.id}`}>
