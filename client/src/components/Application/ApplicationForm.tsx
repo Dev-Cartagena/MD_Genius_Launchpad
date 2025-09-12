@@ -245,7 +245,19 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   };
 
   const onSubmit = (data: ApplicationFormData) => {
+    console.log("Form submission triggered", data);
+    console.log("Form errors:", form.formState.errors);
     submitApplication.mutate(data);
+  };
+
+  // Debug form validation errors
+  const handleFormError = (errors: any) => {
+    console.log("Form validation errors:", errors);
+    toast({
+      title: "Form Validation Error",
+      description: "Please check all required fields are filled correctly.",
+      variant: "destructive",
+    });
   };
 
   const progress = (currentStep / totalSteps) * 100;
@@ -266,7 +278,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
       </Card>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit, handleFormError)} className="space-y-6">
           {/* Step 1: Personal Information */}
           {currentStep === 1 && (
             <Card className="glass-card">
