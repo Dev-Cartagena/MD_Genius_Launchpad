@@ -16,6 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import type { Project, Deliverable } from "@shared/schema";
 import {
   Lightbulb,
   Users,
@@ -77,13 +78,13 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const queryClient = useQueryClient();
 
   // Fetch user's projects
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects/my"],
   });
 
   // Fetch deliverables for current project
   const currentProject = projects[0] || null;
-  const { data: deliverables = [] } = useQuery({
+  const { data: deliverables = [] } = useQuery<Deliverable[]>({
     queryKey: ["/api/projects", currentProject?.id, "deliverables"],
     enabled: !!currentProject?.id,
   });
@@ -187,21 +188,55 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     }
   };
 
-  const handleUploadComplete = (result: any, artifactType: string) => {
+  const handleUploadComplete = async (result: any, artifactType: string) => {
     if (result.successful && result.successful.length > 0) {
       const uploadedFile = result.successful[0];
       const fileUrl = uploadedFile.uploadURL;
+      const fileName = uploadedFile.name || `${artifactType}_document`;
       
       setUploadedArtifacts(prev => [...prev, { 
         type: artifactType, 
         url: fileUrl,
-        name: uploadedFile.name || `${artifactType}_document`
+        name: fileName
       }]);
       
-      toast({
-        title: "Artifact uploaded successfully!",
-        description: `${artifactType} has been uploaded to your project.`,
-      });
+      // Persist artifact to database
+      if (currentProject) {
+        try {
+          await apiRequest(`/api/projects/${currentProject.id}/artifacts`, {
+            method: 'POST',
+            body: JSON.stringify({
+              type: artifactType,
+              title: fileName,
+              fileRef: fileUrl,
+              version: 1,
+              isGated: false
+            })
+          });
+          
+          // Invalidate cache to refresh deliverables
+          queryClient.invalidateQueries({ 
+            queryKey: ['/api/projects', currentProject.id, 'deliverables'] 
+          });
+          
+          toast({
+            title: "Artifact uploaded successfully!",
+            description: `${artifactType} has been uploaded and saved to your project.`,
+          });
+        } catch (error) {
+          console.error('Failed to save artifact:', error);
+          toast({
+            title: "Upload successful, but save failed",
+            description: "File was uploaded but couldn't be saved to the project. Please try again.",
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Artifact uploaded successfully!",
+          description: `${artifactType} has been uploaded to your project.`,
+        });
+      }
     }
   };
 
@@ -552,7 +587,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
               <div>
                 <h4 className="font-semibold text-sm mb-2">AI Components</h4>
                 <div className="flex flex-wrap gap-1">
-                  {currentProject.aiComponents?.map((component, index) => (
+                  {currentProject.aiComponents?.map((component: string, index: number) => (
                     <Badge key={index} variant="outline" className="text-xs">
                       {component}
                     </Badge>

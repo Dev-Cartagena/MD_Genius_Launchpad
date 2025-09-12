@@ -553,6 +553,11 @@ export const insertUserProgressSchema = createInsertSchema(userProgress).omit({
   updatedAt: true,
 });
 
+export const insertArtifactSchema = createInsertSchema(artifacts).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -579,3 +584,5 @@ export type InvestorInterest = typeof investorInterests.$inferSelect;
 export type DisbursementRequest = typeof disbursementRequests.$inferSelect;
 export type Score = typeof scores.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Artifact = typeof artifacts.$inferSelect;
+export type InsertArtifact = z.infer<typeof insertArtifactSchema>;

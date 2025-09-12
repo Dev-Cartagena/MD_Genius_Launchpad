@@ -7,6 +7,7 @@ import {
   lessons,
   milestones,
   deliverables,
+  artifacts,
   userProgress,
   mentorProfiles,
   mentorSessions,
@@ -31,6 +32,8 @@ import {
   type Milestone,
   type Deliverable,
   type InsertDeliverable,
+  type Artifact,
+  type InsertArtifact,
   type UserProgress,
   type InsertUserProgress,
   type Message,
@@ -80,6 +83,9 @@ export interface IStorage {
   createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable>;
   getDeliverablesByProject(projectId: string): Promise<Deliverable[]>;
   updateDeliverableStatus(id: string, status: any, feedback?: any): Promise<Deliverable>;
+  
+  // Artifact operations
+  createArtifact(artifact: InsertArtifact): Promise<Artifact>;
   
   // Mentor operations
   getMentors(): Promise<User[]>;
@@ -348,6 +354,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(deliverables.id, id))
       .returning();
     return updatedDeliverable;
+  }
+
+  // Artifact operations
+  async createArtifact(artifact: InsertArtifact): Promise<Artifact> {
+    const [newArtifact] = await db
+      .insert(artifacts)
+      .values(artifact)
+      .returning();
+    return newArtifact;
   }
 
   // Mentor operations

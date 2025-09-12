@@ -130,6 +130,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check role authorization
+      if (!user || !['participant', 'administrator'].includes(user.role)) {
+        return res.status(403).json({ message: "Only participants and administrators can create projects" });
+      }
+      
       const projectData = insertProjectSchema.parse({
         ...req.body,
         ownerId: userId
@@ -170,7 +177,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
-      const updatedProject = await storage.updateProject(id, req.body);
+      // Validate update data with schema (excluding auto-managed fields)
+      const updateSchema = insertProjectSchema.omit({ ownerId: true }).partial();
+      const validatedData = updateSchema.parse(req.body);
+      
+      const updatedProject = await storage.updateProject(id, validatedData);
       res.json(updatedProject);
     } catch (error) {
       console.error("Error updating project:", error);
@@ -333,6 +344,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching deliverables:", error);
       res.status(500).json({ message: "Failed to fetch deliverables" });
+    }
+  });
+
+  app.post('/api/projects/:projectId/artifacts', isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Check project ownership
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (project.ownerId !== userId && user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      // Validate artifact data
+      const artifactSchema = z.object({
+        type: z.string().min(1),
+        title: z.string().min(1),
+        fileRef: z.string().min(1),
+        version: z.number().int().positive().optional().default(1),
+        isGated: z.boolean().optional().default(false),
+      });
+      
+      const artifactData = artifactSchema.parse(req.body);
+      const artifact = await storage.createArtifact({
+        ...artifactData,
+        projectId
+      });
+      
+      res.json(artifact);
+    } catch (error) {
+      console.error("Error creating artifact:", error);
+      res.status(400).json({ message: "Failed to create artifact" });
+    }
+  });
+
+  app.patch('/api/projects/:id/stage', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { stage } = req.body;
+      
+      // Validate stage
+      const validStages = ['ideation', 'validation', 'mvp_build', 'pilot_traction', 'pitch_ready'];
+      if (!validStages.includes(stage)) {
+        return res.status(400).json({ message: "Invalid project stage" });
+      }
+      
+      const project = await storage.getProject(id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check ownership or admin permissions
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (project.ownerId !== userId && user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      const updatedProject = await storage.updateProject(id, { stage });
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error updating project stage:", error);
+      res.status(500).json({ message: "Failed to update project stage" });
     }
   });
 
