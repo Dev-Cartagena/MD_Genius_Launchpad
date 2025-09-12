@@ -142,11 +142,17 @@ export class DatabaseStorage implements IStorage {
 
   async updateApplicationStatus(id: string, status: any, reviewerNotes?: string): Promise<Application> {
     const updateData: any = { status, updatedAt: new Date() };
+    
     if (reviewerNotes) {
-      // Add to existing reviewer notes array
-      updateData.reviewerNotes = db.select({ notes: applications.reviewerNotes }).from(applications).where(eq(applications.id, id)).then(result => 
-        [...(result[0]?.notes || []), reviewerNotes]
-      );
+      // First fetch current application to get existing reviewer notes
+      const [currentApp] = await db
+        .select({ reviewerNotes: applications.reviewerNotes })
+        .from(applications)
+        .where(eq(applications.id, id));
+      
+      // Add new note to existing reviewer notes array
+      const existingNotes = currentApp?.reviewerNotes || [];
+      updateData.reviewerNotes = [...existingNotes, reviewerNotes];
     }
     
     const [updatedApplication] = await db
