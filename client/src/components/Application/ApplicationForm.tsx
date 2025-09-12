@@ -175,6 +175,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
         description: "Thank you for applying. You'll receive a confirmation email shortly.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/applications/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       onComplete?.();
     },
     onError: (error) => {

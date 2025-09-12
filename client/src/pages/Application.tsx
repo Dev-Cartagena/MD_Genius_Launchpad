@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ const statusConfig = {
 
 export default function Application() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   // Fetch user's applications
   const { data: applications = [], isLoading } = useQuery({
@@ -355,7 +357,7 @@ export default function Application() {
         )}
 
         {/* Application Form */}
-        <ApplicationForm onComplete={() => window.location.reload()} />
+        <ApplicationForm onComplete={() => navigate('/dashboard?submitted=true')} />
       </div>
     </div>
   );

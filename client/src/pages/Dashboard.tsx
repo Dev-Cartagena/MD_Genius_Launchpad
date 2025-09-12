@@ -1,14 +1,28 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/Layout/AppLayout";
 import ParticipantDashboard from "@/components/Dashboard/ParticipantDashboard";
 import MentorDashboard from "@/components/Dashboard/MentorDashboard";
 import InvestorDashboard from "@/components/Dashboard/InvestorDashboard";
 import AdminDashboard from "@/components/Dashboard/AdminDashboard";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, CheckCircle } from "lucide-react";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
+  const [showSubmissionSuccess, setShowSubmissionSuccess] = useState(false);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.split('?')[1]);
+    if (searchParams.get('submitted') === 'true') {
+      setShowSubmissionSuccess(true);
+      // Clear the URL parameter after showing the message
+      window.history.replaceState({}, document.title, '/dashboard');
+    }
+  }, [location]);
 
   if (isLoading) {
     return (
@@ -38,6 +52,27 @@ export default function Dashboard() {
         return <InvestorDashboard />;
       case 'administrator':
         return <AdminDashboard />;
+      case 'applicant':
+        return (
+          <Card className="glass-card">
+            <CardContent className="p-8 text-center">
+              <CheckCircle className="w-12 h-12 mx-auto text-green-600 mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Application Under Review</h3>
+              <p className="text-muted-foreground mb-4">
+                Your application has been submitted and is currently under review by our admissions team.
+              </p>
+              <div className="text-left bg-secondary/30 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">What happens next:</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Our team will review your application within 5-7 business days</li>
+                  <li>• You'll receive an email notification with the decision</li>
+                  <li>• If accepted, you'll get access to the full participant dashboard</li>
+                  <li>• Check your email regularly for updates</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        );
       default:
         return (
           <Card className="glass-card">
@@ -64,6 +99,8 @@ export default function Dashboard() {
         return "Investor Dashboard";
       case 'administrator':
         return "Admin Dashboard";
+      case 'applicant':
+        return "Application Status";
       default:
         return "Dashboard";
     }
@@ -80,6 +117,8 @@ export default function Dashboard() {
         return `Welcome back${name}! Discover promising AI startups.`;
       case 'administrator':
         return `Welcome back${name}! Manage the launchpad platform.`;
+      case 'applicant':
+        return `Thank you${name} for applying to MD Genius AI Launchpad`;
       default:
         return `Welcome back${name}!`;
     }
@@ -90,6 +129,17 @@ export default function Dashboard() {
       title={getDashboardTitle()} 
       subtitle={getDashboardSubtitle()}
     >
+      {showSubmissionSuccess && (
+        <Alert className="mb-6 border-green-500 bg-green-500/10">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Application Successfully Submitted!</AlertTitle>
+          <AlertDescription className="text-green-700">
+            Thank you for applying to MD Genius AI Launchpad 2025 Q1 cohort. 
+            We've received your application and you'll receive a confirmation email shortly. 
+            Our team will review your application and get back to you within 5-7 business days.
+          </AlertDescription>
+        </Alert>
+      )}
       {getDashboardContent()}
     </AppLayout>
   );
