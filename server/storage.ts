@@ -47,12 +47,14 @@ import { eq, and, desc, asc, ilike, or } from "drizzle-orm";
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   
   // Application operations
   createApplication(application: InsertApplication): Promise<Application>;
   getApplication(id: string): Promise<Application | undefined>;
   getApplicationsByUser(userId: string): Promise<Application[]>;
+  getAllApplications(): Promise<Application[]>;
   updateApplicationStatus(id: string, status: any, reviewerNotes?: string): Promise<Application>;
   
   // Project operations
@@ -60,6 +62,7 @@ export interface IStorage {
   getProject(id: string): Promise<Project | undefined>;
   getProjectsByUser(userId: string): Promise<Project[]>;
   getProjectsByCohort(cohortId: string): Promise<Project[]>;
+  getAllProjects(): Promise<Project[]>;
   updateProject(id: string, data: Partial<Project>): Promise<Project>;
   
   // Cohort operations
@@ -131,6 +134,13 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .orderBy(asc(users.createdAt));
+  }
+
   // Application operations
   async createApplication(application: InsertApplication): Promise<Application> {
     const [newApplication] = await db
@@ -153,6 +163,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(applications)
       .where(eq(applications.userId, userId))
+      .orderBy(desc(applications.createdAt));
+  }
+
+  async getAllApplications(): Promise<Application[]> {
+    return await db
+      .select()
+      .from(applications)
       .orderBy(desc(applications.createdAt));
   }
 
@@ -219,6 +236,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(projects.id, id))
       .returning();
     return updatedProject;
+  }
+
+  async getAllProjects(): Promise<Project[]> {
+    return await db
+      .select()
+      .from(projects)
+      .orderBy(desc(projects.createdAt));
   }
 
   // Cohort operations
