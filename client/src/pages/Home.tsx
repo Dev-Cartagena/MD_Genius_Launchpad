@@ -18,6 +18,14 @@ export default function Home() {
   const quickActions = [
     {
       icon: FileText,
+      title: "Apply to Accelerator",
+      description: "Start your startup application for Q4 2024",
+      href: "/apply",
+      color: "primary",
+      show: user?.role === "public_visitor"
+    },
+    {
+      icon: FileText,
       title: "Continue Application",
       description: "Complete your startup application",
       href: "/apply",
