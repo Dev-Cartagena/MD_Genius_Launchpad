@@ -29,6 +29,7 @@ import {
   AlertCircle,
   FileText
 } from "lucide-react";
+import type { Cohort } from "@shared/schema";
 
 const applicationSchema = z.object({
   // Personal Information
@@ -89,7 +90,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   const queryClient = useQueryClient();
 
   // Fetch available cohorts
-  const { data: cohorts = [] } = useQuery({
+  const { data: cohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
   });
 

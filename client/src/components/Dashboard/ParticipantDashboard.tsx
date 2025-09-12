@@ -19,12 +19,13 @@ import {
   Target
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import type { Project } from "@shared/schema";
 
 export default function ParticipantDashboard() {
   const { user } = useAuth();
 
   // Fetch user projects
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects/my"],
   });
 
@@ -195,7 +196,7 @@ export default function ParticipantDashboard() {
                     strokeWidth="8" 
                     fill="none" 
                     strokeDasharray="251.2" 
-                    strokeDashoffset={251.2 - (251.2 * currentProject.readinessScore / 100)} 
+                    strokeDashoffset={251.2 - (251.2 * (currentProject.readinessScore || 0) / 100)} 
                     strokeLinecap="round"
                   />
                   <defs>
@@ -207,7 +208,7 @@ export default function ParticipantDashboard() {
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-2xl font-bold" data-testid="readiness-score">
-                    {currentProject.readinessScore}
+                    {currentProject.readinessScore || 0}
                   </span>
                 </div>
               </div>
