@@ -97,11 +97,41 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
+      // Personal Information
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      location: "",
+      timezone: "",
+      
+      // Education & Experience
+      education: "",
+      experience: "",
       skills: [],
+      
+      // Project & Idea
       hasIdea: false,
+      ideaDescription: "",
+      problemStatement: "",
+      targetMarket: "",
+      
+      // Availability & Commitment
       availability: "full-time",
+      commitmentReason: "",
+      
+      // Documents
+      resumeUrl: "",
+      portfolioUrl: "",
+      githubUrl: "",
+      linkedinUrl: "",
+      
+      // Agreements
       termsAccepted: false,
       privacyAccepted: false,
+      
+      // Cohort selection
+      cohortId: "",
     },
   });
 
