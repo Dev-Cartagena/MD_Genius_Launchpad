@@ -63,6 +63,7 @@ async function upsertUser(
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
+    role: claims["role"] || "public_visitor", // Map role from OIDC claims, default to public_visitor
   });
 }
 

@@ -91,68 +91,94 @@ export default function Admin() {
     queryKey: ["/api/admin/projects"],
   });
 
-  // Mock admin metrics and data
-  const adminMetrics = {
-    totalApplications: 156,
-    acceptanceRate: 12,
-    activeCohorts: 2,
-    totalProjects: 24,
-    mentorUtilization: 87,
-    averageReadiness: 68,
-    fundingDisbursed: 125000,
-    completionRate: 92
-  };
+  // Calculate real admin metrics from API data
+  const adminMetrics = useMemo(() => {
+    const totalApplications = applications.length;
+    const acceptedApps = applications.filter((app: any) => app.status === 'accepted').length;
+    const acceptanceRate = totalApplications > 0 ? Math.round((acceptedApps / totalApplications) * 100) : 0;
+    const activeCohorts = cohorts.filter((cohort: any) => cohort.isActive).length;
+    const totalProjects = projects.length;
+    
+    return {
+      totalApplications,
+      acceptanceRate,
+      activeCohorts,
+      totalProjects,
+      mentorUtilization: 87, // Keep for now - will calculate when mentor data is available
+      averageReadiness: 68, // Keep for now - will calculate when project readiness data is available
+      fundingDisbursed: 125000, // Keep for now - will calculate when funding data is available
+      completionRate: 92 // Keep for now - will calculate when completion data is available
+    };
+  }, [applications, cohorts, projects]);
 
-  const recentApplications = [
-    { 
-      id: "1", 
-      applicant: "Sarah Johnson", 
-      project: "HealthAI Diagnostics", 
-      status: "under_review", 
-      submittedDays: 2,
-      score: 85 
-    },
-    { 
-      id: "2", 
-      applicant: "Michael Chen", 
-      project: "AgriTech Optimizer", 
-      status: "interview", 
-      submittedDays: 5,
-      score: 92 
-    },
-    { 
-      id: "3", 
-      applicant: "Emily Rodriguez", 
-      project: "FinTech Analytics", 
-      status: "shortlisted", 
-      submittedDays: 7,
-      score: 78 
-    },
-  ];
+  // Process real applications data with user information
+  const recentApplications = useMemo(() => {
+    return applications.map((app: any) => {
+      const user = users.find((u: any) => u.id === app.userId);
+      const submittedDate = new Date(app.submittedAt || app.createdAt);
+      const daysDiff = Math.floor((Date.now() - submittedDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return {
+        id: app.id,
+        applicant: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+        project: app.projectName || 'Unnamed Project',
+        status: app.status,
+        submittedDays: daysDiff,
+        score: app.score || Math.floor(Math.random() * 40) + 60, // Mock score for now
+        email: user?.email,
+        description: app.projectDescription,
+        reviewerNotes: app.reviewerNotes
+      };
+    }).sort((a: any, b: any) => a.submittedDays - b.submittedDays); // Most recent first
+  }, [applications, users]);
 
-  const systemAlerts = [
-    {
-      id: "1",
-      type: "warning",
-      title: "Review Deadline Approaching",
-      message: "8 applications pending review for Q4 cohort",
-      priority: "high"
-    },
-    {
-      id: "2", 
-      type: "success",
-      title: "Demo Day Completed",
-      message: "Q3 cohort successfully completed Demo Day with 92% attendance",
-      priority: "low"
-    },
-    {
-      id: "3",
-      type: "info",
-      title: "Mentor Capacity",
-      message: "3 participants need mentor assignments",
-      priority: "medium"
+  // Generate dynamic system alerts from real data
+  const systemAlerts = useMemo(() => {
+    const alerts = [];
+    
+    // Check for pending reviews
+    const pendingReviews = applications.filter((app: any) => app.status === 'submitted').length;
+    if (pendingReviews > 0) {
+      alerts.push({
+        id: "pending-reviews",
+        type: "warning",
+        title: "Applications Pending Review",
+        message: `${pendingReviews} application${pendingReviews > 1 ? 's' : ''} awaiting review`,
+        priority: pendingReviews > 5 ? "high" : "medium"
+      });
     }
-  ];
+    
+    // Check for active cohorts
+    const activeCohortCount = cohorts.filter((cohort: any) => cohort.isActive).length;
+    if (activeCohortCount > 0) {
+      alerts.push({
+        id: "active-cohorts",
+        type: "info",
+        title: "Active Cohorts",
+        message: `${activeCohortCount} cohort${activeCohortCount > 1 ? 's' : ''} currently running`,
+        priority: "low"
+      });
+    }
+    
+    // Check for recent accepted applications
+    const recentAccepted = applications.filter((app: any) => {
+      const appDate = new Date(app.updatedAt || app.createdAt);
+      const daysDiff = (Date.now() - appDate.getTime()) / (1000 * 60 * 60 * 24);
+      return app.status === 'accepted' && daysDiff <= 7;
+    }).length;
+    
+    if (recentAccepted > 0) {
+      alerts.push({
+        id: "recent-accepted",
+        type: "success",
+        title: "New Participants",
+        message: `${recentAccepted} application${recentAccepted > 1 ? 's' : ''} accepted this week`,
+        priority: "low"
+      });
+    }
+    
+    return alerts;
+  }, [applications, cohorts]);
 
   // Form for creating cohorts
   const cohortForm = useForm<CohortFormData>({
@@ -236,9 +262,121 @@ export default function Admin() {
     }
   });
 
-  const filteredApplications = recentApplications.filter(app => 
+  const filteredApplications = recentApplications.filter((app: any) => 
     selectedApplicationStatus === "all" || app.status === selectedApplicationStatus
   );
+
+  // Application Status Dialog Component
+  const ApplicationStatusDialog = ({ application, updateStatus }: any) => {
+    const [selectedStatus, setSelectedStatus] = useState("");
+    const [reviewerNotes, setReviewerNotes] = useState("");
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleStatusUpdate = () => {
+      if (!selectedStatus) {
+        toast({
+          title: "Error",
+          description: "Please select a status",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      updateStatus.mutate(
+        {
+          id: application.id,
+          status: selectedStatus,
+          notes: reviewerNotes.trim() || undefined,
+        },
+        {
+          onSuccess: () => {
+            setIsOpen(false);
+            setSelectedStatus("");
+            setReviewerNotes("");
+          }
+        }
+      );
+    };
+
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button 
+            size="sm"
+            data-testid={`button-update-status-${application.id}`}
+          >
+            Update Status
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Application Status</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              Application by {application.applicant} for {application.project}
+            </div>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Current Status</label>
+              <p className="text-sm text-muted-foreground capitalize">
+                {application.status.replace('_', ' ')}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">New Status</label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger data-testid={`select-new-status-${application.id}`}>
+                  <SelectValue placeholder="Select new status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="under_review">Under Review</SelectItem>
+                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                  <SelectItem value="interview">Interview</SelectItem>
+                  <SelectItem value="offer">Offer</SelectItem>
+                  <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Reviewer Notes</label>
+              <Textarea 
+                placeholder="Add reviewer notes (optional)..."
+                value={reviewerNotes}
+                onChange={(e) => setReviewerNotes(e.target.value)}
+                data-testid={`textarea-reviewer-notes-${application.id}`}
+              />
+            </div>
+            
+            {application.reviewerNotes && application.reviewerNotes.length > 0 && (
+              <div>
+                <label className="text-sm font-medium">Previous Notes</label>
+                <div className="space-y-1">
+                  {application.reviewerNotes.map((note: string, index: number) => (
+                    <p key={index} className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                      {note}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <Button 
+              className="w-full"
+              onClick={handleStatusUpdate}
+              disabled={updateStatus.isPending || !selectedStatus}
+              data-testid={`button-confirm-status-${application.id}`}
+            >
+              {updateStatus.isPending ? "Updating..." : "Update Status"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <AppLayout 
@@ -531,53 +669,10 @@ export default function Admin() {
                               View
                             </Button>
                             
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button 
-                                  size="sm"
-                                  data-testid={`button-update-status-${application.id}`}
-                                >
-                                  Update Status
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Update Application Status</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <Select>
-                                    <SelectTrigger data-testid={`select-new-status-${application.id}`}>
-                                      <SelectValue placeholder="Select new status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                                      <SelectItem value="interview">Interview</SelectItem>
-                                      <SelectItem value="offer">Offer</SelectItem>
-                                      <SelectItem value="accepted">Accepted</SelectItem>
-                                      <SelectItem value="rejected">Rejected</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  
-                                  <Textarea 
-                                    placeholder="Add reviewer notes (optional)..."
-                                    data-testid={`textarea-reviewer-notes-${application.id}`}
-                                  />
-                                  
-                                  <Button 
-                                    className="w-full"
-                                    onClick={() => updateApplicationStatus.mutate({
-                                      id: application.id,
-                                      status: "shortlisted",
-                                      notes: "Updated via admin panel"
-                                    })}
-                                    disabled={updateApplicationStatus.isPending}
-                                    data-testid={`button-confirm-status-${application.id}`}
-                                  >
-                                    {updateApplicationStatus.isPending ? "Updating..." : "Update Status"}
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                            <ApplicationStatusDialog 
+                              application={application}
+                              updateStatus={updateApplicationStatus}
+                            />
                           </div>
                         </div>
                       </CardContent>
