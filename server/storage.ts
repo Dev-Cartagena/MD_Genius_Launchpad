@@ -292,9 +292,9 @@ export class DatabaseStorage implements IStorage {
   async getMentorSessions(mentorId: string): Promise<any[]> {
     return await db
       .select()
-      .from(sessions)
-      .where(eq(sessions.mentorId, mentorId))
-      .orderBy(desc(sessions.startTime));
+      .from(mentorSessions)
+      .where(eq(mentorSessions.mentorId, mentorId))
+      .orderBy(desc(mentorSessions.startTime));
   }
 
   // Investor operations
