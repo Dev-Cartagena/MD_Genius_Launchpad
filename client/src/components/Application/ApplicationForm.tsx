@@ -245,17 +245,37 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   };
 
   const onSubmit = (data: ApplicationFormData) => {
-    console.log("Form submission triggered", data);
-    console.log("Form errors:", form.formState.errors);
     submitApplication.mutate(data);
   };
 
-  // Debug form validation errors
+  // Show specific validation errors
   const handleFormError = (errors: any) => {
-    console.log("Form validation errors:", errors);
+    const errorMessages: string[] = [];
+    
+    // Check specific field errors and provide helpful messages
+    if (errors.firstName) errorMessages.push("First name is required");
+    if (errors.lastName) errorMessages.push("Last name is required");
+    if (errors.email) errorMessages.push("Valid email address is required");
+    if (errors.education) errorMessages.push("Education background must be at least 10 characters");
+    if (errors.experience) errorMessages.push("Professional experience must be at least 10 characters");
+    if (errors.skills) errorMessages.push("Please select at least 3 skills");
+    if (errors.commitmentReason) errorMessages.push("Commitment explanation must be at least 50 characters");
+    if (errors.termsAccepted) errorMessages.push("You must accept the Terms and Conditions");
+    if (errors.privacyAccepted) errorMessages.push("You must accept the Privacy Policy");
+    if (errors.cohortId) errorMessages.push("Please select a cohort");
+    
+    // Handle idea validation
+    if (errors.ideaDescription || errors.problemStatement || errors.targetMarket) {
+      errorMessages.push("If you have an idea, please fill in all idea-related fields");
+    }
+    
+    const message = errorMessages.length > 0 
+      ? errorMessages.join(" • ") 
+      : "Please check all required fields are filled correctly.";
+    
     toast({
-      title: "Form Validation Error",
-      description: "Please check all required fields are filled correctly.",
+      title: "Please Complete Required Fields",
+      description: message,
       variant: "destructive",
     });
   };
@@ -439,6 +459,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           data-testid="textarea-education"
                         />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Minimum 10 characters required ({field.value?.length || 0}/10)
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -458,6 +481,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           data-testid="textarea-experience"
                         />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Minimum 10 characters required ({field.value?.length || 0}/10)
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -676,6 +702,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           data-testid="textarea-commitment-reason"
                         />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Minimum 50 characters required ({field.value?.length || 0}/50)
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
