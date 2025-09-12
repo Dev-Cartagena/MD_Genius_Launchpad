@@ -616,7 +616,7 @@ export default function Admin() {
                                 <FormControl>
                                   <Input 
                                     {...field} 
-                                    placeholder="e.g., 2024 Q4 Cohort"
+                                    placeholder="e.g., 2025 Q1 Cohort"
                                     data-testid="input-cohort-name"
                                   />
                                 </FormControl>

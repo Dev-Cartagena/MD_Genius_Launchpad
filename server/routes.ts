@@ -52,6 +52,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/applications/submit', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Parse application data, excluding fields that should be set server-side
+      const applicationData = insertApplicationSchema.omit({ 
+        status: true, 
+        submittedAt: true, 
+        userId: true 
+      }).parse(req.body);
+      
+      // Set server-controlled fields
+      const submissionData = {
+        ...applicationData,
+        userId,
+        status: "submitted" as const,
+        submittedAt: new Date()
+      };
+      
+      const application = await storage.createApplication(submissionData);
+      
+      // Update user role to applicant after successful submission
+      const user = await storage.getUser(userId);
+      if (user && user.role === 'public_visitor') {
+        await storage.upsertUser({
+          ...user,
+          role: 'applicant'
+        });
+      }
+      
+      res.json(application);
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      res.status(400).json({ message: "Failed to submit application" });
+    }
+  });
+
   app.put('/api/applications/:id/status', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -64,6 +101,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const application = await storage.updateApplicationStatus(id, status, reviewerNotes);
+      
+      // Handle automatic role progression when application is accepted
+      if (status === 'accepted') {
+        try {
+          const applicantUser = await storage.getUser(application.userId);
+          if (applicantUser && applicantUser.role === 'applicant') {
+            await storage.upsertUser({
+              ...applicantUser,
+              role: 'participant'
+            });
+            console.log(`User role upgraded from applicant to participant for user ${application.userId} after application acceptance`);
+          }
+        } catch (roleUpdateError) {
+          // Log the error but don't fail the entire request
+          console.error(`Failed to update user role for accepted application ${id}:`, roleUpdateError);
+        }
+      }
+      
       res.json(application);
     } catch (error) {
       console.error("Error updating application status:", error);

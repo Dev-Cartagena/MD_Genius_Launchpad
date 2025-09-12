@@ -72,10 +72,10 @@ const applicationSchema = z.object({
 type ApplicationFormData = z.infer<typeof applicationSchema>;
 
 const skillOptions = [
-  "Machine Learning", "Deep Learning", "Computer Vision", "Natural Language Processing",
-  "Data Science", "Software Engineering", "Product Management", "UI/UX Design",
-  "Business Development", "Marketing", "Finance", "Operations", 
-  "Research", "Entrepreneurship", "Leadership", "Project Management"
+  "Artificial Intelligence", "AI Agents", "LLMs", "Machine Learning", "Deep Learning", 
+  "Computer Vision", "Natural Language Processing", "Data Science", "Software Engineering", 
+  "Product Management", "UI/UX Design", "Business Development", "Marketing", "Finance", 
+  "Operations", "Research", "Entrepreneurship", "Leadership", "Project Management"
 ];
 
 interface ApplicationFormProps {
@@ -107,7 +107,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
   const submitApplication = useMutation({
     mutationFn: async (data: ApplicationFormData) => {
-      const response = await apiRequest("POST", "/api/applications", {
+      const response = await apiRequest("POST", "/api/applications/submit", {
         ...data,
         answers: {
           personalInfo: {
@@ -651,11 +651,21 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {cohorts.map((cohort: any) => (
-                            <SelectItem key={cohort.id} value={cohort.id}>
-                              {cohort.name} - Starts {new Date(cohort.startDate).toLocaleDateString()}
-                            </SelectItem>
-                          ))}
+                          {cohorts.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              No active cohorts available
+                            </div>
+                          ) : (
+                            cohorts.map((cohort: any) => (
+                              <SelectItem 
+                                key={cohort.id} 
+                                value={cohort.id}
+                                data-testid={`select-item-cohort-${cohort.id}`}
+                              >
+                                {cohort.name} - Starts {new Date(cohort.startDate).toLocaleDateString()}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -785,7 +795,16 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           />
                           <div className="space-y-1">
                             <Label htmlFor="termsAccepted" className="text-sm font-medium">
-                              I agree to the Terms and Conditions
+                              I agree to the{" "}
+                              <a 
+                                href="/terms" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                                data-testid="link-terms"
+                              >
+                                Terms and Conditions
+                              </a>
                             </Label>
                             <p className="text-xs text-muted-foreground">
                               By checking this box, you agree to our program terms, intellectual property policies, and code of conduct.
@@ -811,7 +830,16 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           />
                           <div className="space-y-1">
                             <Label htmlFor="privacyAccepted" className="text-sm font-medium">
-                              I agree to the Privacy Policy
+                              I agree to the{" "}
+                              <a 
+                                href="/privacy" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                                data-testid="link-privacy"
+                              >
+                                Privacy Policy
+                              </a>
                             </Label>
                             <p className="text-xs text-muted-foreground">
                               We will handle your personal data in accordance with our privacy policy and applicable data protection laws.

@@ -81,7 +81,7 @@ export default function Landing() {
         <div className="relative max-w-6xl mx-auto text-center">
           <div className="mb-8">
             <Badge className="bg-primary/20 text-primary border-primary/30 mb-4" data-testid="hero-badge">
-              🚀 Applications Open for 2024 Q4 Cohort
+              🚀 Applications Open for 2025 Q1 Cohort
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gradient leading-tight">
               Launch Your AI Startup

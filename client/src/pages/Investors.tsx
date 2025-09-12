@@ -74,7 +74,7 @@ export default function Investors() {
       readinessScore: 85,
       teamSize: 3,
       location: "San Francisco",
-      founded: "2024",
+      founded: "2025",
       aiComponents: ["Machine Learning", "Predictive Analytics", "Computer Vision"],
       isPublic: true,
       hasNDA: false
@@ -546,14 +546,14 @@ export default function Investors() {
                     <Card className="bg-primary/10 border-primary/20">
                       <CardContent className="p-4">
                         <h4 className="font-semibold mb-2" data-testid="demo-day-title">
-                          Q4 2024 Demo Day
+                          Q1 2025 Demo Day
                         </h4>
                         <p className="text-sm text-muted-foreground mb-2">
                           12 startups presenting their AI innovations to top investors
                         </p>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-primary font-medium">
-                            December 15, 2024 • 2:00 PM PST
+                            March 15, 2025 • 2:00 PM PST
                           </span>
                           <Button size="sm" data-testid="button-register-demo-day">
                             Register
@@ -572,7 +572,7 @@ export default function Investors() {
                         </p>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-accent font-medium">
-                            November 20, 2024 • 6:00 PM PST
+                            February 20, 2025 • 6:00 PM PST
                           </span>
                           <Button size="sm" variant="outline" data-testid="button-register-showcase">
                             RSVP

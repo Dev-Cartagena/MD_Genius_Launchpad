@@ -19,7 +19,7 @@ export default function Home() {
     {
       icon: FileText,
       title: "Apply to Accelerator",
-      description: "Start your startup application for Q4 2024",
+      description: "Start your startup application for Q1 2025",
       href: "/apply",
       color: "primary",
       show: user?.role === "public_visitor"
@@ -77,24 +77,24 @@ export default function Home() {
   const announcements = [
     {
       id: 1,
-      title: "Q4 2024 Cohort Applications Open",
-      description: "Applications are now being accepted for our upcoming cohort starting in October.",
+      title: "Q1 2025 Cohort Applications Open",
+      description: "Applications are now being accepted for our upcoming cohort starting in January.",
       type: "info",
-      date: "2024-09-12"
+      date: "2025-09-12"
     },
     {
       id: 2,
       title: "New AI Ethics Workshop Available",
       description: "Learn about responsible AI development and ethical considerations in our latest workshop.",
       type: "update", 
-      date: "2024-09-10"
+      date: "2025-09-10"
     },
     {
       id: 3,
       title: "Demo Day Success Stories",
       description: "Congratulations to our Q2 cohort! 8 out of 12 startups secured funding after Demo Day.",
       type: "success",
-      date: "2024-09-08"
+      date: "2025-09-08"
     }
   ];
 
@@ -102,21 +102,21 @@ export default function Home() {
     {
       id: 1,
       title: "AI Startup Fundamentals Webinar",
-      date: "2024-09-20",
+      date: "2025-09-19",
       time: "2:00 PM PST",
       type: "webinar"
     },
     {
       id: 2,
       title: "Q3 Demo Day",
-      date: "2024-09-25",
+      date: "2025-09-24",
       time: "10:00 AM PST", 
       type: "demo_day"
     },
     {
       id: 3,
       title: "Mentor Office Hours",
-      date: "2024-09-22",
+      date: "2025-09-21",
       time: "3:00 PM PST",
       type: "office_hours"
     }

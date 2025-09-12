@@ -14,6 +14,8 @@ import Project from "@/pages/Project";
 import Mentors from "@/pages/Mentors";
 import Investors from "@/pages/Investors";
 import Admin from "@/pages/Admin";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -36,6 +38,8 @@ function Router() {
         <>
           <Route path="/" component={Landing} />
           <Route path="/apply" component={Application} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/privacy" component={Privacy} />
         </>
       ) : (
         <>
@@ -46,6 +50,8 @@ function Router() {
           <Route path="/project" component={Project} />
           <Route path="/mentors" component={Mentors} />
           <Route path="/investors" component={Investors} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/privacy" component={Privacy} />
           {user?.role === 'administrator' && (
             <Route path="/admin" component={Admin} />
           )}
