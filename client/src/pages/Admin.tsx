@@ -79,7 +79,7 @@ export default function Admin() {
     queryKey: ["/api/admin/applications"],
   });
 
-  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery({
+  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<any[]>({
     queryKey: ["/api/cohorts"],
   });
 

@@ -46,12 +46,12 @@ export default function Investors() {
   const isInvestor = user?.role === "investor";
 
   // Fetch startup projects for directory
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<any[]>({
     queryKey: ["/api/projects"],
   });
 
   // Fetch investors (for admin/participant view)
-  const { data: investors = [], isLoading: investorsLoading } = useQuery({
+  const { data: investors = [], isLoading: investorsLoading } = useQuery<any[]>({
     queryKey: ["/api/investors"],
     enabled: !isInvestor,
   });
