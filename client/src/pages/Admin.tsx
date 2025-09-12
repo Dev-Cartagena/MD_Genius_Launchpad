@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,10 +104,11 @@ export default function Admin() {
       acceptanceRate,
       activeCohorts,
       totalProjects,
-      mentorUtilization: 87, // Keep for now - will calculate when mentor data is available
-      averageReadiness: 68, // Keep for now - will calculate when project readiness data is available
-      fundingDisbursed: 125000, // Keep for now - will calculate when funding data is available
-      completionRate: 92 // Keep for now - will calculate when completion data is available
+      // Future metrics - will be calculated when supporting data becomes available
+      mentorUtilization: 0,
+      averageReadiness: projects.reduce((sum, p: any) => sum + (p.readinessScore || 0), 0) / Math.max(projects.length, 1),
+      fundingDisbursed: 0,
+      completionRate: 0
     };
   }, [applications, cohorts, projects]);
 
@@ -124,7 +125,7 @@ export default function Admin() {
         project: app.projectName || 'Unnamed Project',
         status: app.status,
         submittedDays: daysDiff,
-        score: app.score || Math.floor(Math.random() * 40) + 60, // Mock score for now
+        score: app.score || 0,
         email: user?.email,
         description: app.projectDescription,
         reviewerNotes: app.reviewerNotes

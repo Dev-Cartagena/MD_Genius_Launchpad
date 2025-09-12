@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -462,6 +462,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching admin projects:", error);
       res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.post('/api/admin/cohorts', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const cohortData = insertCohortSchema.parse(req.body);
+      const cohort = await storage.createCohort(cohortData);
+      res.json(cohort);
+    } catch (error) {
+      console.error("Error creating cohort:", error);
+      res.status(400).json({ message: "Failed to create cohort" });
     }
   });
 

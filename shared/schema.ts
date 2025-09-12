@@ -553,6 +553,11 @@ export const insertUserProgressSchema = createInsertSchema(userProgress).omit({
   updatedAt: true,
 });
 
+export const insertCohortSchema = createInsertSchema(cohorts).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertArtifactSchema = createInsertSchema(artifacts).omit({
   id: true,
   createdAt: true,
@@ -567,6 +572,7 @@ export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Cohort = typeof cohorts.$inferSelect;
+export type InsertCohort = z.infer<typeof insertCohortSchema>;
 export type Module = typeof modules.$inferSelect;
 export type InsertModule = z.infer<typeof insertModuleSchema>;
 export type Lesson = typeof lessons.$inferSelect;

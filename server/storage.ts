@@ -40,6 +40,7 @@ import {
   type InsertMessage,
   type AiConversation,
   type InsertAiConversation,
+  type InsertCohort,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, ilike, or } from "drizzle-orm";
@@ -69,6 +70,7 @@ export interface IStorage {
   getCohorts(): Promise<Cohort[]>;
   getActiveCohorts(): Promise<Cohort[]>;
   getCohort(id: string): Promise<Cohort | undefined>;
+  createCohort(cohort: InsertCohort): Promise<Cohort>;
   
   // Curriculum operations
   getModulesByCohort(cohortId: string): Promise<Module[]>;
@@ -267,6 +269,14 @@ export class DatabaseStorage implements IStorage {
       .from(cohorts)
       .where(eq(cohorts.id, id));
     return cohort;
+  }
+
+  async createCohort(cohort: InsertCohort): Promise<Cohort> {
+    const [newCohort] = await db
+      .insert(cohorts)
+      .values(cohort)
+      .returning();
+    return newCohort;
   }
 
   // Curriculum operations
