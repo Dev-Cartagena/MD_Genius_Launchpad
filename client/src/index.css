@@ -153,12 +153,13 @@
   }
 
   .sidebar-nav a:hover {
-    @apply bg-primary/10;
+    background-color: hsla(204, 100%, 46%, 0.1);
     border-left-color: var(--primary);
   }
 
   .sidebar-nav a.active {
-    @apply bg-primary/20 text-primary;
+    background-color: hsla(204, 100%, 46%, 0.2);
+    color: var(--primary);
     border-left-color: var(--primary);
   }
 

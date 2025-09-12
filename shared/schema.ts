@@ -268,7 +268,7 @@ export const mentorProfiles = pgTable("mentor_profiles", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const sessions = pgTable("mentor_sessions", {
+export const mentorSessions = pgTable("mentor_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   mentorId: varchar("mentor_id").notNull().references(() => users.id),
   participantIds: varchar("participant_ids").array(),
@@ -417,7 +417,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   projects: many(projects),
   projectTeamMembers: many(projectTeamMembers),
   mentorProfile: one(mentorProfiles),
-  mentorSessions: many(sessions),
+  mentorSessions: many(mentorSessions),
   deliverables: many(deliverables),
   scores: many(scores),
   messages: many(messages),

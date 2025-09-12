@@ -8,7 +8,7 @@ import {
   milestones,
   deliverables,
   mentorProfiles,
-  sessions,
+  mentorSessions,
   investors,
   investorInterests,
   messages,
