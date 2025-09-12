@@ -19,7 +19,7 @@ import {
   Target
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import type { Project } from "@shared/schema";
+import type { Project, Cohort, Milestone } from "@shared/schema";
 
 export default function ParticipantDashboard() {
   const { user } = useAuth();
@@ -30,23 +30,60 @@ export default function ParticipantDashboard() {
   });
 
   // Fetch active cohorts
-  const { data: cohorts = [] } = useQuery({
+  const { data: cohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
   });
 
-  // Mock data for demonstration (replace with real API calls)
+  // Get current project (first project or default)
   const currentProject = projects[0] || {
-    name: "EcoAI Analytics",
-    stage: "validation",
-    summary: "AI-powered sustainability analytics platform helping businesses reduce their carbon footprint through intelligent resource optimization.",
-    readinessScore: 70,
+    id: "",
+    name: "No Project Yet",
+    stage: "ideation",
+    summary: "You haven't created a project yet. Start by defining your AI startup idea.",
+    readinessScore: 0,
   };
 
-  const milestones = [
-    { id: 1, title: "Problem Definition", status: "approved", completion: 100, dueWeek: 2 },
-    { id: 2, title: "Market Validation", status: "in_progress", completion: 75, dueWeek: 5 },
-    { id: 3, title: "MVP Development", status: "not_started", completion: 0, dueWeek: 7 },
-  ];
+  // Fetch milestones for user's cohort
+  const userCohort = cohorts.find((c: Cohort) => {
+    // Find cohort based on project's cohort ID or default to first active cohort
+    return currentProject.cohortId ? c.id === currentProject.cohortId : c.isActive;
+  });
+  
+  const { data: milestones = [], isLoading: milestonesLoading } = useQuery<Milestone[]>({
+    queryKey: [`/api/cohorts/${userCohort?.id}/milestones`],
+    enabled: !!userCohort?.id,
+  });
+
+  // Transform milestones for display (progress calculation to be implemented with deliverables)
+  const milestonesWithProgress = milestones.map((milestone: Milestone, index: number) => ({
+    id: milestone.id,
+    title: milestone.title,
+    description: milestone.description,
+    dueDate: milestone.dueDate,
+    // TODO: Replace with real progress from deliverables API
+    status: index === 0 ? "approved" : index === 1 ? "in_progress" : "not_started",
+    completion: index === 0 ? 100 : index === 1 ? 75 : 0,
+    orderIndex: milestone.orderIndex,
+  }));
+
+  // Calculate current week from cohort dates
+  const getCurrentWeek = () => {
+    if (!userCohort?.startDate) return { current: 1, total: 8 };
+    
+    const now = new Date();
+    const startDate = new Date(userCohort.startDate);
+    const endDate = new Date(userCohort.endDate);
+    
+    const weeksPassed = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    const totalWeeks = Math.ceil((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    
+    return { 
+      current: Math.max(1, Math.min(weeksPassed, totalWeeks)), 
+      total: totalWeeks 
+    };
+  };
+
+  const { current: currentWeek, total: totalWeeks } = getCurrentWeek();
 
   const nextActions = [
     {
@@ -99,7 +136,7 @@ export default function ParticipantDashboard() {
     }
   ];
 
-  if (projectsLoading) {
+  if (projectsLoading || milestonesLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -126,7 +163,7 @@ export default function ParticipantDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg font-semibold">Program Progress</CardTitle>
-              <span className="text-sm text-muted-foreground">Week 4 of 8</span>
+              <span className="text-sm text-muted-foreground">Week {currentWeek} of {totalWeeks}</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -141,7 +178,7 @@ export default function ParticipantDashboard() {
 
             {/* Milestone Timeline */}
             <div className="space-y-4">
-              {milestones.map((milestone) => (
+              {milestonesWithProgress.map((milestone, index) => (
                 <div key={milestone.id} className="flex items-center space-x-4" data-testid={`milestone-${milestone.id}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                     milestone.status === 'approved' ? 'bg-accent animate-glow' :
@@ -153,7 +190,7 @@ export default function ParticipantDashboard() {
                     ) : milestone.status === 'in_progress' ? (
                       <PlayCircle className="w-4 h-4 text-primary-foreground" />
                     ) : (
-                      <span className="text-xs font-medium">3</span>
+                      <span className="text-xs font-medium">{index + 1}</span>
                     )}
                   </div>
                   <div className="flex-1">
@@ -162,7 +199,7 @@ export default function ParticipantDashboard() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {milestone.status === 'approved' ? 'Completed' :
-                       milestone.status === 'in_progress' ? 'In Progress' : 'Upcoming'} • Due Week {milestone.dueWeek}
+                       milestone.status === 'in_progress' ? 'In Progress' : 'Upcoming'} • {milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'No due date'}
                     </p>
                   </div>
                   <span className={`text-xs ${
