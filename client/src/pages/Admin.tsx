@@ -914,44 +914,70 @@ export default function Admin() {
                 </div>
                 
                 <div className="space-y-4">
-                  {['Alice Smith', 'Bob Johnson', 'Carol Davis'].map((name, index) => (
-                    <Card key={index} className="bg-secondary/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white font-semibold">
-                              {name.split(' ').map(n => n[0]).join('')}
+                  {usersLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground mt-2">Loading users...</p>
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No users found</p>
+                    </div>
+                  ) : (
+                    users.map((user) => {
+                      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unnamed User';
+                      const initials = user.firstName && user.lastName 
+                        ? `${user.firstName[0]}${user.lastName[0]}`
+                        : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
+                      
+                      return (
+                        <Card key={user.id} className="bg-secondary/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white font-semibold">
+                                  {initials.toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="font-medium" data-testid={`user-name-${user.id}`}>
+                                    {fullName}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ')}
+                                  </p>
+                                  {user.email && (
+                                    <p className="text-xs text-muted-foreground">
+                                      {user.email}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  data-testid={`button-edit-user-${user.id}`}
+                                >
+                                  <Edit className="w-3 h-3 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  data-testid={`button-message-user-${user.id}`}
+                                >
+                                  <Mail className="w-3 h-3 mr-1" />
+                                  Message
+                                </Button>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium" data-testid={`user-name-${index}`}>{name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {index === 0 ? 'Administrator' : index === 1 ? 'Mentor' : 'Participant'}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              data-testid={`button-edit-user-${index}`}
-                            >
-                              <Edit className="w-3 h-3 mr-1" />
-                              Edit
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              data-testid={`button-message-user-${index}`}
-                            >
-                              <Mail className="w-3 h-3 mr-1" />
-                              Message
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>
