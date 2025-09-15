@@ -3,7 +3,15 @@ import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "./Sidebar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, ChevronDown, User } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Bell, ChevronDown, User, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface AppLayoutProps {
@@ -15,6 +23,10 @@ interface AppLayoutProps {
 export default function AppLayout({ children, title, subtitle }: AppLayoutProps) {
   const { user } = useAuth();
   const [notifications] = useState(3); // Mock notification count
+
+  const handleLogout = () => {
+    window.location.href = '/api/logout';
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -63,17 +75,45 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               </Button>
 
               {/* Profile Menu */}
-              <Button
-                variant="ghost"
-                className="flex items-center space-x-2 hover:bg-secondary px-3 py-2"
-                data-testid="button-profile-menu"
-              >
-                <User className="h-4 w-4" />
-                <span className="hidden md:inline" data-testid="text-username">
-                  {user?.firstName || "User"}
-                </span>
-                <ChevronDown className="h-3 w-3" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center space-x-2 hover:bg-secondary px-3 py-2"
+                    data-testid="button-profile-menu"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden md:inline" data-testid="text-username">
+                      {user?.firstName || "User"}
+                    </span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user?.firstName && user?.lastName 
+                          ? `${user.firstName} ${user.lastName}` 
+                          : user?.firstName || "User"}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user?.email}
+                      </p>
+                      {user?.role && (
+                        <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground capitalize">
+                          {user.role.replace('_', ' ')}
+                        </span>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
