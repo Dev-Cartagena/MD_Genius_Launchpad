@@ -74,12 +74,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const application = await storage.createApplication(submissionData);
       
       // Update user role to applicant after successful submission
-      const user = await storage.getUser(userId);
-      if (user && user.role === 'public_visitor') {
-        await storage.upsertUser({
-          ...user,
-          role: 'applicant'
-        });
+      try {
+        const user = await storage.getUser(userId);
+        if (user && user.role === 'public_visitor') {
+          console.log(`Updating user role from ${user.role} to applicant for user ${userId}`);
+          await storage.upsertUser({
+            ...user,
+            role: 'applicant'
+          });
+          console.log(`Successfully updated user role to applicant for user ${userId}`);
+        } else {
+          console.log(`User role update skipped - current role: ${user?.role || 'undefined'} for user ${userId}`);
+        }
+      } catch (roleUpdateError) {
+        console.error(`Failed to update user role after application submission for user ${userId}:`, roleUpdateError);
+        // Don't fail the entire request if role update fails
       }
       
       res.json(application);
