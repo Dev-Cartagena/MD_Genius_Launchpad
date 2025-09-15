@@ -30,24 +30,10 @@ export default function CurriculumView() {
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
-  // Administrators should not access curriculum view
-  if (user?.role === 'administrator') {
-    return (
-      <Card className="glass-card">
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">Access Restricted</h3>
-          <p className="text-muted-foreground">
-            Curriculum access is available for participants only. Use the Admin panel to manage the program.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Fetch user's projects to get their cohort assignment
+  // Fetch user's projects (enabled for non-administrators)
   const { data: projects = [] } = useQuery<any[]>({
     queryKey: ["/api/projects/my"],
+    enabled: user?.role !== 'administrator',
   });
 
   // Fetch cohort data
@@ -55,11 +41,19 @@ export default function CurriculumView() {
     queryKey: ["/api/cohorts"],
   });
 
-  // Get user's cohort from their project assignment
-  const currentProject = projects[0];
-  const currentCohort = cohorts.find((c: any) => 
-    currentProject?.cohortId ? c.id === currentProject.cohortId : c.isActive
-  );
+  // Get current cohort based on user role
+  const currentCohort = (() => {
+    if (user?.role === 'administrator') {
+      // Administrators can view any cohort - default to first active cohort
+      return cohorts.find((c: any) => c.isActive) || cohorts[0];
+    } else {
+      // For participants, get cohort from their project assignment
+      const currentProject = projects[0];
+      return cohorts.find((c: any) => 
+        currentProject?.cohortId ? c.id === currentProject.cohortId : c.isActive
+      );
+    }
+  })();
 
   // Fetch modules for current cohort
   const { data: modules = [], isLoading: modulesLoading } = useQuery<Module[]>({
