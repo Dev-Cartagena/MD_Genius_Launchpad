@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useAuth } from "@/hooks/useAuth";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { 
   User, 
@@ -85,9 +86,11 @@ interface ApplicationFormProps {
 export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [uploadedFiles, setUploadedFiles] = useState<{ type: string; url: string }[]>([]);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const totalSteps = 6;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch available cohorts
   const { data: cohorts = [] } = useQuery<Cohort[]>({
@@ -97,10 +100,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   const form = useForm<ApplicationFormData>({
     resolver: zodResolver(applicationSchema),
     defaultValues: {
-      // Personal Information
-      firstName: "",
-      lastName: "",
-      email: "",
+      // Personal Information (auto-populated from user profile)
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.email || "",
       phone: "",
       location: "",
       timezone: "",
@@ -245,6 +248,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   };
 
   const onSubmit = (data: ApplicationFormData) => {
+    setHasAttemptedSubmit(true);
     submitApplication.mutate(data);
   };
 
@@ -321,6 +325,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                             {...field} 
                             className="bg-secondary border-border input-glow"
                             data-testid="input-first-name"
+                            readOnly
+                            title="Auto-populated from your profile"
                           />
                         </FormControl>
                         <FormMessage />
@@ -339,6 +345,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                             {...field} 
                             className="bg-secondary border-border input-glow"
                             data-testid="input-last-name"
+                            readOnly
+                            title="Auto-populated from your profile"
                           />
                         </FormControl>
                         <FormMessage />
@@ -359,6 +367,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           type="email"
                           className="bg-secondary border-border input-glow"
                           data-testid="input-email"
+                          readOnly
+                          title="Auto-populated from your profile"
                         />
                       </FormControl>
                       <FormMessage />
@@ -883,7 +893,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                             </p>
                           </div>
                         </div>
-                        <FormMessage />
+                        {hasAttemptedSubmit && <FormMessage />}
                       </FormItem>
                     )}
                   />
@@ -918,7 +928,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                             </p>
                           </div>
                         </div>
-                        <FormMessage />
+                        {hasAttemptedSubmit && <FormMessage />}
                       </FormItem>
                     )}
                   />

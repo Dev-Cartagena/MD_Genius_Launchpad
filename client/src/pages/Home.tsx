@@ -1,4 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +17,35 @@ import {
 
 export default function Home() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
+
+  // Fetch user's applications for applicant redirect logic
+  const { data: applications = [], isLoading: applicationsLoading } = useQuery<any[]>({
+    queryKey: ["/api/applications/my"],
+    enabled: !!user && user.role === 'applicant'
+  });
+
+  // Auto-redirect applicants with pending applications to dashboard
+  useEffect(() => {
+    if (user?.role === 'applicant' && applications.length > 0 && !applicationsLoading) {
+      const currentApplication = applications[0];
+      // Redirect to dashboard if they have a non-draft, non-rejected application
+      if (currentApplication && currentApplication.status !== 'draft' && currentApplication.status !== 'rejected') {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, applications, applicationsLoading, navigate]);
+
+  // Helper to determine if applicant should see continue application action
+  const shouldShowContinueApplication = () => {
+    if (user?.role !== 'applicant') return false;
+    if (applicationsLoading) return false; // Hide while loading to prevent flash
+    if (applications.length === 0) return true; // New applicant
+    
+    const currentApplication = applications[0];
+    // Only show for draft or rejected applications
+    return currentApplication.status === 'draft' || currentApplication.status === 'rejected';
+  };
 
   const quickActions = [
     {
@@ -30,7 +62,7 @@ export default function Home() {
       description: "Complete your startup application",
       href: "/apply",
       color: "primary",
-      show: user?.role === "applicant"
+      show: shouldShowContinueApplication()
     },
     {
       icon: TrendingUp,

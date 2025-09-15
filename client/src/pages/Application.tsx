@@ -60,8 +60,8 @@ export default function Application() {
     );
   }
 
-  // Show existing application status if user has one
-  if (currentApplication && currentApplication.status !== 'draft') {
+  // Show existing application status if user has one (except rejected applications can reapply)
+  if (currentApplication && currentApplication.status !== 'draft' && currentApplication.status !== 'rejected') {
     const status = statusConfig[currentApplication.status as keyof typeof statusConfig];
     const StatusIcon = status.icon;
 
@@ -180,7 +180,7 @@ export default function Application() {
                     <h3 className="font-semibold mb-2">Not Selected</h3>
                     <p className="text-sm text-muted-foreground">
                       While we were impressed by your application, we're unable to offer you a spot in this cohort. 
-                      You're welcome to apply for future cohorts.
+                      You can apply again for future cohorts.
                     </p>
                   </div>
                 )}

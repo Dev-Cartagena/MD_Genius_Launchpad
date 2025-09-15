@@ -75,6 +75,7 @@ export function ObjectUploader({
         accept="*/*"
       />
       <Button 
+        type="button"
         onClick={() => document.getElementById('file-upload')?.click()}
         className={buttonClassName}
         disabled={isUploading}
