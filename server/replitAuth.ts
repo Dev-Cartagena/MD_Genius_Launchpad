@@ -57,13 +57,25 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
+  // Check if email is in super admin list
+  const SUPER_ADMIN_EMAILS = process.env.SUPER_ADMIN_EMAILS?.split(',').map(email => email.trim()) || [];
+  const userEmail = claims["email"];
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(userEmail);
+  
+  // Determine role: super admin override, OIDC claims, or default
+  let assignedRole = claims["role"] || "public_visitor";
+  if (isSuperAdmin) {
+    assignedRole = "administrator";
+    console.log(`Super admin access granted to ${userEmail}`);
+  }
+
   await storage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
-    role: claims["role"] || "public_visitor", // Map role from OIDC claims, default to public_visitor
+    role: assignedRole,
   });
 }
 
