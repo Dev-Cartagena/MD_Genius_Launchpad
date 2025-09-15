@@ -106,14 +106,44 @@ async function upsertUser(
     console.log(`Super admin access granted to ${userEmail}`);
   }
 
-  await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-    role: assignedRole,
-  });
+  // Handle account collision: check if a local user exists with this email
+  const existingLocalUser = await storage.getUserByEmail(userEmail);
+  
+  if (existingLocalUser && existingLocalUser.id !== claims["sub"]) {
+    // Email collision detected - merge/link the accounts
+    console.log(`Account collision detected for email ${userEmail}: linking OIDC account to existing local user ${existingLocalUser.id}`);
+    
+    // Update the existing local user with OIDC data, preserving critical local data
+    const mergeData = {
+      id: existingLocalUser.id, // Keep the original local user ID
+      email: userEmail,
+      firstName: claims["first_name"] || existingLocalUser.firstName,
+      lastName: claims["last_name"] || existingLocalUser.lastName,
+      profileImageUrl: claims["profile_image_url"] || existingLocalUser.profileImageUrl,
+      role: isSuperAdmin ? "administrator" : (existingLocalUser.role || assignedRole), // Preserve existing role unless super admin
+      emailVerified: true, // OIDC users are email verified
+      passwordHash: existingLocalUser.passwordHash, // Preserve local password
+      passwordResetTokenHash: existingLocalUser.passwordResetTokenHash,
+      passwordResetExpires: existingLocalUser.passwordResetExpires,
+    } as any; // Cast to bypass TypeScript restrictions for security fix
+    await storage.upsertUser(mergeData);
+    
+    return existingLocalUser.id; // Return the merged user ID
+  } else {
+    // No collision or same user - proceed with normal OIDC upsert
+    const oidcData = {
+      id: claims["sub"],
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+      role: assignedRole,
+      emailVerified: true, // OIDC users are email verified
+    } as any; // Cast to bypass TypeScript restrictions for security fix
+    await storage.upsertUser(oidcData);
+    
+    return claims["sub"];
+  }
 }
 
 export async function setupAuth(app: Express) {
@@ -144,9 +174,14 @@ export async function setupAuth(app: Express) {
         first_name: claims.first_name 
       });
       
+      // Handle account merging and get the actual user ID to use
+      const actualUserId = await upsertUser(claims);
+      
+      // Update session with the actual user ID (may be different if accounts were merged)
       updateUserSession(user, tokens);
-      await upsertUser(claims);
-      console.log('User authentication successful for:', claims.email);
+      (user as any).claims.sub = actualUserId; // Override the sub with the merged user ID
+      
+      console.log('User authentication successful for:', claims.email, 'using ID:', actualUserId);
       verified(null, user);
     } catch (error) {
       console.error('Authentication verify error:', error);
@@ -199,7 +234,23 @@ export async function setupAuth(app: Express) {
         });
         return res.redirect("/api/login?error=auth_failed");
       }
-      next();
+      
+      // Regenerate session ID to prevent session fixation attacks after successful OIDC authentication
+      req.session.regenerate((sessionErr: any) => {
+        if (sessionErr) {
+          console.error('Session regeneration error during OIDC callback:', sessionErr);
+          return res.redirect("/api/login?error=session_error");
+        }
+        
+        // Re-establish the user session after regeneration
+        req.login(req.user!, (loginErr: any) => {
+          if (loginErr) {
+            console.error('Re-login error after session regeneration:', loginErr);
+            return res.redirect("/api/login?error=login_error");
+          }
+          next();
+        });
+      });
     });
   });
 

@@ -1,18 +1,187 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, createLocalUserSession } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
 import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema } from "@shared/schema";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+
+// Validation schemas for email/password authentication
+const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
+  // Email/Password Authentication Routes
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { email, password, firstName, lastName } = registerSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+      
+      // Create user and hash password
+      const user = await storage.createLocalUser({ email, firstName, lastName });
+      const passwordHash = await bcrypt.hash(password, 12);
+      await storage.setPasswordHash(user.id, passwordHash);
+      
+      // Create session and regenerate session ID to prevent session fixation
+      const userSession = createLocalUserSession(user);
+      req.session.regenerate((sessionErr) => {
+        if (sessionErr) {
+          console.error('Session regeneration error during registration:', sessionErr);
+          return res.status(500).json({ message: "Registration successful but session setup failed" });
+        }
+        
+        req.login(userSession, (err) => {
+          if (err) {
+            console.error('Login error during registration:', err);
+            return res.status(500).json({ message: "Registration successful but login failed" });
+          }
+          res.status(201).json({ message: "Registration successful", user: { id: user.id, email: user.email, role: user.role } });
+        });
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { email, password } = loginSchema.parse(req.body);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Create session and regenerate session ID to prevent session fixation
+      const userSession = createLocalUserSession(user);
+      req.session.regenerate((sessionErr) => {
+        if (sessionErr) {
+          console.error('Session regeneration error during login:', sessionErr);
+          return res.status(500).json({ message: "Login failed due to session error" });
+        }
+        
+        req.login(userSession, (err) => {
+          if (err) {
+            console.error('Login error:', err);
+            return res.status(500).json({ message: "Login failed" });
+          }
+          res.json({ message: "Login successful", user: { id: user.id, email: user.email, role: user.role } });
+        });
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+      const { email } = forgotPasswordSchema.parse(req.body);
+      
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal whether email exists or not
+        return res.json({ message: "If an account exists with this email, you will receive password reset instructions." });
+      }
+      
+      // Generate reset token (24 hours expiry)
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      // Use SHA-256 for deterministic token hashing (not bcrypt which is randomized)
+      const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      
+      await storage.setResetToken(user.id, tokenHash, expiresAt);
+      
+      // SECURITY: Never return plaintext tokens in API responses
+      // In production, this token should be sent via secure email
+      console.log(`Password reset token for ${email}: ${resetToken}`);
+      console.log('SECURITY WARNING: In production, implement secure email delivery for reset tokens');
+      
+      res.json({ 
+        message: "Password reset instructions sent to your email."
+        // REMOVED: resetToken - never expose plaintext tokens in API responses
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Password reset request failed" });
+    }
+  });
+
+  app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+      const { token, password } = resetPasswordSchema.parse(req.body);
+      
+      // Hash the new password
+      const newPasswordHash = await bcrypt.hash(password, 12);
+      
+      // Hash the provided token to match against stored hash
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      
+      // Update password using reset token hash
+      const success = await storage.updatePasswordByResetToken(tokenHash, newPasswordHash);
+      
+      if (!success) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+      
+      res.json({ message: "Password reset successful" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Password reset failed" });
+    }
+  });
+
+  // Existing Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

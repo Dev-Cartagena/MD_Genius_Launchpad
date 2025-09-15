@@ -99,7 +99,7 @@ export default function Landing() {
             <Button 
               size="lg" 
               className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-8 py-4 animate-glow"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/login"}
               data-testid="button-apply-now"
             >
               Apply Now
@@ -109,7 +109,7 @@ export default function Landing() {
               size="lg" 
               variant="outline" 
               className="border-border hover:bg-secondary text-lg px-8 py-4"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/login"}
               data-testid="button-login"
             >
               <User className="w-5 h-5 mr-2" />
