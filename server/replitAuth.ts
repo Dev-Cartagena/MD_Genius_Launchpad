@@ -14,10 +14,22 @@ if (!process.env.REPLIT_DOMAINS) {
 
 const getOidcConfig = memoize(
   async () => {
-    return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
-    );
+    const issuerUrl = process.env.ISSUER_URL ?? "https://replit.com/oidc";
+    const replId = process.env.REPL_ID!;
+    console.log('OIDC Discovery - Issuer URL:', issuerUrl);
+    console.log('OIDC Discovery - REPL_ID:', replId);
+    
+    try {
+      const config = await client.discovery(
+        new URL(issuerUrl),
+        replId
+      );
+      console.log('OIDC Discovery successful');
+      return config;
+    } catch (error) {
+      console.error('OIDC Discovery failed:', error);
+      throw error;
+    }
   },
   { maxAge: 3600 * 1000 }
 );
@@ -129,16 +141,21 @@ export async function setupAuth(app: Express) {
 
   for (const domain of process.env
     .REPLIT_DOMAINS!.split(",")) {
+    const callbackURL = `https://${domain}/api/callback`;
+    console.log(`Configuring OIDC strategy for domain: ${domain}`);
+    console.log(`Callback URL: ${callbackURL}`);
+    
     const strategy = new Strategy(
       {
         name: `replitauth:${domain}`,
         config,
         scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
+        callbackURL,
       },
       verify,
     );
     passport.use(strategy);
+    console.log(`OIDC strategy registered for: replitauth:${domain}`);
   }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
