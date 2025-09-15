@@ -94,6 +94,12 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").notNull().default("public_visitor"),
+  // Password authentication fields
+  passwordHash: varchar("password_hash"), // nullable - OIDC users won't have passwords
+  emailVerified: boolean("email_verified").default(false),
+  passwordResetTokenHash: varchar("password_reset_token_hash"), // nullable
+  passwordResetExpires: timestamp("password_reset_expires"), // nullable
+  // Profile fields
   bio: text("bio"),
   skills: text("skills").array(),
   interests: text("interests").array(),
