@@ -11,7 +11,8 @@ import {
   Star,
   ArrowRight,
   Play,
-  Award
+  Award,
+  User
 } from "lucide-react";
 
 export default function Landing() {
@@ -108,10 +109,11 @@ export default function Landing() {
               size="lg" 
               variant="outline" 
               className="border-border hover:bg-secondary text-lg px-8 py-4"
-              data-testid="button-learn-more"
+              onClick={() => window.location.href = "/api/login"}
+              data-testid="button-login"
             >
-              <Play className="w-5 h-5 mr-2" />
-              Watch Demo
+              <User className="w-5 h-5 mr-2" />
+              Login
             </Button>
           </div>
 
