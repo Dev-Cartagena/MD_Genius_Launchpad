@@ -120,7 +120,7 @@ export class AiCoachService {
       ];
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o-mini",
         messages: openaiMessages,
         temperature: 0.7,
         max_tokens: 1500,
@@ -197,7 +197,7 @@ export class AiCoachService {
       Respond with JSON format containing strengths, improvements, nextSteps, and readinessScore (0-100).`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -230,7 +230,7 @@ export class AiCoachService {
       Provide JSON with overallScore (0-100), detailed feedback per category, and improvement suggestions.`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });

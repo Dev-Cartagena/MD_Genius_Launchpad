@@ -327,7 +327,7 @@ export class DatabaseStorage implements IStorage {
       .from(userProgress)
       .innerJoin(lessons, eq(userProgress.lessonId, lessons.id))
       .where(and(eq(userProgress.userId, userId), eq(lessons.moduleId, moduleId)))
-      .then(rows => rows.map(row => row.user_progress));
+      .then((rows: any[]) => rows.map((row: any) => row.user_progress));
   }
 
   async createOrUpdateUserProgress(progress: InsertUserProgress): Promise<UserProgress> {
