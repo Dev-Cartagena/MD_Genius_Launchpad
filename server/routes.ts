@@ -138,8 +138,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // SECURITY: Never return plaintext tokens in API responses
       // In production, this token should be sent via secure email
-      console.log(`Password reset token for ${email}: ${resetToken}`);
-      console.log('SECURITY WARNING: In production, implement secure email delivery for reset tokens');
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEV ONLY] Password reset token for ${email}: ${resetToken}`);
+        console.log('SECURITY WARNING: In production, implement secure email delivery for reset tokens');
+      }
       
       res.json({ 
         message: "Password reset instructions sent to your email."

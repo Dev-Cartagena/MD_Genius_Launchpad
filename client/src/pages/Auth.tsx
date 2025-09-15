@@ -74,7 +74,7 @@ export default function Auth() {
 
   // Mutations
   const loginMutation = useMutation({
-    mutationFn: (data: LoginForm) => apiRequest("/api/auth/login", "POST", data),
+    mutationFn: (data: LoginForm) => apiRequest("POST", "/api/auth/login", data),
     onSuccess: () => {
       toast({ title: "Login successful", description: "Welcome back!" });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -90,7 +90,7 @@ export default function Auth() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (data: RegisterForm) => apiRequest("/api/auth/register", "POST", data),
+    mutationFn: (data: RegisterForm) => apiRequest("POST", "/api/auth/register", data),
     onSuccess: () => {
       toast({ title: "Registration successful", description: "Welcome to MD Genius!" });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -106,18 +106,23 @@ export default function Auth() {
   });
 
   const forgotPasswordMutation = useMutation({
-    mutationFn: (data: ForgotPasswordForm) => apiRequest("/api/auth/forgot-password", "POST", data),
+    mutationFn: (data: ForgotPasswordForm) => apiRequest("POST", "/api/auth/forgot-password", data),
     onSuccess: (response: any) => {
       toast({
         title: "Password reset requested",
         description: "Check your email for reset instructions.",
       });
-      if (response.resetToken) {
-        // For MVP testing - remove in production
-        setResetToken(response.resetToken);
-        setShowResetPassword(true);
-        setShowForgotPassword(false);
+      // Note: Reset tokens are never returned via API for security
+      // In production, users would receive the token via secure email
+      // For development testing, provide a way to access reset form
+      if (import.meta.env.DEV) {
+        toast({
+          title: "Development Mode",
+          description: "Check server console for reset token, then use 'Reset Password' button below.",
+          variant: "default"
+        });
       }
+      setShowForgotPassword(false);
     },
     onError: (error: any) => {
       toast({
@@ -129,7 +134,7 @@ export default function Auth() {
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: (data: ResetPasswordForm) => apiRequest("/api/auth/reset-password", "POST", data),
+    mutationFn: (data: ResetPasswordForm) => apiRequest("POST", "/api/auth/reset-password", data),
     onSuccess: () => {
       toast({ title: "Password reset successful", description: "You can now login with your new password." });
       setShowResetPassword(false);
@@ -382,7 +387,7 @@ export default function Auth() {
                   </form>
                 </Form>
 
-                <div className="text-center">
+                <div className="text-center space-y-2">
                   <Button
                     variant="link"
                     className="text-sm"
@@ -391,6 +396,18 @@ export default function Auth() {
                   >
                     Forgot your password?
                   </Button>
+                  {import.meta.env.DEV && (
+                    <div>
+                      <Button
+                        variant="link"
+                        className="text-sm text-orange-600"
+                        onClick={() => setShowResetPassword(true)}
+                        data-testid="button-dev-reset-password"
+                      >
+                        [DEV] Reset Password Form
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
