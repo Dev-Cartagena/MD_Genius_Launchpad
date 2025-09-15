@@ -31,6 +31,15 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+
+  // Add error handling for session store
+  sessionStore.on('error', (error) => {
+    console.error('Session store error:', error);
+  });
+
+  // Fix cookie configuration for incognito mode and development
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -38,8 +47,9 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProduction, // Only require HTTPS in production
       maxAge: sessionTtl,
+      sameSite: 'lax', // Better compatibility for OIDC flows
     },
   });
 }
@@ -91,10 +101,30 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    try {
+      console.log('Authentication verify function called');
+      const user = {};
+      const claims = tokens.claims();
+      
+      if (!claims) {
+        console.error('No claims received from token');
+        return verified(new Error('No claims in token'), null);
+      }
+      
+      console.log('User claims received:', { 
+        sub: claims.sub, 
+        email: claims.email, 
+        first_name: claims.first_name 
+      });
+      
+      updateUserSession(user, tokens);
+      await upsertUser(claims);
+      console.log('User authentication successful for:', claims.email);
+      verified(null, user);
+    } catch (error) {
+      console.error('Authentication verify error:', error);
+      verified(error, null);
+    }
   };
 
   for (const domain of process.env
@@ -115,6 +145,7 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
+    console.log('Login attempt initiated for hostname:', req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -122,10 +153,22 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    console.log('Authentication callback received for hostname:', req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
-    })(req, res, next);
+    })(req, res, (err: any) => {
+      if (err) {
+        console.error('Authentication callback error:', err);
+        console.error('Error details:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        });
+        return res.redirect("/api/login?error=auth_failed");
+      }
+      next();
+    });
   });
 
   app.get("/api/logout", (req, res) => {
