@@ -17,6 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import type { User, Application, Project, Cohort } from "@shared/schema";
 import {
   Users,
   FileText,
@@ -50,6 +51,43 @@ const cohortSchema = z.object({
 
 type CohortFormData = z.infer<typeof cohortSchema>;
 
+// Admin-specific types for processed data
+interface ProcessedApplication {
+  id: string;
+  applicant: string;
+  project: string;
+  status: string;
+  submittedDays: number;
+  score: number;
+  email?: string | null;
+  description?: string;
+  reviewerNotes?: string[];
+}
+
+interface AdminMetrics {
+  totalApplications: number;
+  acceptanceRate: number;
+  activeCohorts: number;
+  totalProjects: number;
+  mentorUtilization: number;
+  averageReadiness: number;
+  fundingDisbursed: number;
+  completionRate: number;
+}
+
+interface SystemAlert {
+  id: string;
+  type: "warning" | "info" | "success" | "error";
+  title: string;
+  message: string;
+  priority: "high" | "medium" | "low";
+}
+
+interface ApplicationStatusDialogProps {
+  application: ProcessedApplication;
+  updateStatus: any; // Keep this as any for now since it's a mutation function
+}
+
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState("all");
@@ -75,28 +113,28 @@ export default function Admin() {
   }
 
   // Fetch admin data
-  const { data: applications = [], isLoading: applicationsLoading } = useQuery({
+  const { data: applications = [], isLoading: applicationsLoading } = useQuery<Application[]>({
     queryKey: ["/api/admin/applications"],
   });
 
-  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<any[]>({
+  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
   });
 
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
 
-  const { data: projects = [], isLoading: projectsLoading } = useQuery({
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/admin/projects"],
   });
 
   // Calculate real admin metrics from API data
-  const adminMetrics = useMemo(() => {
+  const adminMetrics = useMemo((): AdminMetrics => {
     const totalApplications = applications.length;
-    const acceptedApps = applications.filter((app: any) => app.status === 'accepted').length;
+    const acceptedApps = applications.filter((app: Application) => app.status === 'accepted').length;
     const acceptanceRate = totalApplications > 0 ? Math.round((acceptedApps / totalApplications) * 100) : 0;
-    const activeCohorts = cohorts.filter((cohort: any) => cohort.isActive).length;
+    const activeCohorts = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
     const totalProjects = projects.length;
     
     return {
@@ -106,39 +144,39 @@ export default function Admin() {
       totalProjects,
       // Future metrics - will be calculated when supporting data becomes available
       mentorUtilization: 0,
-      averageReadiness: projects.reduce((sum, p: any) => sum + (p.readinessScore || 0), 0) / Math.max(projects.length, 1),
+      averageReadiness: projects.reduce((sum: number, p: Project) => sum + (p.readinessScore || 0), 0) / Math.max(projects.length, 1),
       fundingDisbursed: 0,
       completionRate: 0
     };
   }, [applications, cohorts, projects]);
 
   // Process real applications data with user information
-  const recentApplications = useMemo(() => {
-    return applications.map((app: any) => {
-      const user = users.find((u: any) => u.id === app.userId);
-      const submittedDate = new Date(app.submittedAt || app.createdAt);
+  const recentApplications = useMemo((): ProcessedApplication[] => {
+    return applications.map((app: Application) => {
+      const user = users.find((u: User) => u.id === app.userId);
+      const submittedDate = new Date(app.submittedAt || app.createdAt!);
       const daysDiff = Math.floor((Date.now() - submittedDate.getTime()) / (1000 * 60 * 60 * 24));
       
       return {
-        id: app.id,
-        applicant: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
-        project: app.projectName || 'Unnamed Project',
-        status: app.status,
+        id: app.id!,
+        applicant: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
+        project: (app.answers as any)?.projectName || 'Unnamed Project',
+        status: app.status || 'draft',
         submittedDays: daysDiff,
-        score: app.score || 0,
+        score: (app.scores as any)?.total || 0,
         email: user?.email,
-        description: app.projectDescription,
-        reviewerNotes: app.reviewerNotes
+        description: (app.answers as any)?.projectDescription,
+        reviewerNotes: app.reviewerNotes || []
       };
-    }).sort((a: any, b: any) => a.submittedDays - b.submittedDays); // Most recent first
+    }).sort((a: ProcessedApplication, b: ProcessedApplication) => a.submittedDays - b.submittedDays); // Most recent first
   }, [applications, users]);
 
   // Generate dynamic system alerts from real data
-  const systemAlerts = useMemo(() => {
-    const alerts = [];
+  const systemAlerts = useMemo((): SystemAlert[] => {
+    const alerts: SystemAlert[] = [];
     
     // Check for pending reviews
-    const pendingReviews = applications.filter((app: any) => app.status === 'submitted').length;
+    const pendingReviews = applications.filter((app: Application) => app.status === 'submitted').length;
     if (pendingReviews > 0) {
       alerts.push({
         id: "pending-reviews",
@@ -150,7 +188,7 @@ export default function Admin() {
     }
     
     // Check for active cohorts
-    const activeCohortCount = cohorts.filter((cohort: any) => cohort.isActive).length;
+    const activeCohortCount = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
     if (activeCohortCount > 0) {
       alerts.push({
         id: "active-cohorts",
@@ -162,8 +200,8 @@ export default function Admin() {
     }
     
     // Check for recent accepted applications
-    const recentAccepted = applications.filter((app: any) => {
-      const appDate = new Date(app.updatedAt || app.createdAt);
+    const recentAccepted = applications.filter((app: Application) => {
+      const appDate = new Date(app.updatedAt || app.createdAt!);
       const daysDiff = (Date.now() - appDate.getTime()) / (1000 * 60 * 60 * 24);
       return app.status === 'accepted' && daysDiff <= 7;
     }).length;
@@ -263,12 +301,12 @@ export default function Admin() {
     }
   });
 
-  const filteredApplications = recentApplications.filter((app: any) => 
+  const filteredApplications = recentApplications.filter((app: ProcessedApplication) => 
     selectedApplicationStatus === "all" || app.status === selectedApplicationStatus
   );
 
   // Application Status Dialog Component
-  const ApplicationStatusDialog = ({ application, updateStatus }: any) => {
+  const ApplicationStatusDialog = ({ application, updateStatus }: ApplicationStatusDialogProps) => {
     const [selectedStatus, setSelectedStatus] = useState("");
     const [reviewerNotes, setReviewerNotes] = useState("");
     const [isOpen, setIsOpen] = useState(false);
@@ -466,7 +504,7 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentApplications.map((application) => (
+                    {recentApplications.map((application: ProcessedApplication) => (
                       <Card key={application.id} className="bg-secondary/30">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
@@ -510,7 +548,7 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {systemAlerts.map((alert) => (
+                    {systemAlerts.map((alert: SystemAlert) => (
                       <Card 
                         key={alert.id} 
                         className={`${
@@ -630,7 +668,7 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {filteredApplications.map((application) => (
+                  {filteredApplications.map((application: any) => (
                     <Card key={application.id} className="bg-secondary/30">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
