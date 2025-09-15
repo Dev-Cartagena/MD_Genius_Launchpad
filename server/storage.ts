@@ -43,13 +43,21 @@ import {
   type InsertCohort,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, ilike, or } from "drizzle-orm";
+import { eq, and, desc, asc, ilike, or, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Email/Password authentication operations
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createLocalUser(userData: { email: string; firstName?: string; lastName?: string; role?: string }): Promise<User>;
+  setPasswordHash(userId: string, passwordHash: string): Promise<void>;
+  setResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
+  consumeResetToken(tokenHash: string): Promise<User | undefined>;
+  updatePasswordByResetToken(tokenHash: string, newPasswordHash: string): Promise<boolean>;
   
   // Application operations
   createApplication(application: InsertApplication): Promise<Application>;
@@ -141,6 +149,80 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .orderBy(asc(users.createdAt));
+  }
+
+  // Email/Password authentication operations
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+    return user;
+  }
+
+  async createLocalUser(userData: { email: string; firstName?: string; lastName?: string; role?: string }): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role as any || "public_visitor",
+        emailVerified: false,
+      })
+      .returning();
+    return user;
+  }
+
+  async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async setResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        passwordResetTokenHash: tokenHash, 
+        passwordResetExpires: expiresAt,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async consumeResetToken(tokenHash: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.passwordResetTokenHash, tokenHash),
+          gt(users.passwordResetExpires, new Date())
+        )
+      );
+    return user;
+  }
+
+  async updatePasswordByResetToken(tokenHash: string, newPasswordHash: string): Promise<boolean> {
+    const result = await db
+      .update(users)
+      .set({ 
+        passwordHash: newPasswordHash,
+        passwordResetTokenHash: null,
+        passwordResetExpires: null,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(users.passwordResetTokenHash, tokenHash),
+          gt(users.passwordResetExpires, new Date())
+        )
+      )
+      .returning({ id: users.id });
+    
+    return result.length > 0;
   }
 
   // Application operations
