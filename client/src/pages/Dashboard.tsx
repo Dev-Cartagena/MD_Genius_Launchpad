@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
 import ParticipantDashboard from "@/components/Dashboard/ParticipantDashboard";
 import MentorDashboard from "@/components/Dashboard/MentorDashboard";
@@ -9,11 +10,111 @@ import AdminDashboard from "@/components/Dashboard/AdminDashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle } from "lucide-react";
+import type { User, Application, Project, Cohort } from "@shared/schema";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
   const [showSubmissionSuccess, setShowSubmissionSuccess] = useState(false);
+
+  // Fetch admin data when user is administrator
+  const { data: applications = [], isLoading: applicationsLoading } = useQuery<Application[]>({
+    queryKey: ["/api/admin/applications"],
+    enabled: user?.role === 'administrator'
+  });
+
+  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
+    queryKey: ["/api/cohorts"],
+    enabled: user?.role === 'administrator'
+  });
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+    enabled: user?.role === 'administrator'
+  });
+
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
+    queryKey: ["/api/admin/projects"],
+    enabled: user?.role === 'administrator'
+  });
+
+  // Calculate real admin metrics from API data
+  const adminMetrics = useMemo(() => {
+    if (user?.role !== 'administrator') return null;
+    
+    const totalApplications = applications.length;
+    const acceptedApps = applications.filter((app: Application) => app.status === 'accepted').length;
+    const acceptanceRate = totalApplications > 0 ? Math.round((acceptedApps / totalApplications) * 100) : 0;
+    const activeCohorts = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
+    const totalProjects = projects.length;
+    
+    return {
+      totalApplications,
+      acceptanceRate,
+      activeCohorts,
+      totalProjects,
+      mentorUtilization: 0, // Future metric
+      averageReadiness: projects.reduce((sum: number, p: Project) => sum + (p.readinessScore || 0), 0) / Math.max(projects.length, 1),
+      fundingDisbursed: 0, // Future metric
+      completionRate: 0 // Future metric
+    };
+  }, [applications, cohorts, projects, user?.role]);
+
+  // Process real applications data with user information
+  const recentApplications = useMemo(() => {
+    if (user?.role !== 'administrator') return [];
+    
+    return applications.map((app: Application) => {
+      const appUser = users.find((u: User) => u.id === app.userId);
+      const submittedDate = new Date(app.submittedAt || app.createdAt!);
+      const daysDiff = Math.floor((Date.now() - submittedDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return {
+        id: app.id!,
+        applicant: appUser ? `${appUser.firstName || ''} ${appUser.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
+        project: (app.answers as any)?.projectName || 'Unnamed Project',
+        status: app.status || 'draft',
+        submittedDays: daysDiff,
+        score: (app.scores as any)?.total || 0,
+        email: appUser?.email,
+        description: (app.answers as any)?.projectDescription,
+        reviewerNotes: app.reviewerNotes || []
+      };
+    }).sort((a, b) => a.submittedDays - b.submittedDays).slice(0, 5); // Show only recent 5
+  }, [applications, users, user?.role]);
+
+  // Generate dynamic system alerts from real data
+  const systemAlerts = useMemo(() => {
+    if (user?.role !== 'administrator') return [];
+    
+    const alerts: any[] = [];
+    
+    // Check for pending reviews
+    const pendingReviews = applications.filter((app: Application) => app.status === 'submitted').length;
+    if (pendingReviews > 0) {
+      alerts.push({
+        id: "pending-reviews",
+        type: "warning",
+        title: "Applications Pending Review",
+        message: `${pendingReviews} application${pendingReviews > 1 ? 's' : ''} awaiting review`,
+        priority: pendingReviews > 5 ? "high" : "medium"
+      });
+    }
+    
+    // Check for active cohorts
+    const activeCohortCount = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
+    if (activeCohortCount > 0) {
+      alerts.push({
+        id: "active-cohorts",
+        type: "info",
+        title: "Active Cohorts",
+        message: `${activeCohortCount} cohort${activeCohortCount > 1 ? 's' : ''} currently running`,
+        priority: "low"
+      });
+    }
+    
+    return alerts;
+  }, [applications, cohorts, user?.role]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.split('?')[1]);
@@ -51,7 +152,29 @@ export default function Dashboard() {
       case 'investor':
         return <InvestorDashboard />;
       case 'administrator':
-        return <AdminDashboard />;
+        if (!adminMetrics || applicationsLoading || cohortsLoading || usersLoading || projectsLoading) {
+          return (
+            <div className="space-y-6">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="glass-card animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
+                    <div className="h-4 bg-muted rounded w-full mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-2/3"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          );
+        }
+        return (
+          <AdminDashboard 
+            metrics={adminMetrics}
+            recentApplications={recentApplications}
+            cohorts={cohorts}
+            systemAlerts={systemAlerts}
+          />
+        );
       case 'applicant':
         return (
           <Card className="glass-card">

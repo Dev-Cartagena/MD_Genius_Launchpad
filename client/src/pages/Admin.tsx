@@ -527,13 +527,10 @@ export default function Admin() {
                                 {application.status.replace('_', ' ')}
                               </Badge>
                             </div>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              data-testid={`button-review-application-${application.id}`}
-                            >
-                              Review
-                            </Button>
+                            <ApplicationStatusDialog 
+                              application={application} 
+                              updateStatus={updateApplicationStatus}
+                            />
                           </div>
                         </CardContent>
                       </Card>
