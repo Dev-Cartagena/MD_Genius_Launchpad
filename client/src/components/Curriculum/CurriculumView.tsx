@@ -23,7 +23,8 @@ import {
   Target,
   Users,
   Lightbulb,
-  AlertCircle
+  AlertCircle,
+  Info
 } from "lucide-react";
 
 export default function CurriculumView() {
@@ -427,115 +428,349 @@ export default function CurriculumView() {
                                             <h4 className="font-semibold text-base leading-tight mb-2" data-testid={`lesson-title-${lesson.id}`}>
                                               {lesson.title}
                                             </h4>
-                                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                                              {lesson.content?.split('\n\n').map((paragraph, idx) => {
-                                                const trimmed = paragraph.trim();
-                                                if (!trimmed) return null;
+                                            <div className="space-y-4">
+                                              {(() => {
+                                                const content = lesson.content || '';
                                                 
-                                                // Handle different content types
-                                                if (trimmed.startsWith('##')) {
-                                                  return (
-                                                    <h3 key={idx} className="text-lg font-semibold text-primary mt-4 mb-2">
-                                                      {trimmed.replace(/^##\s*/, '')}
-                                                    </h3>
-                                                  );
-                                                }
-                                                if (trimmed.startsWith('###')) {
-                                                  return (
-                                                    <h4 key={idx} className="text-base font-medium text-accent mt-3 mb-2">
-                                                      {trimmed.replace(/^###\s*/, '')}
-                                                    </h4>
-                                                  );
-                                                }
-                                                if (trimmed.startsWith('- ')) {
-                                                  const listItems = paragraph.split('\n').filter(line => line.trim().startsWith('- '));
-                                                  return (
-                                                    <ul key={idx} className="list-disc list-inside space-y-1 my-3 ml-2">
-                                                      {listItems.map((item, itemIdx) => (
-                                                        <li key={itemIdx} className="text-sm leading-relaxed">
-                                                          {item.replace(/^-\s*/, '')}
-                                                        </li>
-                                                      ))}
-                                                    </ul>
-                                                  );
-                                                }
-                                                if (trimmed.includes('**') || trimmed.includes('*')) {
-                                                  // Safe content rendering - parse markdown-style formatting
-                                                  const parts: { text: string; type: 'normal' | 'bold' | 'italic' }[] = [];
-                                                  let remainingText = trimmed;
+                                                // Production-ready line-based content parser with robust state machine
+                                                const parseContent = (rawContent: string) => {
+                                                  const lines = rawContent.split('\n');
+                                                  const processedSections: Array<{
+                                                    type: 'overview' | 'objectives' | 'section' | 'content' | 'list' | 'paragraph';
+                                                    title?: string;
+                                                    content: Array<{
+                                                      type: 'text' | 'list' | 'subheading';
+                                                      text?: string;
+                                                      items?: Array<{ text: string; isNumbered: boolean }>;
+                                                    }>;
+                                                    icon?: string;
+                                                  }> = [];
                                                   
-                                                  // Parse bold text (**text**)
-                                                  const boldRegex = /\*\*([^*]+)\*\*/g;
+                                                  let currentSection: any = null;
+                                                  let currentParagraph: string[] = [];
+                                                  let currentList: Array<{ text: string; isNumbered: boolean }> = [];
+                                                  let inListMode = false;
+                                                  let listIsNumbered = false;
+                                                  let isFirstContent = true;
+                                                  
+                                                  // Helper function to flush current paragraph
+                                                  const flushParagraph = () => {
+                                                    if (currentParagraph.length > 0) {
+                                                      const paragraphText = currentParagraph.join(' ').trim();
+                                                      if (paragraphText && currentSection) {
+                                                        currentSection.content.push({
+                                                          type: 'text',
+                                                          text: paragraphText
+                                                        });
+                                                      }
+                                                      currentParagraph = [];
+                                                    }
+                                                  };
+                                                  
+                                                  // Helper function to flush current list
+                                                  const flushList = () => {
+                                                    if (currentList.length > 0 && currentSection) {
+                                                      currentSection.content.push({
+                                                        type: 'list',
+                                                        items: [...currentList]
+                                                      });
+                                                      currentList = [];
+                                                    }
+                                                    inListMode = false;
+                                                    listIsNumbered = false;
+                                                  };
+                                                  
+                                                  // Helper function to finalize current section
+                                                  const finalizeSection = () => {
+                                                    flushParagraph();
+                                                    flushList();
+                                                    if (currentSection && currentSection.content.length > 0) {
+                                                      processedSections.push(currentSection);
+                                                    }
+                                                    currentSection = null;
+                                                  };
+                                                  
+                                                  // Process each line with state machine
+                                                  for (let i = 0; i < lines.length; i++) {
+                                                    const line = lines[i];
+                                                    const trimmed = line.trim();
+                                                    
+                                                    // Skip empty lines but use them to break context
+                                                    if (!trimmed) {
+                                                      if (inListMode) {
+                                                        // Empty line breaks list
+                                                        flushList();
+                                                      } else if (currentParagraph.length > 0) {
+                                                        // Empty line breaks paragraph
+                                                        flushParagraph();
+                                                      }
+                                                      continue;
+                                                    }
+                                                    
+                                                    // Check for main headings (##)
+                                                    const headingMatch = trimmed.match(/^##\s*(.+)$/);
+                                                    if (headingMatch) {
+                                                      finalizeSection();
+                                                      
+                                                      const headingText = headingMatch[1];
+                                                      const headingLower = headingText.toLowerCase();
+                                                      
+                                                      // Determine section type based on heading content
+                                                      if (/learning\s*objectives?/i.test(headingLower)) {
+                                                        currentSection = {
+                                                          type: 'objectives',
+                                                          title: 'Learning Objectives',
+                                                          content: [],
+                                                          icon: 'target'
+                                                        };
+                                                      } else if (/overview/i.test(headingLower)) {
+                                                        currentSection = {
+                                                          type: 'overview',
+                                                          title: 'Overview',
+                                                          content: [],
+                                                          icon: 'info'
+                                                        };
+                                                      } else {
+                                                        currentSection = {
+                                                          type: 'section',
+                                                          title: headingText,
+                                                          content: [],
+                                                          icon: 'book'
+                                                        };
+                                                      }
+                                                      isFirstContent = false;
+                                                      continue;
+                                                    }
+                                                    
+                                                    // Check for subheadings (###)
+                                                    const subheadingMatch = trimmed.match(/^###\s*(.+)$/);
+                                                    if (subheadingMatch) {
+                                                      flushParagraph();
+                                                      flushList();
+                                                      
+                                                      if (!currentSection) {
+                                                        currentSection = {
+                                                          type: 'content',
+                                                          content: []
+                                                        };
+                                                      }
+                                                      
+                                                      currentSection.content.push({
+                                                        type: 'subheading',
+                                                        text: subheadingMatch[1]
+                                                      });
+                                                      continue;
+                                                    }
+                                                    
+                                                    // Check for list items (bullet or numbered)
+                                                    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+                                                    const numberedMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+                                                    
+                                                    if (bulletMatch || numberedMatch) {
+                                                      flushParagraph();
+                                                      
+                                                      const isNumbered = !!numberedMatch;
+                                                      const itemText = bulletMatch ? bulletMatch[1] : numberedMatch![1];
+                                                      
+                                                      // Check if we need to start a new list or continue existing
+                                                      if (!inListMode || listIsNumbered !== isNumbered) {
+                                                        flushList(); // Flush different list type
+                                                        inListMode = true;
+                                                        listIsNumbered = isNumbered;
+                                                      }
+                                                      
+                                                      currentList.push({ text: itemText, isNumbered });
+                                                      continue;
+                                                    }
+                                                    
+                                                    // Regular text content
+                                                    if (inListMode) {
+                                                      flushList(); // End list mode for regular text
+                                                    }
+                                                    
+                                                    // Initialize first section if none exists
+                                                    if (!currentSection) {
+                                                      currentSection = {
+                                                        type: isFirstContent ? 'overview' : 'content',
+                                                        title: isFirstContent ? 'Overview' : undefined,
+                                                        content: [],
+                                                        icon: isFirstContent ? 'info' : undefined
+                                                      };
+                                                      isFirstContent = false;
+                                                    }
+                                                    
+                                                    // Add to current paragraph
+                                                    currentParagraph.push(trimmed);
+                                                  }
+                                                  
+                                                  // Finalize remaining content
+                                                  finalizeSection();
+                                                  
+                                                  return processedSections;
+                                                };
+                                                
+                                                // Comprehensive inline markdown transformer for all text content
+                                                const transformInlineMarkdown = (text: string) => {
+                                                  if (!text) return text;
+                                                  
+                                                  const elements: React.ReactNode[] = [];
                                                   let lastIndex = 0;
+                                                  
+                                                  // Enhanced regex for bold, italic, and links
+                                                  const combinedRegex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(\[([^\]]+)\]\(([^)]+)\))/g;
                                                   let match;
                                                   
-                                                  while ((match = boldRegex.exec(remainingText)) !== null) {
-                                                    // Add text before the bold
+                                                  while ((match = combinedRegex.exec(text)) !== null) {
+                                                    // Add text before the match
                                                     if (match.index > lastIndex) {
-                                                      const beforeText = remainingText.slice(lastIndex, match.index);
-                                                      if (beforeText) parts.push({ text: beforeText, type: 'normal' });
+                                                      elements.push(text.slice(lastIndex, match.index));
                                                     }
-                                                    // Add bold text
-                                                    parts.push({ text: match[1], type: 'bold' });
+                                                    
+                                                    if (match[1]) {
+                                                      // Bold (**text**)
+                                                      elements.push(
+                                                        <strong key={`bold-${match.index}`} className="font-semibold text-primary">
+                                                          {match[2]}
+                                                        </strong>
+                                                      );
+                                                    } else if (match[3]) {
+                                                      // Italic (*text*)
+                                                      elements.push(
+                                                        <em key={`italic-${match.index}`} className="italic text-accent">
+                                                          {match[4]}
+                                                        </em>
+                                                      );
+                                                    } else if (match[5]) {
+                                                      // Link [text](url)
+                                                      elements.push(
+                                                        <a
+                                                          key={`link-${match.index}`}
+                                                          href={match[7]}
+                                                          className="text-primary hover:text-primary/80 underline underline-offset-2"
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                        >
+                                                          {match[6]}
+                                                        </a>
+                                                      );
+                                                    }
+                                                    
                                                     lastIndex = match.index + match[0].length;
                                                   }
                                                   
                                                   // Add remaining text
-                                                  if (lastIndex < remainingText.length) {
-                                                    const afterText = remainingText.slice(lastIndex);
-                                                    if (afterText) parts.push({ text: afterText, type: 'normal' });
+                                                  if (lastIndex < text.length) {
+                                                    elements.push(text.slice(lastIndex));
                                                   }
                                                   
-                                                  // If no bold formatting found, check for italic
-                                                  if (parts.length === 0) {
-                                                    const italicRegex = /\*([^*]+)\*/g;
-                                                    lastIndex = 0;
-                                                    while ((match = italicRegex.exec(remainingText)) !== null) {
-                                                      if (match.index > lastIndex) {
-                                                        const beforeText = remainingText.slice(lastIndex, match.index);
-                                                        if (beforeText) parts.push({ text: beforeText, type: 'normal' });
-                                                      }
-                                                      parts.push({ text: match[1], type: 'italic' });
-                                                      lastIndex = match.index + match[0].length;
-                                                    }
-                                                    if (lastIndex < remainingText.length) {
-                                                      const afterText = remainingText.slice(lastIndex);
-                                                      if (afterText) parts.push({ text: afterText, type: 'normal' });
-                                                    }
-                                                  }
-                                                  
-                                                  // If no formatting found, treat as normal text
-                                                  if (parts.length === 0) {
-                                                    parts.push({ text: trimmed, type: 'normal' });
-                                                  }
-                                                  
-                                                  return (
-                                                    <p key={idx} className="text-sm leading-relaxed my-2">
-                                                      {parts.map((part, partIdx) => {
-                                                        if (part.type === 'bold') {
+                                                  return elements.length > 0 ? elements : text;
+                                                };
+                                                
+                                                const processedSections = parseContent(content);
+                                                
+                                                return processedSections.map((section, sectionIdx) => (
+                                                  <div key={sectionIdx} className="space-y-3">
+                                                    {section.title && (
+                                                      <div className="flex items-center space-x-2 mb-3">
+                                                        {section.type === 'objectives' && (
+                                                          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                                                            <Target className="w-4 h-4 text-accent" />
+                                                          </div>
+                                                        )}
+                                                        {section.type === 'section' && (
+                                                          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                                            <BookOpen className="w-4 h-4 text-primary" />
+                                                          </div>
+                                                        )}
+                                                        {section.type === 'overview' && (
+                                                          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                                            <Info className="w-4 h-4 text-blue-500" />
+                                                          </div>
+                                                        )}
+                                                        <h4 className="text-base font-semibold text-foreground">
+                                                          {section.title}
+                                                        </h4>
+                                                      </div>
+                                                    )}
+                                                    
+                                                    <div className="space-y-3">
+                                                      {section.content.map((contentItem, itemIdx) => {
+                                                        if (contentItem.type === 'subheading') {
                                                           return (
-                                                            <strong key={partIdx} className="font-semibold text-primary">
-                                                              {part.text}
-                                                            </strong>
-                                                          );
-                                                        } else if (part.type === 'italic') {
-                                                          return (
-                                                            <em key={partIdx} className="italic text-accent">
-                                                              {part.text}
-                                                            </em>
+                                                            <h5 key={itemIdx} className="text-sm font-semibold text-primary mt-4 mb-2 flex items-center space-x-2">
+                                                              <div className="w-1 h-4 bg-primary rounded-full"></div>
+                                                              <span>{transformInlineMarkdown(contentItem.text!)}</span>
+                                                            </h5>
                                                           );
                                                         }
-                                                        return part.text;
+                                                        
+                                                        if (contentItem.type === 'list') {
+                                                          const items = contentItem.items!;
+                                                          const isNumbered = items.length > 0 && items[0].isNumbered;
+                                                          
+                                                          if (section.type === 'objectives') {
+                                                            // Special objectives styling
+                                                            return (
+                                                              <div key={itemIdx} className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                                                                <div className="grid grid-cols-1 gap-2">
+                                                                  {items.map((item, objIdx) => (
+                                                                    <div key={objIdx} className="flex items-start space-x-3">
+                                                                      <div className="w-5 h-5 rounded border-2 border-accent/40 flex items-center justify-center mt-0.5 bg-background">
+                                                                        <CheckCircle className="w-3 h-3 text-accent opacity-60" />
+                                                                      </div>
+                                                                      <p className="text-sm leading-relaxed text-foreground flex-1">
+                                                                        {transformInlineMarkdown(item.text)}
+                                                                      </p>
+                                                                    </div>
+                                                                  ))}
+                                                                </div>
+                                                              </div>
+                                                            );
+                                                          } else {
+                                                            // Regular list styling
+                                                            return (
+                                                              <div key={itemIdx} className="bg-secondary/30 rounded-lg p-4">
+                                                                {isNumbered ? (
+                                                                  <ol className="space-y-2 list-decimal list-inside">
+                                                                    {items.map((item, listItemIdx) => (
+                                                                      <li key={listItemIdx} className="text-sm leading-relaxed text-foreground">
+                                                                        <span className="ml-2">{transformInlineMarkdown(item.text)}</span>
+                                                                      </li>
+                                                                    ))}
+                                                                  </ol>
+                                                                ) : (
+                                                                  <ul className="space-y-2">
+                                                                    {items.map((item, listItemIdx) => (
+                                                                      <li key={listItemIdx} className="flex items-start space-x-3">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+                                                                        <span className="text-sm leading-relaxed text-foreground">
+                                                                          {transformInlineMarkdown(item.text)}
+                                                                        </span>
+                                                                      </li>
+                                                                    ))}
+                                                                  </ul>
+                                                                )}
+                                                              </div>
+                                                            );
+                                                          }
+                                                        }
+                                                        
+                                                        if (contentItem.type === 'text') {
+                                                          return (
+                                                            <div key={itemIdx} className="bg-background/50 rounded-lg p-4 border border-border/50">
+                                                              <p className="text-sm leading-relaxed text-foreground">
+                                                                {transformInlineMarkdown(contentItem.text!)}
+                                                              </p>
+                                                            </div>
+                                                          );
+                                                        }
+                                                        
+                                                        return null;
                                                       })}
-                                                    </p>
-                                                  );
-                                                }
-                                                return (
-                                                  <p key={idx} className="text-sm leading-relaxed my-2">
-                                                    {trimmed}
-                                                  </p>
-                                                );
-                                              })}
+                                                    </div>
+                                                  </div>
+                                                ));
+                                              })()}
                                             </div>
                                           </div>
                                         </div>
