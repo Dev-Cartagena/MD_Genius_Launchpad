@@ -1,18 +1,21 @@
 # MD Genius AI Startup Launchpad Platform
 
 ## Overview
-The MD Genius AI Startup Launchpad is a comprehensive web application designed to manage the entire lifecycle of an AI startup accelerator program. It facilitates talent acquisition, application review, cohort management, curriculum delivery, project development, mentorship coordination, investor engagement, and funding disbursement for applicants, participants, mentors, investors, and administrators. The platform aims to be a full-stack application with a React frontend, Express backend, PostgreSQL database (via Drizzle ORM), and integrate AI coaching capabilities through OpenAI's GPT model, emphasizing security, accessibility, and multi-language support (English/Spanish).
+
+The MD Genius AI Startup Launchpad is a comprehensive web application designed to manage the entire lifecycle of an AI startup accelerator program. It facilitates talent acquisition, application review, cohort management, curriculum delivery, project development, mentorship coordination, investor engagement, and funding disbursement for applicants, participants, mentors, investors, and administrators. The platform supports an 8-week intensive program focused on AI startup development. Its business vision is to streamline and professionalize the AI startup acceleration process, offering a robust and scalable solution for nurturing next-generation AI ventures.
 
 ## User Preferences
+
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
+
 ### Frontend Architecture
 - **Framework**: React 18 with TypeScript and Vite.
 - **UI Library**: Radix UI components with shadcn/ui design system.
-- **Styling**: Tailwind CSS with custom CSS variables, supporting dark mode and web3-inspired design.
+- **Styling**: Tailwind CSS with custom CSS variables, dark mode, and web3-inspired design.
 - **State Management**: TanStack Query for server state management.
-- **Routing**: Wouter for client-side routing.
+- **Routing**: Wouter for lightweight client-side routing.
 - **Forms**: React Hook Form with Zod validation.
 - **File Structure**: Component-based architecture.
 
@@ -35,12 +38,22 @@ Preferred communication style: Simple, everyday language.
 
 ### AI Integration
 - **AI Coach Service**: OpenAI GPT-5 integration for contextual guidance.
-- **Knowledge Base**: Structured content for various coaching modes (Process Guide, Ideation, Technical, Go-to-Market, Pitch Coach).
+- **Knowledge Base**: Structured content for various coaching modes.
 
 ### File Storage & Media
 - **Object Storage**: Google Cloud Storage integration with custom ACL.
 
+### Core Features
+- **Application Management**: Multi-step application form, admin review interface with status updates, automatic role transitions, real-time metrics, advanced filtering.
+- **Admin Dashboard**: Live metrics, user management, application review workflow, cohort creation, project monitoring.
+- **AI Coach System**: 5 specialized modes (Process Guide, Ideation, Technical, Go-to-Market, Pitch Coach), persistent conversation history, context management, localization support.
+- **Curriculum Management**: Comprehensive database schema, production-ready lesson content system with structured formatting, professional visual hierarchy, inline markdown support, universal list rendering, administrator cohort selection, read-only mode for admins, real-time progress tracking, and an 8-week AI startup accelerator curriculum (27 lessons).
+- **Program Progress Tracking**: Real-time progress calculation API, dynamic milestone indicators, participant dashboard integration, instant dashboard updates via smart cache invalidation.
+- **Project Management**: Basic creation/editing, project overview, AI Coach integration.
+- **Communication Framework**: Database schema for messages, threads, and notifications; API endpoints for operations.
+
 ## External Dependencies
+
 ### Third-Party Services
 - **Database**: Neon PostgreSQL serverless database.
 - **Authentication**: Replit OIDC provider.
@@ -49,5 +62,5 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Libraries & Frameworks
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, Radix UI, TanStack Query, Wouter.
-- **Backend**: Express, Drizzle ORM.
+- **Backend**: Express, Drizzle ORM, Passport.js, connect-pg-simple.
 - **Validation**: Zod.
