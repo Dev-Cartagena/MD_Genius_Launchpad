@@ -89,6 +89,19 @@ export interface IStorage {
   // User progress operations
   getUserProgress(userId: string, lessonId: string): Promise<UserProgress | undefined>;
   getUserProgressForModule(userId: string, moduleId: string): Promise<UserProgress[]>;
+  getUserProgressForCohort(userId: string, cohortId: string): Promise<{
+    totalLessons: number;
+    completedLessons: number;
+    completionPercentage: number;
+    moduleProgress: Array<{
+      moduleId: string;
+      moduleName: string;
+      week: number;
+      totalLessons: number;
+      completedLessons: number;
+      completionPercentage: number;
+    }>;
+  }>;
   createOrUpdateUserProgress(progress: InsertUserProgress): Promise<UserProgress>;
   markLessonComplete(userId: string, lessonId: string, score?: number, timeSpent?: number): Promise<UserProgress>;
   
@@ -410,6 +423,75 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(lessons, eq(userProgress.lessonId, lessons.id))
       .where(and(eq(userProgress.userId, userId), eq(lessons.moduleId, moduleId)))
       .then((rows: any[]) => rows.map((row: any) => row.user_progress));
+  }
+
+  async getUserProgressForCohort(userId: string, cohortId: string): Promise<{
+    totalLessons: number;
+    completedLessons: number;
+    completionPercentage: number;
+    moduleProgress: Array<{
+      moduleId: string;
+      moduleName: string;
+      week: number;
+      totalLessons: number;
+      completedLessons: number;
+      completionPercentage: number;
+    }>;
+  }> {
+    // Get all modules for the cohort
+    const cohortModules = await db
+      .select()
+      .from(modules)
+      .where(eq(modules.cohortId, cohortId));
+
+    // Calculate progress for each module
+    const moduleProgress = await Promise.all(
+      cohortModules.map(async (module) => {
+        // Get all lessons for this module
+        const moduleLessons = await db
+          .select()
+          .from(lessons)
+          .where(eq(lessons.moduleId, module.id));
+
+        // Get user progress for these lessons
+        const progress = await db
+          .select()
+          .from(userProgress)
+          .innerJoin(lessons, eq(userProgress.lessonId, lessons.id))
+          .where(
+            and(
+              eq(userProgress.userId, userId),
+              eq(lessons.moduleId, module.id),
+              eq(userProgress.isCompleted, true)
+            )
+          );
+
+        const totalLessons = moduleLessons.length;
+        const completedLessons = progress.length;
+        const completionPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+        return {
+          moduleId: module.id,
+          moduleName: module.title,
+          week: module.week,
+          totalLessons,
+          completedLessons,
+          completionPercentage,
+        };
+      })
+    );
+
+    // Calculate overall progress
+    const totalLessons = moduleProgress.reduce((sum, mp) => sum + mp.totalLessons, 0);
+    const completedLessons = moduleProgress.reduce((sum, mp) => sum + mp.completedLessons, 0);
+    const completionPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+    return {
+      totalLessons,
+      completedLessons,
+      completionPercentage,
+      moduleProgress: moduleProgress.sort((a, b) => a.week - b.week),
+    };
   }
 
   async createOrUpdateUserProgress(progress: InsertUserProgress): Promise<UserProgress> {

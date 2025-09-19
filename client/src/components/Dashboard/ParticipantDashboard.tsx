@@ -54,17 +54,48 @@ export default function ParticipantDashboard() {
     enabled: !!userCohort?.id,
   });
 
-  // Transform milestones for display (progress calculation to be implemented with deliverables)
-  const milestonesWithProgress = milestones.map((milestone: Milestone, index: number) => ({
-    id: milestone.id,
-    title: milestone.title,
-    description: milestone.description,
-    dueDate: milestone.dueDate,
-    // TODO: Replace with real progress from deliverables API
-    status: index === 0 ? "approved" : index === 1 ? "in_progress" : "not_started",
-    completion: index === 0 ? 100 : index === 1 ? 75 : 0,
-    orderIndex: milestone.orderIndex,
-  }));
+  // Fetch real user progress for cohort
+  const { data: progressData, isLoading: progressLoading } = useQuery<{
+    totalLessons: number;
+    completedLessons: number;
+    completionPercentage: number;
+    moduleProgress: Array<{
+      moduleId: string;
+      moduleName: string;
+      week: number;
+      totalLessons: number;
+      completedLessons: number;
+      completionPercentage: number;
+    }>;
+  }>({
+    queryKey: [`/api/progress/cohort/${userCohort?.id}`],
+    enabled: !!userCohort?.id,
+  });
+
+  // Transform milestones for display (using real progress data)
+  const milestonesWithProgress = milestones.map((milestone: Milestone, index: number) => {
+    // Calculate milestone progress based on weeks and lesson completion
+    const milestoneWeeks = Math.ceil((index + 1) * 2); // Each milestone spans ~2 weeks
+    const relevantModules = progressData?.moduleProgress?.filter(mp => mp.week <= milestoneWeeks) || [];
+    const milestoneCompletion = relevantModules.length > 0 
+      ? Math.round(relevantModules.reduce((sum, mp) => sum + mp.completionPercentage, 0) / relevantModules.length)
+      : 0;
+    
+    // Determine status based on completion
+    const status = milestoneCompletion >= 100 ? "approved" 
+                  : milestoneCompletion > 0 ? "in_progress" 
+                  : "not_started";
+
+    return {
+      id: milestone.id,
+      title: milestone.title,
+      description: milestone.description,
+      dueDate: milestone.dueDate,
+      status,
+      completion: milestoneCompletion,
+      orderIndex: milestone.orderIndex,
+    };
+  });
 
   // Calculate current week from cohort dates
   const getCurrentWeek = () => {
@@ -136,7 +167,7 @@ export default function ParticipantDashboard() {
     }
   ];
 
-  if (projectsLoading || milestonesLoading) {
+  if (projectsLoading || milestonesLoading || progressLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -171,9 +202,11 @@ export default function ParticipantDashboard() {
             <div className="mb-6">
               <div className="flex justify-between text-sm mb-2">
                 <span>Overall Completion</span>
-                <span className="text-accent font-medium" data-testid="progress-percentage">65%</span>
+                <span className="text-accent font-medium" data-testid="progress-percentage">
+                  {progressData?.completionPercentage ?? 0}%
+                </span>
               </div>
-              <Progress value={65} className="h-3" data-testid="progress-bar" />
+              <Progress value={progressData?.completionPercentage ?? 0} className="h-3" data-testid="progress-bar" />
             </div>
 
             {/* Milestone Timeline */}

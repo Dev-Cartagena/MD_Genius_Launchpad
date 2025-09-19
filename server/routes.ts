@@ -515,6 +515,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/progress/cohort/:cohortId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { cohortId } = req.params;
+      const progress = await storage.getUserProgressForCohort(userId, cohortId);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching cohort progress:", error);
+      res.status(500).json({ message: "Failed to fetch cohort progress" });
+    }
+  });
+
   // Deliverable routes
   app.get('/api/projects/:projectId/deliverables', isAuthenticated, async (req: any, res) => {
     try {

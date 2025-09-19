@@ -112,8 +112,12 @@ export default function CurriculumView() {
       return apiRequest('POST', `/api/progress/lesson/${lessonId}/complete`, { score, timeSpent: 0 });
     },
     onSuccess: () => {
-      // Invalidate progress queries
+      // Invalidate progress queries for real-time updates
       queryClient.invalidateQueries({ queryKey: ['/api/progress/module', selectedModule] });
+      // Invalidate cohort progress for dashboard updates
+      if (currentCohort?.id) {
+        queryClient.invalidateQueries({ queryKey: [`/api/progress/cohort/${currentCohort.id}`] });
+      }
     },
     onError: (error) => {
       console.error('Failed to mark lesson complete:', error);
@@ -404,26 +408,8 @@ export default function CurriculumView() {
                               return (
                                 <Card key={lesson.id} className="bg-secondary/20 border-border/50">
                                   <CardContent className="p-4">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex items-start space-x-3 flex-1">
-                                        <button
-                                          onClick={() => toggleLessonComplete(lesson.id)}
-                                          className={`mt-1 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                                            progress?.isCompleted
-                                              ? 'bg-green-400 text-green-900' 
-                                              : isAdmin
-                                              ? 'bg-muted border border-border cursor-not-allowed opacity-50'
-                                              : 'bg-secondary border border-border hover:bg-primary/10 transition-colors'
-                                          }`}
-                                          data-testid={`button-complete-lesson-${lesson.id}`}
-                                          disabled={markCompleteMutation.isPending || isAdmin}
-                                          title={isAdmin ? 'Completion disabled in admin mode' : 'Mark as complete'}
-                                        >
-                                          {progress?.isCompleted && (
-                                            <CheckCircle className="w-4 h-4" />
-                                          )}
-                                        </button>
-                                        <div className="flex-1 space-y-3">
+                                    <div className="space-y-4">
+                                      <div className="flex-1 space-y-3">
                                           <div>
                                             <h4 className="font-semibold text-base leading-tight mb-2" data-testid={`lesson-title-${lesson.id}`}>
                                               {lesson.title}
@@ -774,7 +760,8 @@ export default function CurriculumView() {
                                             </div>
                                           </div>
                                         </div>
-                                      </div>
+                                      
+                                      {/* Media Actions */}
                                       <div className="flex items-center space-x-2">
                                         {lesson.media?.some(m => m.includes('.mp4')) && (
                                           <Button size="sm" variant="outline" data-testid={`button-play-${lesson.id}`}>
@@ -787,6 +774,45 @@ export default function CurriculumView() {
                                             <Download className="w-3 h-3 mr-1" />
                                             PDF
                                           </Button>
+                                        )}
+                                      </div>
+
+                                      {/* Lesson Completion */}
+                                      <div className="border-t border-border/50 pt-4">
+                                        <div className="flex items-center justify-between">
+                                          <div className="text-sm text-muted-foreground">
+                                            {progress?.isCompleted 
+                                              ? "✅ Lesson completed" 
+                                              : "Mark this lesson as completed when you're done"}
+                                          </div>
+                                          <Button
+                                            onClick={() => toggleLessonComplete(lesson.id)}
+                                            disabled={markCompleteMutation.isPending || isAdmin || Boolean(progress?.isCompleted)}
+                                            size="sm"
+                                            className={progress?.isCompleted 
+                                              ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                              : isAdmin
+                                              ? 'opacity-50 cursor-not-allowed'
+                                              : ''}
+                                            data-testid={`button-complete-lesson-${lesson.id}`}
+                                          >
+                                            {progress?.isCompleted ? (
+                                              <>
+                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                Completed
+                                              </>
+                                            ) : (
+                                              <>
+                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                {markCompleteMutation.isPending ? 'Marking...' : 'Mark as Complete'}
+                                              </>
+                                            )}
+                                          </Button>
+                                        </div>
+                                        {isAdmin && (
+                                          <p className="text-xs text-muted-foreground mt-2">
+                                            📖 Read-only mode: Completion disabled for administrators
+                                          </p>
                                         )}
                                       </div>
                                     </div>
