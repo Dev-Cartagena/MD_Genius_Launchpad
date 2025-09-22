@@ -28,8 +28,8 @@ export default function Sidebar() {
     { href: "/curriculum", icon: BookOpen, label: "Curriculum", roles: ["participant"] },
     { href: "/roadmap", icon: Map, label: "Roadmap", roles: ["participant"] },
     { href: "/project", icon: Lightbulb, label: "My Project", roles: ["participant"] },
-    { href: "/mentors", icon: Users, label: "Mentors", roles: ["participant", "mentor", "administrator"] },
-    { href: "/investors", icon: TrendingUp, label: "Investors", roles: ["participant", "investor", "administrator"] },
+    { href: "/mentors", icon: Users, label: "Mentors", roles: ["participant", "mentor"] },
+    { href: "/investors", icon: TrendingUp, label: "Investors", roles: ["participant", "investor"] },
     { href: "/admin", icon: Settings, label: "Admin Panel", roles: ["administrator"] },
   ];
 
