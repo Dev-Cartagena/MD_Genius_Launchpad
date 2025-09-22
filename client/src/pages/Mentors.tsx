@@ -124,7 +124,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     onSuccess: () => {
       toast({
         title: "Session Booked!",
-        description: `Your session with ${mentor.user.firstName} has been scheduled successfully.`,
+        description: `Your session with ${mentor.firstName} has been scheduled successfully.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sessions/my"] });
@@ -148,7 +148,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Schedule Session with {mentor.user.firstName} {mentor.user.lastName}</DialogTitle>
+          <DialogTitle>Schedule Session with {mentor.firstName} {mentor.lastName}</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -370,8 +370,8 @@ export default function Mentors() {
 
   const filteredMentors = displayMentors.filter((mentor) => {
     const matchesSearch = searchQuery === "" || 
-      (mentor.user.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-      (mentor.user.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (mentor.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (mentor.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
       (mentor.expertise?.some((exp: string) => exp.toLowerCase().includes(searchQuery.toLowerCase())) ?? false);
     
     const matchesExpertise = selectedExpertise === "all" || 
@@ -480,16 +480,16 @@ export default function Mentors() {
               <CardHeader>
                 <div className="flex items-start space-x-4">
                   <Avatar className="w-16 h-16">
-                    <AvatarImage src={mentor.user.profileImageUrl} alt={`${mentor.user.firstName ?? ''} ${mentor.user.lastName ?? ''}`} />
+                    <AvatarImage src={mentor.profileImageUrl} alt={`${mentor.firstName ?? ''} ${mentor.lastName ?? ''}`} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-lg">
-                      {((mentor.user.firstName ?? '')[0] ?? '') + ((mentor.user.lastName ?? '')[0] ?? '') || '?'}
+                      {((mentor.firstName ?? '')[0] ?? '') + ((mentor.lastName ?? '')[0] ?? '') || '?'}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg" data-testid={`mentor-name-${mentor.id}`}>
-                        {(mentor.user.firstName ?? '')} {(mentor.user.lastName ?? '')}
+                        {(mentor.firstName ?? '')} {(mentor.lastName ?? '')}
                       </CardTitle>
                       <div className="flex items-center space-x-1">
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
@@ -584,7 +584,7 @@ export default function Mentors() {
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Contact {mentor.user.firstName} {mentor.user.lastName}</DialogTitle>
+                          <DialogTitle>Contact {mentor.firstName} {mentor.lastName}</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4">
                           <Textarea 
