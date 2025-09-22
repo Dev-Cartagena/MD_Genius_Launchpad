@@ -16,6 +16,7 @@ import {
   Target
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import type { MentorSession } from "@shared/schema";
 
 export default function MentorDashboard() {
   const { user } = useAuth();
@@ -25,49 +26,83 @@ export default function MentorDashboard() {
     queryKey: ["/api/mentors/mentees"],
   });
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["/api/mentors/sessions"],
+  const { data: mentorSessions = [], isLoading: sessionsLoading } = useQuery<MentorSession[]>({
+    queryKey: ["/api/mentor/sessions"],
   });
 
-  // Mock mentor metrics
-  const mentorStats = {
-    activeMentees: 8,
-    totalSessions: 24,
-    avgRating: 4.8,
-    hoursThisMonth: 16,
-    completedProjects: 5,
-    upcomingSessions: 3
+  // Process real session data
+  const getUpcomingSessions = () => {
+    const now = new Date();
+    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    return mentorSessions
+      .filter(session => {
+        const startTime = new Date(session.startTime);
+        return startTime >= now && startTime <= oneWeekFromNow;
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+      .slice(0, 5) // Show next 5 sessions
+      .map(session => ({
+        id: session.id,
+        title: session.title || "Mentor Session",
+        agenda: session.agenda || "Mentoring session",
+        time: formatSessionTime(session.startTime),
+        duration: calculateDuration(session.startTime, session.endTime),
+        participants: session.participantIds?.length || 0,
+        status: "confirmed" as const,
+        sessionData: session
+      }));
   };
-
-  const upcomingSessions = [
-    {
-      id: 1,
-      mentee: "Alex Rodriguez",
-      project: "EcoAI Analytics",
-      time: "Today 2:00 PM",
-      duration: "60 min",
-      type: "Strategy Session",
-      status: "confirmed"
-    },
-    {
-      id: 2,
-      mentee: "Sarah Kim",
-      project: "HealthTech AI",
-      time: "Tomorrow 10:00 AM", 
-      duration: "45 min",
-      type: "Technical Review",
-      status: "pending"
-    },
-    {
-      id: 3,
-      mentee: "Michael Chen",
-      project: "AgriTech Optimizer",
-      time: "Wed 3:00 PM",
-      duration: "30 min",
-      type: "Pitch Practice",
-      status: "confirmed"
+  
+  const formatSessionTime = (startTime: string) => {
+    const date = new Date(startTime);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sessionDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    const timeDiff = sessionDate.getTime() - today.getTime();
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    if (daysDiff === 0) return `Today ${timeStr}`;
+    if (daysDiff === 1) return `Tomorrow ${timeStr}`;
+    if (daysDiff < 7) return `${date.toLocaleDateString('en-US', { weekday: 'short' })} ${timeStr}`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${timeStr}`;
+  };
+  
+  const calculateDuration = (startTime: string, endTime: string) => {
+    if (!endTime) return "60 min"; // Default duration
+    
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return "60 min"; // Fallback for invalid dates
     }
-  ];
+    
+    const diffMs = end.getTime() - start.getTime();
+    const diffMins = Math.round(diffMs / (1000 * 60));
+    
+    if (diffMins <= 0) return "60 min"; // Fallback for invalid duration
+    return `${diffMins} min`;
+  };
+  
+  // Calculate mentor metrics from real data
+  const mentorStats = {
+    activeMentees: mentees.length,
+    totalSessions: mentorSessions.length,
+    avgRating: 4.8, // Could be calculated from session feedback in the future
+    hoursThisMonth: Math.floor(mentorSessions.length * 0.75), // Approximate
+    completedProjects: 5, // Could be calculated from mentee progress
+    upcomingSessions: getUpcomingSessions().length
+  };
+  
+  const upcomingSessions = getUpcomingSessions();
 
   const recentFeedback = [
     {
@@ -181,56 +216,78 @@ export default function MentorDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingSessions.map((session) => (
-                <Card key={session.id} className="bg-secondary/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-sm" data-testid={`session-mentee-${session.id}`}>
-                            {session.mentee}
+            {sessionsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : upcomingSessions.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-sm font-medium mb-2">No Upcoming Sessions</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Your schedule is clear for this week. Sessions will appear here once booked.
+                </p>
+                <Button size="sm" variant="outline" data-testid="button-create-session">
+                  Create Session
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {upcomingSessions.map((session) => (
+                  <Card key={session.id} className="bg-secondary/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <p className="font-medium text-sm" data-testid={`session-title-${session.id}`}>
+                              {session.title}
+                            </p>
+                            <Badge 
+                              variant={session.status === 'confirmed' ? 'default' : 'outline'}
+                              data-testid={`session-status-${session.id}`}
+                            >
+                              {session.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {session.agenda} • {session.participants} participant{session.participants !== 1 ? 's' : ''}
                           </p>
-                          <Badge 
-                            variant={session.status === 'confirmed' ? 'default' : 'outline'}
-                            data-testid={`session-status-${session.id}`}
+                          <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                            <span className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span data-testid={`session-time-${session.id}`}>{session.time}</span>
+                            </span>
+                            <span>{session.duration}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col space-y-1">
+                          <Button 
+                            size="sm" 
+                            className="bg-primary"
+                            data-testid={`button-join-${session.id}`}
                           >
-                            {session.status}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {session.project} • {session.type}
-                        </p>
-                        <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                          <span className="flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span data-testid={`session-time-${session.id}`}>{session.time}</span>
-                          </span>
-                          <span>{session.duration}</span>
+                            <Video className="w-3 h-3 mr-1" />
+                            Join
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            data-testid={`button-reschedule-${session.id}`}
+                          >
+                            Reschedule
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex flex-col space-y-1">
-                        <Button 
-                          size="sm" 
-                          className="bg-primary"
-                          data-testid={`button-join-${session.id}`}
-                        >
-                          <Video className="w-3 h-3 mr-1" />
-                          Join
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          data-testid={`button-reschedule-${session.id}`}
-                        >
-                          Reschedule
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

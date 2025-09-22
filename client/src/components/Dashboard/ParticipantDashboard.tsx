@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
-import type { Project, Cohort, Milestone } from "@shared/schema";
+import type { Project, Cohort, Milestone, MentorSession } from "@shared/schema";
 
 interface RoadmapItem {
   id: string;
@@ -63,6 +63,11 @@ export default function ParticipantDashboard() {
   // Fetch active cohorts
   const { data: cohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
+  });
+
+  // Fetch participant sessions
+  const { data: participantSessions = [], isLoading: sessionsLoading } = useQuery<MentorSession[]>({
+    queryKey: ["/api/participant/sessions"],
   });
 
   // Get current project (first project or default)
@@ -250,29 +255,52 @@ export default function ParticipantDashboard() {
     },
   ];
 
-  const upcomingSchedule = [
-    {
-      id: 1,
-      title: "Mentor Session",
-      description: "Sarah Chen • Product Strategy",
-      time: "Today 2:00 PM",
-      type: "mentor"
-    },
-    {
-      id: 2,
-      title: "Cohort Workshop", 
-      description: "Market Validation Deep Dive",
-      time: "Wed 10:00 AM",
-      type: "workshop"
-    },
-    {
-      id: 3,
-      title: "Deliverable Due",
-      description: "Customer Interview Report", 
-      time: "Fri 11:59 PM",
-      type: "deadline"
-    }
-  ];
+  // Process upcoming sessions for display
+  const getUpcomingSchedule = () => {
+    const now = new Date();
+    const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    // Filter sessions for this week
+    const thisWeekSessions = participantSessions.filter(session => {
+      const startTime = new Date(session.startTime);
+      return startTime >= now && startTime <= oneWeekFromNow;
+    });
+    
+    // Convert sessions to schedule format
+    const sessionEvents = thisWeekSessions.map(session => ({
+      id: session.id,
+      title: session.title || "Mentor Session",
+      description: session.agenda || "Mentoring session",
+      time: formatSessionTime(session.startTime),
+      type: "mentor" as const,
+      sessionData: session
+    }));
+    
+    return sessionEvents.slice(0, 3); // Limit to 3 items
+  };
+  
+  const formatSessionTime = (startTime: string) => {
+    const date = new Date(startTime);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sessionDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    const timeDiff = sessionDate.getTime() - today.getTime();
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    if (daysDiff === 0) return `Today ${timeStr}`;
+    if (daysDiff === 1) return `Tomorrow ${timeStr}`;
+    if (daysDiff < 7) return `${date.toLocaleDateString('en-US', { weekday: 'short' })} ${timeStr}`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${timeStr}`;
+  };
+  
+  const upcomingSchedule = getUpcomingSchedule();
 
   if (projectsLoading || milestonesLoading || progressLoading) {
     return (
@@ -661,32 +689,76 @@ export default function ParticipantDashboard() {
         {/* Upcoming Schedule */}
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">This Week</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold">This Week</CardTitle>
+              {sessionsLoading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingSchedule.map((event) => (
-                <div key={event.id} className={`border-l-4 pl-3 ${
-                  event.type === 'mentor' ? 'border-accent' :
-                  event.type === 'workshop' ? 'border-primary' :
-                  'border-yellow-400'
-                }`} data-testid={`schedule-${event.id}`}>
-                  <p className="font-medium text-sm" data-testid={`schedule-title-${event.id}`}>
-                    {event.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {event.description}
-                  </p>
-                  <p className={`text-xs ${
-                    event.type === 'mentor' ? 'text-accent' :
-                    event.type === 'workshop' ? 'text-primary' :
-                    'text-yellow-400'
-                  }`}>
-                    {event.time}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {sessionsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : upcomingSchedule.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-sm font-medium mb-2">No Upcoming Events</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Your schedule is clear for this week. Consider booking a mentor session!
+                </p>
+                <Link href="/mentors">
+                  <Button size="sm" variant="outline" data-testid="button-book-session">
+                    Book Mentor Session
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {upcomingSchedule.map((event) => (
+                  <div key={event.id} className={`border-l-4 pl-3 ${
+                    event.type === 'mentor' ? 'border-accent' :
+                    event.type === 'workshop' ? 'border-primary' :
+                    'border-yellow-400'
+                  }`} data-testid={`schedule-${event.id}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm" data-testid={`schedule-title-${event.id}`}>
+                          {event.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {event.description}
+                        </p>
+                        <p className={`text-xs ${
+                          event.type === 'mentor' ? 'text-accent' :
+                          event.type === 'workshop' ? 'text-primary' :
+                          'text-yellow-400'
+                        }`}>
+                          {event.time}
+                        </p>
+                      </div>
+                      {'sessionData' in event && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="ml-2"
+                          data-testid={`button-session-${event.id}`}
+                        >
+                          <Video className="w-3 h-3 mr-1" />
+                          Join
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <Button 
               variant="outline" 
