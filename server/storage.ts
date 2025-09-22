@@ -1103,7 +1103,7 @@ export class DatabaseStorage implements IStorage {
 
   // Additional API support methods
   async getProjectRoadmap(projectId: string) {
-    return this.getRoadmapByProject(projectId);
+    return this.getParticipantRoadmap(projectId);
   }
 
   async getAssignedRoadmapItem(assignmentId: string): Promise<AssignedRoadmap | null> {

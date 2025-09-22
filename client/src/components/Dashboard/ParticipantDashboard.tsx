@@ -1,4 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +18,42 @@ import {
   FileText,
   Video,
   BookOpen,
-  Target
+  Target,
+  CheckCircle2,
+  Play,
+  Map
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "wouter";
 import type { Project, Cohort, Milestone } from "@shared/schema";
+
+interface RoadmapItem {
+  id: string;
+  title: string;
+  description: string;
+  itemType: string;
+  weekNumber: number;
+  orderIndex: number;
+  estimatedHours: number;
+  assignment?: {
+    id: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    dueDate?: string;
+  };
+}
+
+interface ProjectRoadmap {
+  template: {
+    id: string;
+    title: string;
+    description: string;
+  };
+  items: RoadmapItem[];
+}
 
 export default function ParticipantDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Fetch user projects
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
@@ -42,6 +73,33 @@ export default function ParticipantDashboard() {
     summary: "You haven't created a project yet. Start by defining your AI startup idea.",
     readinessScore: 0,
   };
+
+  // Fetch roadmap for the current project
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap>({
+    queryKey: [`/api/projects/${currentProject.id}/roadmap`],
+    enabled: !!currentProject.id && currentProject.id !== ""
+  });
+
+  // Mutation to update roadmap assignment status
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: string }) => {
+      return apiRequest("PATCH", `/api/roadmap/assignments/${assignmentId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${currentProject.id}/roadmap`] });
+      toast({
+        title: "Status Updated",
+        description: "Roadmap item status has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update roadmap item status.",
+        variant: "destructive",
+      });
+    }
+  });
 
   // Fetch milestones for user's cohort
   const userCohort = cohorts.find((c: Cohort) => {
@@ -115,6 +173,55 @@ export default function ParticipantDashboard() {
   };
 
   const { current: currentWeek, total: totalWeeks } = getCurrentWeek();
+
+  // Helper functions for roadmap widget
+  const handleStatusUpdate = (assignmentId: string, status: string) => {
+    updateStatusMutation.mutate({ assignmentId, status });
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+      case 'in_progress':
+        return <Play className="w-4 h-4 text-blue-600" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+  };
+
+  const getItemTypeIcon = (itemType: string) => {
+    switch (itemType) {
+      case 'lesson':
+        return <BookOpen className="w-4 h-4" />;
+      case 'task':
+        return <Target className="w-4 h-4" />;
+      case 'deliverable':
+        return <FileText className="w-4 h-4" />;
+      case 'mentor_session':
+        return <Users className="w-4 h-4" />;
+      case 'milestone':
+        return <TrendingUp className="w-4 h-4" />;
+      default:
+        return <Calendar className="w-4 h-4" />;
+    }
+  };
+
+  // Get current week's roadmap items
+  const currentWeekRoadmapItems = roadmap?.items.filter(
+    item => item.weekNumber === currentWeek
+  ).sort((a, b) => a.orderIndex - b.orderIndex) || [];
 
   const nextActions = [
     {
@@ -304,53 +411,132 @@ export default function ParticipantDashboard() {
 
       {/* Action Items and AI Coach */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Next Actions */}
+        {/* This Week's Roadmap */}
         <Card className="glass-card">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Next Actions</CardTitle>
-              <Badge variant="destructive" className="text-xs" data-testid="overdue-count">
-                2 overdue
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Map className="w-5 h-5 text-primary" />
+                This Week's Roadmap
+              </CardTitle>
+              <Badge variant="outline" className="text-xs" data-testid="week-indicator">
+                Week {currentWeek}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {nextActions.map((action) => (
-                <Card key={action.id} className={`${
-                  action.isOverdue 
-                    ? 'border-destructive/20 bg-destructive/5' 
-                    : 'border-border'
-                }`} data-testid={`action-${action.id}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm mb-1" data-testid={`action-title-${action.id}`}>
-                          {action.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {action.description}
-                        </p>
-                        <div className="flex items-center mt-2 space-x-2">
-                          <Clock className={`w-3 h-3 ${action.isOverdue ? 'text-destructive' : 'text-muted-foreground'}`} />
-                          <span className={`text-xs ${action.isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
-                            {action.isOverdue ? `Overdue by ${action.dueDate}` : `Due in ${action.dueDate}`}
-                          </span>
+            {roadmapLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-4">
+                      <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-muted rounded w-1/2"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : currentWeekRoadmapItems.length === 0 ? (
+              <div className="text-center py-8">
+                <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-sm font-medium mb-2">No Roadmap Items This Week</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {roadmap ? 'All caught up for this week!' : 'No roadmap assigned yet.'}
+                </p>
+                {!roadmap && (
+                  <Link href="/roadmap">
+                    <Button size="sm" variant="outline" data-testid="button-view-roadmap">
+                      View Full Roadmap
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {currentWeekRoadmapItems.map((item) => (
+                  <Card key={item.id} className="border-border" data-testid={`roadmap-item-${item.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {getItemTypeIcon(item.itemType)}
+                          {getStatusIcon(item.assignment?.status || 'pending')}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
+                            {item.title}
+                          </h4>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {item.description}
+                          </p>
+                          <div className="flex items-center gap-4">
+                            <Badge variant="outline" className="text-xs">
+                              {item.itemType}
+                            </Badge>
+                            {item.estimatedHours > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                ~{item.estimatedHours}h
+                              </span>
+                            )}
+                            {item.assignment?.dueDate && (
+                              <span className="text-xs text-muted-foreground">
+                                Due: {new Date(item.assignment.dueDate).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Badge className={getStatusColor(item.assignment?.status || 'pending')}>
+                            {item.assignment?.status || 'pending'}
+                          </Badge>
+                          
+                          {item.assignment && (
+                            <div className="flex gap-1">
+                              {item.assignment.status !== 'completed' && (
+                                <>
+                                  {item.assignment.status !== 'in_progress' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleStatusUpdate(item.assignment!.id, 'in_progress')}
+                                      disabled={updateStatusMutation.isPending}
+                                      data-testid={`button-start-${item.id}`}
+                                    >
+                                      <Play className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleStatusUpdate(item.assignment!.id, 'completed')}
+                                    disabled={updateStatusMutation.isPending}
+                                    data-testid={`button-complete-${item.id}`}
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        className={action.priority === 'high' ? 'bg-primary' : 'border border-border'}
-                        variant={action.priority === 'high' ? 'default' : 'outline'}
-                        data-testid={`button-action-${action.id}`}
-                      >
-                        {action.priority === 'high' ? 'Start' : 'View'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {roadmap && (
+                  <Link href="/roadmap">
+                    <Button 
+                      variant="outline" 
+                      className="w-full mt-4 border-border hover:bg-secondary/80"
+                      data-testid="button-view-full-roadmap"
+                    >
+                      View Full Roadmap
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
