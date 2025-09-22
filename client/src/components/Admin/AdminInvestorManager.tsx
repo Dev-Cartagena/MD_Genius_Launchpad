@@ -3,7 +3,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { Investor, InvestorSession, InvestorCohortParticipation, Cohort } from "@shared/schema";
+import type { 
+  Investor, 
+  InvestorSession, 
+  InvestorCohortParticipation, 
+  Cohort,
+  InsertInvestor,
+  InsertInvestorSession,
+  InsertInvestorCohortParticipation
+} from "@shared/schema";
+import { 
+  insertInvestorSchema, 
+  insertInvestorSessionSchema, 
+  insertInvestorCohortParticipationSchema 
+} from "@shared/schema";
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,28 +55,27 @@ import {
   MessageCircle
 } from "lucide-react";
 
-// Form schemas
-const investorFormSchema = z.object({
-  organization: z.string().min(1, "Organization name is required"),
-  contactEmail: z.string().email("Valid email is required"),
+// Form schemas - extending shared schemas with UI-specific validation
+const investorFormSchema = insertInvestorSchema.extend({
   sectors: z.array(z.string()).min(1, "At least one sector is required"),
   stages: z.array(z.string()).min(1, "At least one stage is required"),
   geography: z.array(z.string()).min(1, "At least one geography is required"),
+  organization: z.string().min(1, "Organization name is required"),
+  contactEmail: z.string().email("Valid email is required"),
   checkSize: z.string().min(1, "Check size is required"),
   ndaStatus: z.boolean().default(false),
 });
 
-const sessionFormSchema = z.object({
+const sessionFormSchema = insertInvestorSessionSchema.extend({
   investorId: z.string().min(1, "Investor is required"),
   title: z.string().min(1, "Session title is required"),
   sessionType: z.string().min(1, "Session type is required"),
   startTime: z.string().min(1, "Start time is required"),
   endTime: z.string().min(1, "End time is required"),
-  agenda: z.string().optional(),
   participantIds: z.array(z.string()).default([]),
 });
 
-const cohortAssignmentSchema = z.object({
+const cohortAssignmentSchema = insertInvestorCohortParticipationSchema.extend({
   investorId: z.string().min(1, "Investor is required"),
   cohortId: z.string().min(1, "Cohort is required"),
   role: z.string().min(1, "Role is required"),
