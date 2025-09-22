@@ -21,11 +21,11 @@ import {
   TrendingUp
 } from "lucide-react";
 
-interface RoadmapItem {
+interface RoadmapItemWithAssignment {
   id: string;
   title: string;
   description: string;
-  itemType: string;
+  type: string;
   week: number;
   orderIndex: number;
   estimatedHours: number;
@@ -69,7 +69,7 @@ interface ProjectRoadmap {
     title: string;
     description: string;
   };
-  items: RoadmapItem[];
+  items: RoadmapItemWithAssignment[];
 }
 
 export default function Roadmap() {
@@ -145,6 +145,8 @@ export default function Roadmap() {
         return <BookOpen className="w-4 h-4" />;
       case 'task':
         return <Target className="w-4 h-4" />;
+      case 'assignment':
+        return <FileText className="w-4 h-4" />;
       case 'deliverable':
         return <FileText className="w-4 h-4" />;
       case 'mentor_session':
@@ -156,11 +158,11 @@ export default function Roadmap() {
     }
   };
 
-  const isLearningItem = (item: RoadmapItem) => {
+  const isLearningItem = (item: RoadmapItemWithAssignment) => {
     return item.autoCompletionType === 'lesson' || item.autoCompletionType === 'module' || item.lesson || item.module;
   };
 
-  const getCurriculumLink = (item: RoadmapItem) => {
+  const getCurriculumLink = (item: RoadmapItemWithAssignment) => {
     if (item.lesson) {
       return `/curriculum?lesson=${item.lesson.id}`;
     } else if (item.module) {
@@ -169,7 +171,7 @@ export default function Roadmap() {
     return '/curriculum';
   };
 
-  const getProgressDisplay = (item: RoadmapItem) => {
+  const getProgressDisplay = (item: RoadmapItemWithAssignment) => {
     if (!item.progressData) return null;
 
     if (item.progressData.type === 'lesson') {
@@ -291,7 +293,7 @@ export default function Roadmap() {
     if (!acc[week]) acc[week] = [];
     acc[week].push(item);
     return acc;
-  }, {} as Record<number, RoadmapItem[]>);
+  }, {} as Record<number, RoadmapItemWithAssignment[]>);
 
   // Calculate progress statistics
   const totalItems = roadmap.items.length;
@@ -390,7 +392,7 @@ export default function Roadmap() {
                       className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        {getItemTypeIcon(item.itemType)}
+                        {getItemTypeIcon(item.type)}
                         {getStatusIcon(item.assignment?.status || 'pending')}
                       </div>
                       
@@ -413,7 +415,7 @@ export default function Roadmap() {
                         
                         <div className="flex items-center gap-4 mt-2">
                           <Badge variant="outline" className="text-xs">
-                            {item.itemType}
+                            {item.type}
                           </Badge>
                           {item.assignment?.autoCompleted && (
                             <Badge variant="outline" className="text-xs bg-green-50 text-green-600 border-green-200">
