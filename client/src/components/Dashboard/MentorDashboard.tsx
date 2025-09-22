@@ -16,10 +16,12 @@ import {
   Target
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import type { MentorSession } from "@shared/schema";
 
 export default function MentorDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
 
   // Fetch mentor-specific data
   const { data: mentees = [] } = useQuery({
@@ -212,7 +214,18 @@ export default function MentorDashboard() {
                 <Calendar className="w-5 h-5" />
                 <span>Upcoming Sessions</span>
               </CardTitle>
-              <Button size="sm" data-testid="button-manage-schedule">Manage Schedule</Button>
+              <Button 
+                size="sm" 
+                onClick={() => {
+                  toast({
+                    title: "Schedule Management",
+                    description: "Schedule management functionality will be available soon.",
+                  });
+                }}
+                data-testid="button-manage-schedule"
+              >
+                Manage Schedule
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -277,6 +290,13 @@ export default function MentorDashboard() {
                           <Button 
                             size="sm" 
                             variant="outline"
+                            onClick={() => {
+                              // TODO: Open reschedule modal or navigate to reschedule page
+                              toast({
+                                title: "Reschedule Session",
+                                description: "Session rescheduling functionality will be available soon.",
+                              });
+                            }}
                             data-testid={`button-reschedule-${session.id}`}
                           >
                             Reschedule

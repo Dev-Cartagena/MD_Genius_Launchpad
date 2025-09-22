@@ -888,6 +888,12 @@ export default function Admin() {
                             <Button 
                               size="sm" 
                               variant="outline"
+                              onClick={() => {
+                                toast({
+                                  title: "Feature Coming Soon",
+                                  description: "Cohort editing functionality will be available in the next update.",
+                                });
+                              }}
                               data-testid={`button-edit-cohort-${cohort.id}`}
                             >
                               <Edit className="w-3 h-3 mr-1" />
@@ -1013,6 +1019,12 @@ export default function Admin() {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Feature Coming Soon",
+                                      description: "Admin mentor editing will be available in the next update.",
+                                    });
+                                  }}
                                   data-testid={`button-edit-mentor-${mentor.id}`}
                                 >
                                   <Edit className="w-4 h-4" />
@@ -1153,6 +1165,12 @@ export default function Admin() {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Feature Coming Soon",
+                                      description: "User editing functionality will be available in the next update.",
+                                    });
+                                  }}
                                   data-testid={`button-edit-user-${user.id}`}
                                 >
                                   <Edit className="w-3 h-3 mr-1" />
