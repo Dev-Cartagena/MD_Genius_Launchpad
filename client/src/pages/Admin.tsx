@@ -21,6 +21,7 @@ import type { User, Application, Project, Cohort } from "@shared/schema";
 
 // Admin Components
 import AdminRoadmapManager from "@/components/Admin/AdminRoadmapManager";
+import AdminInvestorManager from "@/components/Admin/AdminInvestorManager";
 import {
   Users,
   FileText,
@@ -437,12 +438,13 @@ export default function Admin() {
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
             <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohorts</TabsTrigger>
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="mentors" data-testid="tab-mentors">Mentors</TabsTrigger>
+            <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
           </TabsList>
@@ -1098,6 +1100,20 @@ export default function Admin() {
                     ))
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="investors" className="space-y-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Investor Management</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Manage investor profiles, sessions, and cohort participation
+                </p>
+              </CardHeader>
+              <CardContent>
+                <AdminInvestorManager />
               </CardContent>
             </Card>
           </TabsContent>
