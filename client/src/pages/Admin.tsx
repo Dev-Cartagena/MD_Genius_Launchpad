@@ -18,6 +18,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { User, Application, Project, Cohort } from "@shared/schema";
+
+// Admin Components
+import AdminRoadmapManager from "@/components/Admin/AdminRoadmapManager";
 import {
   Users,
   FileText,
@@ -424,10 +427,11 @@ export default function Admin() {
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
             <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohorts</TabsTrigger>
+            <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
           </TabsList>
@@ -891,6 +895,20 @@ export default function Admin() {
                     </Card>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="roadmap" className="space-y-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Program Roadmap Management</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Create and manage roadmap templates for participant programs
+                </p>
+              </CardHeader>
+              <CardContent>
+                <AdminRoadmapManager />
               </CardContent>
             </Card>
           </TabsContent>
