@@ -50,9 +50,13 @@ import {
   type InsertRoadmapItem,
   type AssignedRoadmap,
   type InsertAssignedRoadmap,
+  type MentorProfile,
+  type InsertMentorProfile,
+  type MentorSession,
+  type InsertMentorSession,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, ilike, or, gt, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, ilike, or, gt, isNull, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -124,7 +128,14 @@ export interface IStorage {
   
   // Mentor operations
   getMentors(): Promise<User[]>;
-  getMentorSessions(mentorId: string): Promise<any[]>;
+  getMentorProfile(userId: string): Promise<MentorProfile | undefined>;
+  createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
+  updateMentorProfile(userId: string, data: Partial<MentorProfile>): Promise<MentorProfile>;
+  getMentorSessions(mentorId: string): Promise<MentorSession[]>;
+  getParticipantSessions(participantId: string): Promise<MentorSession[]>;
+  createMentorSession(session: InsertMentorSession): Promise<MentorSession>;
+  updateMentorSession(sessionId: string, data: Partial<MentorSession>): Promise<MentorSession>;
+  getMentorSession(sessionId: string): Promise<MentorSession | undefined>;
   
   // Investor operations
   getInvestors(): Promise<any[]>;
@@ -614,12 +625,101 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(users.firstName));
   }
 
-  async getMentorSessions(mentorId: string): Promise<any[]> {
+  async getMentorProfile(userId: string): Promise<MentorProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(mentorProfiles)
+      .where(eq(mentorProfiles.userId, userId));
+    return profile;
+  }
+
+  async createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile> {
+    const [newProfile] = await db
+      .insert(mentorProfiles)
+      .values(profile)
+      .returning();
+    return newProfile;
+  }
+
+  async updateMentorProfile(userId: string, data: Partial<MentorProfile>): Promise<MentorProfile> {
+    // Whitelist allowed fields to prevent mass assignment security issues
+    const allowedFields = {
+      expertise: data.expertise,
+      availability: data.availability,
+      bio: data.bio,
+      industries: data.industries,
+      isActive: data.isActive,
+    };
+    
+    // Remove undefined values
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(mentorProfiles)
+      .set(updateData)
+      .where(eq(mentorProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getMentorSessions(mentorId: string): Promise<MentorSession[]> {
     return await db
       .select()
       .from(mentorSessions)
       .where(eq(mentorSessions.mentorId, mentorId))
       .orderBy(desc(mentorSessions.startTime));
+  }
+
+  async getParticipantSessions(participantId: string): Promise<MentorSession[]> {
+    return await db
+      .select()
+      .from(mentorSessions)
+      .where(sql`${participantId} = ANY(${mentorSessions.participantIds})`)
+      .orderBy(desc(mentorSessions.startTime));
+  }
+
+  async createMentorSession(session: InsertMentorSession): Promise<MentorSession> {
+    const [newSession] = await db
+      .insert(mentorSessions)
+      .values(session)
+      .returning();
+    return newSession;
+  }
+
+  async updateMentorSession(sessionId: string, data: Partial<MentorSession>): Promise<MentorSession> {
+    // Whitelist allowed fields to prevent mass assignment security issues
+    const allowedFields = {
+      title: data.title,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      agenda: data.agenda,
+      notes: data.notes,
+      attendance: data.attendance,
+      meetingLink: data.meetingLink,
+      participantIds: data.participantIds,
+    };
+    
+    // Remove undefined values
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(mentorSessions)
+      .set(updateData)
+      .where(eq(mentorSessions.id, sessionId))
+      .returning();
+    return updated;
+  }
+
+  async getMentorSession(sessionId: string): Promise<MentorSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(mentorSessions)
+      .where(eq(mentorSessions.id, sessionId));
+    return session;
   }
 
   // Investor operations

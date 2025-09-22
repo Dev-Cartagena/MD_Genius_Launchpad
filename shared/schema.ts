@@ -695,6 +695,16 @@ export const insertAssignedRoadmapSchema = createInsertSchema(assignedRoadmap).o
   updatedAt: true,
 });
 
+export const insertMentorProfileSchema = createInsertSchema(mentorProfiles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMentorSessionSchema = createInsertSchema(mentorSessions).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -730,3 +740,7 @@ export type RoadmapItem = typeof roadmapItems.$inferSelect;
 export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
 export type AssignedRoadmap = typeof assignedRoadmap.$inferSelect;
 export type InsertAssignedRoadmap = z.infer<typeof insertAssignedRoadmapSchema>;
+export type MentorProfile = typeof mentorProfiles.$inferSelect;
+export type InsertMentorProfile = z.infer<typeof insertMentorProfileSchema>;
+export type MentorSession = typeof mentorSessions.$inferSelect;
+export type InsertMentorSession = z.infer<typeof insertMentorSessionSchema>;
