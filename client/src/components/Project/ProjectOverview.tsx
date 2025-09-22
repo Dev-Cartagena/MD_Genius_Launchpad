@@ -16,7 +16,17 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { ObjectUploader } from "@/components/ObjectUploader";
-import type { Project, Deliverable } from "@shared/schema";
+import type { Project, Deliverable, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
+
+// Extended types for roadmap milestone tracking
+type RoadmapItemWithAssignment = RoadmapItem & {
+  assignment: AssignedRoadmap | null;
+};
+
+type ProjectRoadmap = {
+  template: RoadmapTemplate;
+  items: RoadmapItemWithAssignment[];
+};
 import {
   Lightbulb,
   Users,
@@ -29,7 +39,10 @@ import {
   Calendar,
   CheckCircle,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Award,
+  Play,
+  Flag
 } from "lucide-react";
 
 const projectSchema = z.object({
@@ -87,6 +100,34 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const { data: deliverables = [] } = useQuery<Deliverable[]>({
     queryKey: ["/api/projects", currentProject?.id, "deliverables"],
     enabled: !!currentProject?.id,
+  });
+
+  // Fetch roadmap for current project
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap>({
+    queryKey: ['/api/projects', currentProject?.id, 'roadmap'],
+    enabled: !!currentProject?.id,
+  });
+
+  // Mutation to update roadmap milestone status
+  const updateRoadmapStatusMutation = useMutation({
+    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: 'not_started' | 'in_progress' | 'completed' }) => {
+      return apiRequest('PATCH', `/api/roadmap/assignments/${assignmentId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject?.id, 'roadmap'] });
+      toast({
+        title: "Status Updated",
+        description: "Milestone status has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update milestone status:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update milestone status. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const form = useForm<ProjectFormData>({
@@ -203,15 +244,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       // Persist artifact to database
       if (currentProject) {
         try {
-          await apiRequest(`/api/projects/${currentProject.id}/artifacts`, {
-            method: 'POST',
-            body: JSON.stringify({
-              type: artifactType,
-              title: fileName,
-              fileRef: fileUrl,
-              version: 1,
-              isGated: false
-            })
+          await apiRequest('POST', `/api/projects/${currentProject.id}/artifacts`, {
+            type: artifactType,
+            title: fileName,
+            fileRef: fileUrl,
+            version: 1,
+            isGated: false
           });
           
           // Invalidate cache to refresh deliverables
@@ -246,6 +284,27 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     } else {
       createProject.mutate(data);
     }
+  };
+
+  // Helper functions for roadmap milestone tracking
+  const getRoadmapMilestones = () => {
+    if (!roadmap) return [];
+    return roadmap.items.filter((item: RoadmapItemWithAssignment) => item.type === 'milestone');
+  };
+
+  const handleMilestoneStatusUpdate = async (assignmentId: string, currentStatus: string) => {
+    if (!assignmentId) return;
+    
+    let newStatus: 'not_started' | 'in_progress' | 'completed';
+    if (currentStatus === 'not_started') {
+      newStatus = 'in_progress';
+    } else if (currentStatus === 'in_progress') {
+      newStatus = 'completed';
+    } else {
+      return; // Already completed
+    }
+    
+    await updateRoadmapStatusMutation.mutateAsync({ assignmentId, status: newStatus });
   };
 
   if (isLoading) {
@@ -717,6 +776,115 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Roadmap Milestones */}
+      {currentProject && !isEditing && (
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Award className="w-5 h-5" />
+              <span>Roadmap Milestones</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {roadmapLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse p-3 bg-secondary/30 rounded-lg">
+                    <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : getRoadmapMilestones().length === 0 ? (
+              <div className="text-center py-8">
+                <Flag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No roadmap milestones available for this project.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Milestones will appear here once a roadmap template is assigned to your project.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {getRoadmapMilestones().map((milestone: RoadmapItemWithAssignment) => (
+                  <div key={milestone.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        milestone.assignment?.status === 'completed' 
+                          ? 'bg-green-400/20' 
+                          : milestone.assignment?.status === 'in_progress'
+                          ? 'bg-blue-400/20'
+                          : 'bg-gray-400/20'
+                      }`}>
+                        {milestone.assignment?.status === 'completed' ? (
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : milestone.assignment?.status === 'in_progress' ? (
+                          <Play className="w-5 h-5 text-blue-400" />
+                        ) : (
+                          <Flag className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-base mb-1" data-testid={`milestone-title-${milestone.id}`}>
+                          {milestone.title}
+                        </h4>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {milestone.description}
+                        </p>
+                        <div className="flex items-center space-x-4">
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs"
+                            data-testid={`milestone-week-${milestone.id}`}
+                          >
+                            Week {milestone.week}
+                          </Badge>
+                          <Badge 
+                            variant={
+                              milestone.assignment?.status === 'completed' ? 'default' :
+                              milestone.assignment?.status === 'in_progress' ? 'secondary' :
+                              'outline'
+                            }
+                            className="text-xs"
+                            data-testid={`milestone-status-${milestone.id}`}
+                          >
+                            {milestone.assignment?.status === 'completed' ? 'Completed' :
+                             milestone.assignment?.status === 'in_progress' ? 'In Progress' :
+                             'Not Started'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {milestone.assignment ? (
+                        milestone.assignment.status !== 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={updateRoadmapStatusMutation.isPending}
+                            onClick={() => milestone.assignment?.id && milestone.assignment.status && handleMilestoneStatusUpdate(milestone.assignment.id, milestone.assignment.status)}
+                            data-testid={`button-milestone-${milestone.assignment.status}-${milestone.id}`}
+                          >
+                            {milestone.assignment.status === 'not_started' ? (
+                              updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
+                            ) : (
+                              updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
+                            )}
+                          </Button>
+                        )
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">
+                          Not Assigned
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
