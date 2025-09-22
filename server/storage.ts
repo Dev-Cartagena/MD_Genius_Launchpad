@@ -19,6 +19,9 @@ import {
   disbursementRequests,
   scores,
   rubrics,
+  roadmapTemplates,
+  roadmapItems,
+  assignedRoadmap,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -41,9 +44,15 @@ import {
   type AiConversation,
   type InsertAiConversation,
   type InsertCohort,
+  type RoadmapTemplate,
+  type InsertRoadmapTemplate,
+  type RoadmapItem,
+  type InsertRoadmapItem,
+  type AssignedRoadmap,
+  type InsertAssignedRoadmap,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, ilike, or, gt } from "drizzle-orm";
+import { eq, and, desc, asc, ilike, or, gt, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -133,6 +142,39 @@ export interface IStorage {
   // Search operations
   searchUsers(query: string, role?: string): Promise<User[]>;
   searchProjects(query: string): Promise<Project[]>;
+  
+  // Roadmap operations
+  // Template management
+  createRoadmapTemplate(template: InsertRoadmapTemplate): Promise<RoadmapTemplate>;
+  getRoadmapTemplate(id: string): Promise<RoadmapTemplate | undefined>;
+  getRoadmapTemplates(cohortId?: string): Promise<RoadmapTemplate[]>;
+  updateRoadmapTemplate(id: string, data: Partial<RoadmapTemplate>): Promise<RoadmapTemplate>;
+  deleteRoadmapTemplate(id: string): Promise<void>;
+  
+  // Roadmap item management
+  createRoadmapItem(item: InsertRoadmapItem): Promise<RoadmapItem>;
+  getRoadmapItem(id: string): Promise<RoadmapItem | undefined>;
+  getRoadmapItemsByTemplate(templateId: string): Promise<RoadmapItem[]>;
+  getRoadmapItemsByWeek(templateId: string, week: number): Promise<RoadmapItem[]>;
+  updateRoadmapItem(id: string, data: Partial<RoadmapItem>): Promise<RoadmapItem>;
+  deleteRoadmapItem(id: string): Promise<void>;
+  
+  // Participant roadmap assignments
+  getParticipantRoadmap(projectId: string): Promise<{
+    template: RoadmapTemplate;
+    items: Array<RoadmapItem & { assignment: AssignedRoadmap | null }>;
+  } | undefined>;
+  getParticipantRoadmapByWeek(projectId: string, week: number): Promise<Array<RoadmapItem & { assignment: AssignedRoadmap | null }>>;
+  assignRoadmapToProject(projectId: string, templateId?: string): Promise<AssignedRoadmap[]>;
+  updateRoadmapAssignment(assignmentId: string, data: Partial<AssignedRoadmap>): Promise<AssignedRoadmap>;
+  completeRoadmapItem(assignmentId: string, evidenceArtifactId?: string, notes?: string): Promise<AssignedRoadmap>;
+  
+  // Auto-completion logic
+  processAutoCompletions(projectId: string): Promise<AssignedRoadmap[]>;
+  checkLessonAutoCompletion(userId: string, lessonId: string): Promise<string[]>; // Returns roadmap item IDs to auto-complete
+  checkModuleAutoCompletion(userId: string, moduleId: string): Promise<string[]>;
+  checkDeliverableAutoCompletion(projectId: string, deliverableId: string): Promise<string[]>;
+  checkMilestoneAutoCompletion(projectId: string, milestoneId: string): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -670,6 +712,392 @@ export class DatabaseStorage implements IStorage {
         ilike(projects.problem, `%${query}%`)
       ))
       .orderBy(desc(projects.createdAt));
+  }
+
+  // Roadmap Template Management
+  async createRoadmapTemplate(template: InsertRoadmapTemplate): Promise<RoadmapTemplate> {
+    const [newTemplate] = await db
+      .insert(roadmapTemplates)
+      .values(template)
+      .returning();
+    return newTemplate;
+  }
+
+  async getRoadmapTemplate(id: string): Promise<RoadmapTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(roadmapTemplates)
+      .where(eq(roadmapTemplates.id, id));
+    return template;
+  }
+
+  async getRoadmapTemplates(cohortId?: string): Promise<RoadmapTemplate[]> {
+    let whereClause;
+    if (cohortId) {
+      // Get templates for specific cohort OR global templates
+      whereClause = and(
+        eq(roadmapTemplates.isActive, true),
+        or(
+          eq(roadmapTemplates.cohortId, cohortId),
+          isNull(roadmapTemplates.cohortId)
+        )
+      );
+    } else {
+      // Get all active templates
+      whereClause = eq(roadmapTemplates.isActive, true);
+    }
+
+    return await db
+      .select()
+      .from(roadmapTemplates)
+      .where(whereClause)
+      .orderBy(desc(roadmapTemplates.isDefault), desc(roadmapTemplates.createdAt));
+  }
+
+  async updateRoadmapTemplate(id: string, data: Partial<RoadmapTemplate>): Promise<RoadmapTemplate> {
+    const [updatedTemplate] = await db
+      .update(roadmapTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(roadmapTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  async deleteRoadmapTemplate(id: string): Promise<void> {
+    // Soft delete by setting isActive to false
+    await db
+      .update(roadmapTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(roadmapTemplates.id, id));
+  }
+
+  // Roadmap Item Management
+  async createRoadmapItem(item: InsertRoadmapItem): Promise<RoadmapItem> {
+    const [newItem] = await db
+      .insert(roadmapItems)
+      .values(item)
+      .returning();
+    return newItem;
+  }
+
+  async getRoadmapItem(id: string): Promise<RoadmapItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(roadmapItems)
+      .where(eq(roadmapItems.id, id));
+    return item;
+  }
+
+  async getRoadmapItemsByTemplate(templateId: string): Promise<RoadmapItem[]> {
+    return await db
+      .select()
+      .from(roadmapItems)
+      .where(eq(roadmapItems.templateId, templateId))
+      .orderBy(asc(roadmapItems.week), asc(roadmapItems.orderIndex));
+  }
+
+  async getRoadmapItemsByWeek(templateId: string, week: number): Promise<RoadmapItem[]> {
+    return await db
+      .select()
+      .from(roadmapItems)
+      .where(and(
+        eq(roadmapItems.templateId, templateId),
+        eq(roadmapItems.week, week)
+      ))
+      .orderBy(asc(roadmapItems.orderIndex));
+  }
+
+  async updateRoadmapItem(id: string, data: Partial<RoadmapItem>): Promise<RoadmapItem> {
+    const [updatedItem] = await db
+      .update(roadmapItems)
+      .set(data)
+      .where(eq(roadmapItems.id, id))
+      .returning();
+    return updatedItem;
+  }
+
+  async deleteRoadmapItem(id: string): Promise<void> {
+    await db
+      .delete(roadmapItems)
+      .where(eq(roadmapItems.id, id));
+  }
+
+  // Participant Roadmap Assignments
+  async getParticipantRoadmap(projectId: string): Promise<{
+    template: RoadmapTemplate;
+    items: Array<RoadmapItem & { assignment: AssignedRoadmap | null }>;
+  } | undefined> {
+    // Get project to find its cohort
+    const project = await this.getProject(projectId);
+    if (!project?.cohortId) return undefined;
+
+    // Get the roadmap template for this cohort (or default)
+    const templates = await this.getRoadmapTemplates(project.cohortId);
+    const template = templates.find(t => t.isDefault) || templates[0];
+    if (!template) return undefined;
+
+    // Use optimized JOIN query to get items with assignments in one query
+    const results = await db
+      .select({
+        // RoadmapItem fields
+        id: roadmapItems.id,
+        templateId: roadmapItems.templateId,
+        type: roadmapItems.type,
+        title: roadmapItems.title,
+        description: roadmapItems.description,
+        week: roadmapItems.week,
+        dueOffsetDays: roadmapItems.dueOffsetDays,
+        orderIndex: roadmapItems.orderIndex,
+        moduleId: roadmapItems.moduleId,
+        lessonId: roadmapItems.lessonId,
+        milestoneId: roadmapItems.milestoneId,
+        deliverableId: roadmapItems.deliverableId,
+        mentorSessionId: roadmapItems.mentorSessionId,
+        autoCompletionType: roadmapItems.autoCompletionType,
+        autoRefId: roadmapItems.autoRefId,
+        autoThreshold: roadmapItems.autoThreshold,
+        dependencyIds: roadmapItems.dependencyIds,
+        isOptional: roadmapItems.isOptional,
+        estimatedHours: roadmapItems.estimatedHours,
+        tags: roadmapItems.tags,
+        createdAt: roadmapItems.createdAt,
+        // AssignedRoadmap fields (nullable)
+        assignment: assignedRoadmap,
+      })
+      .from(roadmapItems)
+      .leftJoin(
+        assignedRoadmap,
+        and(
+          eq(assignedRoadmap.itemId, roadmapItems.id),
+          eq(assignedRoadmap.projectId, projectId)
+        )
+      )
+      .where(eq(roadmapItems.templateId, template.id))
+      .orderBy(asc(roadmapItems.week), asc(roadmapItems.orderIndex));
+
+    const itemsWithAssignments = results.map(row => ({
+      ...row,
+      assignment: row.assignment || null,
+    }));
+
+    return {
+      template,
+      items: itemsWithAssignments,
+    };
+  }
+
+  async getParticipantRoadmapByWeek(projectId: string, week: number): Promise<Array<RoadmapItem & { assignment: AssignedRoadmap | null }>> {
+    const roadmap = await this.getParticipantRoadmap(projectId);
+    if (!roadmap) return [];
+
+    return roadmap.items.filter(item => item.week === week);
+  }
+
+  async assignRoadmapToProject(projectId: string, templateId?: string): Promise<AssignedRoadmap[]> {
+    // Use transaction for consistency
+    return await db.transaction(async (trx) => {
+      // Get project and its owner
+      const project = await this.getProject(projectId);
+      if (!project) throw new Error("Project not found");
+
+      // Get template
+      let template: RoadmapTemplate | undefined;
+      if (templateId) {
+        template = await this.getRoadmapTemplate(templateId);
+      } else {
+        // Get default template for project's cohort
+        const templates = await this.getRoadmapTemplates(project.cohortId || undefined);
+        template = templates.find(t => t.isDefault) || templates[0];
+      }
+      
+      if (!template) throw new Error("No roadmap template found");
+
+      // Get all items for this template
+      const items = await this.getRoadmapItemsByTemplate(template.id);
+
+      // Upsert assignments to ensure idempotency
+      const assignments: AssignedRoadmap[] = [];
+      
+      for (const item of items) {
+        const [assignment] = await trx
+          .insert(assignedRoadmap)
+          .values({
+            itemId: item.id,
+            projectId,
+            userId: project.ownerId,
+            status: "not_started" as const,
+          })
+          .onConflictDoUpdate({
+            target: [assignedRoadmap.itemId, assignedRoadmap.projectId],
+            set: {
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        
+        assignments.push(assignment);
+      }
+
+      return assignments;
+    });
+  }
+
+  async updateRoadmapAssignment(assignmentId: string, data: Partial<AssignedRoadmap>): Promise<AssignedRoadmap> {
+    const [updatedAssignment] = await db
+      .update(assignedRoadmap)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(assignedRoadmap.id, assignmentId))
+      .returning();
+    return updatedAssignment;
+  }
+
+  async completeRoadmapItem(assignmentId: string, evidenceArtifactId?: string, notes?: string): Promise<AssignedRoadmap> {
+    return this.updateRoadmapAssignment(assignmentId, {
+      status: "completed",
+      completedAt: new Date(),
+      evidenceArtifactId,
+      notes,
+    });
+  }
+
+  // Auto-completion Logic
+  async processAutoCompletions(projectId: string): Promise<AssignedRoadmap[]> {
+    const roadmap = await this.getParticipantRoadmap(projectId);
+    if (!roadmap) return [];
+
+    const project = await this.getProject(projectId);
+    if (!project) return [];
+
+    const autoCompletedAssignments: AssignedRoadmap[] = [];
+
+    for (const item of roadmap.items) {
+      if (item.assignment?.status === "completed" || item.autoCompletionType === "none") {
+        continue;
+      }
+
+      let shouldAutoComplete = false;
+
+      switch (item.autoCompletionType) {
+        case "lesson":
+          if (item.lessonId) {
+            const progress = await this.getUserProgress(project.ownerId, item.lessonId);
+            shouldAutoComplete = progress?.isCompleted === true;
+          }
+          break;
+
+        case "module":
+          if (item.moduleId) {
+            const moduleProgress = await this.getUserProgressForModule(project.ownerId, item.moduleId);
+            const totalLessons = moduleProgress.length;
+            const completedLessons = moduleProgress.filter(p => p.isCompleted).length;
+            const completionRate = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+            shouldAutoComplete = completionRate >= (item.autoThreshold || 100);
+          }
+          break;
+
+        case "deliverable":
+          if (item.deliverableId) {
+            const deliverables = await this.getDeliverablesByProject(projectId);
+            const deliverable = deliverables.find(d => d.id === item.deliverableId);
+            shouldAutoComplete = deliverable?.status === "approved";
+          }
+          break;
+
+        case "milestone":
+          if (item.milestoneId) {
+            // Check if milestone is marked as completed via project stage or deliverables
+            const deliverables = await this.getDeliverablesByProject(projectId);
+            const milestoneDeliverables = deliverables.filter(d => d.milestoneId === item.milestoneId);
+            const approvedDeliverables = milestoneDeliverables.filter(d => d.status === "approved");
+            const completionRate = milestoneDeliverables.length > 0 
+              ? (approvedDeliverables.length / milestoneDeliverables.length) * 100 
+              : 0;
+            shouldAutoComplete = completionRate >= (item.autoThreshold || 100);
+          }
+          break;
+
+        case "mentor_session":
+          if (item.mentorSessionId) {
+            // Check if the specific mentor session has occurred and has notes
+            const session = await db
+              .select()
+              .from(mentorSessions)
+              .where(eq(mentorSessions.id, item.mentorSessionId));
+            shouldAutoComplete = session.length > 0 && session[0].notes !== null;
+          } else if (item.autoThreshold) {
+            // Alternative: check if user has attended enough sessions this week
+            const sessions = await db
+              .select()
+              .from(mentorSessions)
+              .where(eq(mentorSessions.participantIds, [project.ownerId]));
+            shouldAutoComplete = sessions.length >= item.autoThreshold;
+          }
+          break;
+      }
+
+      if (shouldAutoComplete && item.assignment) {
+        const completed = await this.updateRoadmapAssignment(item.assignment.id, {
+          status: "completed",
+          completedAt: new Date(),
+          autoCompleted: true,
+        });
+        autoCompletedAssignments.push(completed);
+      }
+    }
+
+    return autoCompletedAssignments;
+  }
+
+  async checkLessonAutoCompletion(userId: string, lessonId: string): Promise<string[]> {
+    // Find roadmap items that auto-complete when this lesson is completed
+    const relevantItems = await db
+      .select()
+      .from(roadmapItems)
+      .where(and(
+        eq(roadmapItems.autoCompletionType, "lesson"),
+        eq(roadmapItems.lessonId, lessonId)
+      ));
+
+    return relevantItems.map(item => item.id);
+  }
+
+  async checkModuleAutoCompletion(userId: string, moduleId: string): Promise<string[]> {
+    // Find roadmap items that auto-complete when this module reaches threshold
+    const relevantItems = await db
+      .select()
+      .from(roadmapItems)
+      .where(and(
+        eq(roadmapItems.autoCompletionType, "module"),
+        eq(roadmapItems.moduleId, moduleId)
+      ));
+
+    return relevantItems.map(item => item.id);
+  }
+
+  async checkDeliverableAutoCompletion(projectId: string, deliverableId: string): Promise<string[]> {
+    // Find roadmap items that auto-complete when this deliverable is approved
+    const relevantItems = await db
+      .select()
+      .from(roadmapItems)
+      .where(and(
+        eq(roadmapItems.autoCompletionType, "deliverable"),
+        eq(roadmapItems.deliverableId, deliverableId)
+      ));
+
+    return relevantItems.map(item => item.id);
+  }
+
+  async checkMilestoneAutoCompletion(projectId: string, milestoneId: string): Promise<string[]> {
+    // Find roadmap items that auto-complete when this milestone is achieved
+    const relevantItems = await db
+      .select()
+      .from(roadmapItems)
+      .where(and(
+        eq(roadmapItems.autoCompletionType, "milestone"),
+        eq(roadmapItems.milestoneId, milestoneId)
+      ));
+
+    return relevantItems.map(item => item.id);
   }
 }
 

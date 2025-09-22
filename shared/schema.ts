@@ -483,6 +483,8 @@ export const roadmapItems = pgTable("roadmap_items", {
   moduleId: varchar("module_id").references(() => modules.id),
   lessonId: varchar("lesson_id").references(() => lessons.id),
   milestoneId: varchar("milestone_id").references(() => milestones.id),
+  deliverableId: varchar("deliverable_id").references(() => deliverables.id),
+  mentorSessionId: varchar("mentor_session_id").references(() => mentorSessions.id),
   // Auto-completion settings
   autoCompletionType: autoCompletionTypeEnum("auto_completion_type").default("none"),
   autoRefId: varchar("auto_ref_id"), // ID of the referenced entity for auto-completion
@@ -493,11 +495,13 @@ export const roadmapItems = pgTable("roadmap_items", {
   estimatedHours: integer("estimated_hours"),
   tags: text("tags").array(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("roadmap_items_template_week_idx").on(table.templateId, table.week),
+]);
 
 export const assignedRoadmap = pgTable("assigned_roadmap", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  itemId: varchar("item_id").notNull().references(() => roadmapItems.id),
+  itemId: varchar("item_id").notNull().references(() => roadmapItems.id, { onDelete: "cascade" }),
   projectId: varchar("project_id").notNull().references(() => projects.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   status: roadmapStatusEnum("status").default("not_started"),
@@ -512,6 +516,7 @@ export const assignedRoadmap = pgTable("assigned_roadmap", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   uniqueIndex("assigned_roadmap_item_project_unq").on(table.itemId, table.projectId),
+  index("assigned_roadmap_project_status_idx").on(table.projectId, table.status),
 ]);
 
 // Relations
@@ -590,6 +595,8 @@ export const roadmapItemsRelations = relations(roadmapItems, ({ one, many }) => 
   module: one(modules, { fields: [roadmapItems.moduleId], references: [modules.id] }),
   lesson: one(lessons, { fields: [roadmapItems.lessonId], references: [lessons.id] }),
   milestone: one(milestones, { fields: [roadmapItems.milestoneId], references: [milestones.id] }),
+  deliverable: one(deliverables, { fields: [roadmapItems.deliverableId], references: [deliverables.id] }),
+  mentorSession: one(mentorSessions, { fields: [roadmapItems.mentorSessionId], references: [mentorSessions.id] }),
   assignments: many(assignedRoadmap),
 }));
 
