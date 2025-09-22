@@ -1,8 +1,18 @@
 import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+
+// Validate OpenAI API key at startup - critical security requirement
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR;
+if (!OPENAI_API_KEY) {
+  throw new Error(
+    "CRITICAL: OpenAI API key is required but not found in environment variables. " +
+    "Please set OPENAI_API_KEY or OPENAI_API_KEY_ENV_VAR environment variable."
+  );
+}
+
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "sk-default_key"
+  apiKey: OPENAI_API_KEY
 });
 
 export interface AiCoachMessage {
