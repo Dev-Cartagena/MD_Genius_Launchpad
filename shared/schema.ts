@@ -472,22 +472,19 @@ export const roadmapTemplates = pgTable("roadmap_templates", {
 
 export const roadmapItems = pgTable("roadmap_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  templateId: varchar("template_id").notNull().references(() => roadmapTemplates.id),
+  templateId: varchar("template_id").notNull().references(() => roadmapTemplates.id, { onDelete: "cascade" }),
   type: roadmapItemTypeEnum("type").notNull(),
   title: varchar("title").notNull(),
   description: text("description"),
   week: integer("week").notNull(), // 1-8 for 8-week program
   dueOffsetDays: integer("due_offset_days").default(0), // days relative to cohort start
   orderIndex: integer("order_index").notNull(),
-  // Integration with existing entities
+  // Template-level integration (reusable across projects)
   moduleId: varchar("module_id").references(() => modules.id),
   lessonId: varchar("lesson_id").references(() => lessons.id),
   milestoneId: varchar("milestone_id").references(() => milestones.id),
-  deliverableId: varchar("deliverable_id").references(() => deliverables.id),
-  mentorSessionId: varchar("mentor_session_id").references(() => mentorSessions.id),
   // Auto-completion settings
   autoCompletionType: autoCompletionTypeEnum("auto_completion_type").default("none"),
-  autoRefId: varchar("auto_ref_id"), // ID of the referenced entity for auto-completion
   autoThreshold: integer("auto_threshold").default(100), // percentage threshold for completion
   // Dependencies
   dependencyIds: varchar("dependency_ids").array(), // IDs of other roadmap items that must be completed first
@@ -507,6 +504,9 @@ export const assignedRoadmap = pgTable("assigned_roadmap", {
   status: roadmapStatusEnum("status").default("not_started"),
   completedAt: timestamp("completed_at"),
   evidenceArtifactId: varchar("evidence_artifact_id").references(() => artifacts.id),
+  // Project-specific bindings (set during assignment)
+  deliverableId: varchar("deliverable_id").references(() => deliverables.id),
+  mentorSessionId: varchar("mentor_session_id").references(() => mentorSessions.id),
   notes: text("notes"),
   blockerReason: text("blocker_reason"),
   waiveReason: text("waive_reason"),
@@ -595,8 +595,6 @@ export const roadmapItemsRelations = relations(roadmapItems, ({ one, many }) => 
   module: one(modules, { fields: [roadmapItems.moduleId], references: [modules.id] }),
   lesson: one(lessons, { fields: [roadmapItems.lessonId], references: [lessons.id] }),
   milestone: one(milestones, { fields: [roadmapItems.milestoneId], references: [milestones.id] }),
-  deliverable: one(deliverables, { fields: [roadmapItems.deliverableId], references: [deliverables.id] }),
-  mentorSession: one(mentorSessions, { fields: [roadmapItems.mentorSessionId], references: [mentorSessions.id] }),
   assignments: many(assignedRoadmap),
 }));
 
@@ -605,6 +603,8 @@ export const assignedRoadmapRelations = relations(assignedRoadmap, ({ one }) => 
   project: one(projects, { fields: [assignedRoadmap.projectId], references: [projects.id] }),
   user: one(users, { fields: [assignedRoadmap.userId], references: [users.id] }),
   evidenceArtifact: one(artifacts, { fields: [assignedRoadmap.evidenceArtifactId], references: [artifacts.id] }),
+  deliverable: one(deliverables, { fields: [assignedRoadmap.deliverableId], references: [deliverables.id] }),
+  mentorSession: one(mentorSessions, { fields: [assignedRoadmap.mentorSessionId], references: [mentorSessions.id] }),
 }));
 
 // Insert schemas

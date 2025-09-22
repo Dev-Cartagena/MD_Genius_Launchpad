@@ -851,10 +851,7 @@ export class DatabaseStorage implements IStorage {
         moduleId: roadmapItems.moduleId,
         lessonId: roadmapItems.lessonId,
         milestoneId: roadmapItems.milestoneId,
-        deliverableId: roadmapItems.deliverableId,
-        mentorSessionId: roadmapItems.mentorSessionId,
         autoCompletionType: roadmapItems.autoCompletionType,
-        autoRefId: roadmapItems.autoRefId,
         autoThreshold: roadmapItems.autoThreshold,
         dependencyIds: roadmapItems.dependencyIds,
         isOptional: roadmapItems.isOptional,
@@ -995,13 +992,15 @@ export class DatabaseStorage implements IStorage {
           }
           break;
 
-        case "deliverable":
-          if (item.deliverableId) {
+        case "deliverable": {
+          const assignment = item.assignment;
+          if (assignment?.deliverableId) {
             const deliverables = await this.getDeliverablesByProject(projectId);
-            const deliverable = deliverables.find(d => d.id === item.deliverableId);
+            const deliverable = deliverables.find(d => d.id === assignment.deliverableId);
             shouldAutoComplete = deliverable?.status === "approved";
           }
           break;
+        }
 
         case "milestone":
           if (item.milestoneId) {
@@ -1017,12 +1016,12 @@ export class DatabaseStorage implements IStorage {
           break;
 
         case "mentor_session":
-          if (item.mentorSessionId) {
+          if (item.assignment?.mentorSessionId) {
             // Check if the specific mentor session has occurred and has notes
             const session = await db
               .select()
               .from(mentorSessions)
-              .where(eq(mentorSessions.id, item.mentorSessionId));
+              .where(eq(mentorSessions.id, item.assignment.mentorSessionId));
             shouldAutoComplete = session.length > 0 && session[0].notes !== null;
           } else if (item.autoThreshold) {
             // Alternative: check if user has attended enough sessions this week
@@ -1075,16 +1074,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async checkDeliverableAutoCompletion(projectId: string, deliverableId: string): Promise<string[]> {
-    // Find roadmap items that auto-complete when this deliverable is approved
-    const relevantItems = await db
-      .select()
-      .from(roadmapItems)
+    // Find roadmap assignments that auto-complete when this deliverable is approved
+    const relevantAssignments = await db
+      .select({ itemId: assignedRoadmap.itemId })
+      .from(assignedRoadmap)
+      .innerJoin(roadmapItems, eq(assignedRoadmap.itemId, roadmapItems.id))
       .where(and(
+        eq(assignedRoadmap.projectId, projectId),
         eq(roadmapItems.autoCompletionType, "deliverable"),
-        eq(roadmapItems.deliverableId, deliverableId)
+        eq(assignedRoadmap.deliverableId, deliverableId)
       ));
 
-    return relevantItems.map(item => item.id);
+    return relevantAssignments.map(assignment => assignment.itemId);
   }
 
   async checkMilestoneAutoCompletion(projectId: string, milestoneId: string): Promise<string[]> {
