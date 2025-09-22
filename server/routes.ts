@@ -414,8 +414,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Validate status
-      if (!['pending', 'in_progress', 'completed'].includes(status)) {
-        return res.status(400).json({ message: "Invalid status. Must be pending, in_progress, or completed" });
+      if (!['not_started', 'in_progress', 'completed', 'blocked', 'waived'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be not_started, in_progress, completed, blocked, or waived" });
       }
       
       // Get assignment and verify permission
@@ -441,6 +441,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating assignment status:", error);
       res.status(500).json({ message: "Failed to update assignment status" });
+    }
+  });
+
+  // Participant roadmap convenience routes
+  app.get('/api/roadmap', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Find the user's active project
+      const projects = await storage.getProjectsByUser(userId);
+      const activeProject = projects.find((p: any) => p.stage !== 'completed') || projects[0];
+      
+      if (!activeProject) {
+        return res.status(404).json({ message: "No project found for user" });
+      }
+      
+      const roadmap = await storage.getProjectRoadmap(activeProject.id);
+      res.json(roadmap);
+    } catch (error) {
+      console.error("Error fetching user roadmap:", error);
+      res.status(500).json({ message: "Failed to fetch roadmap" });
+    }
+  });
+
+  app.get('/api/roadmap/current-week', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Find the user's active project
+      const projects = await storage.getProjectsByUser(userId);
+      const activeProject = projects.find((p: any) => p.stage !== 'completed') || projects[0];
+      
+      if (!activeProject) {
+        return res.status(404).json({ message: "No project found for user" });
+      }
+      
+      // Get current week (you may want to make this configurable)
+      const currentWeek = 1; // For now, default to week 1
+      const currentWeekItems = await storage.getParticipantRoadmapByWeek(activeProject.id, currentWeek);
+      res.json(currentWeekItems);
+    } catch (error) {
+      console.error("Error fetching current week roadmap:", error);
+      res.status(500).json({ message: "Failed to fetch current week roadmap" });
     }
   });
   

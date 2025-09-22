@@ -827,13 +827,29 @@ export class DatabaseStorage implements IStorage {
     template: RoadmapTemplate;
     items: Array<RoadmapItem & { assignment: AssignedRoadmap | null }>;
   } | undefined> {
-    // Get project to find its cohort
+    // Get project 
     const project = await this.getProject(projectId);
-    if (!project?.cohortId) return undefined;
+    if (!project) return undefined;
 
-    // Get the roadmap template for this cohort (or default)
-    const templates = await this.getRoadmapTemplates(project.cohortId);
-    const template = templates.find(t => t.isDefault) || templates[0];
+    // First check if project has existing roadmap assignments
+    const existingAssignments = await db
+      .select({ templateId: roadmapItems.templateId })
+      .from(assignedRoadmap)
+      .innerJoin(roadmapItems, eq(assignedRoadmap.itemId, roadmapItems.id))
+      .where(eq(assignedRoadmap.projectId, projectId))
+      .limit(1);
+
+    let template: RoadmapTemplate | undefined;
+    
+    if (existingAssignments.length > 0) {
+      // Use template from existing assignments
+      template = await this.getRoadmapTemplate(existingAssignments[0].templateId);
+    } else if (project.cohortId) {
+      // Fallback to cohort-based template lookup
+      const templates = await this.getRoadmapTemplates(project.cohortId);
+      template = templates.find(t => t.isDefault) || templates[0];
+    }
+    
     if (!template) return undefined;
 
     // Use optimized JOIN query to get items with assignments in one query
@@ -1116,7 +1132,7 @@ export class DatabaseStorage implements IStorage {
     return assignment || null;
   }
 
-  async updateAssignedRoadmapStatus(assignmentId: string, status: 'pending' | 'in_progress' | 'completed'): Promise<AssignedRoadmap> {
+  async updateAssignedRoadmapStatus(assignmentId: string, status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'waived'): Promise<AssignedRoadmap> {
     const [updated] = await db
       .update(assignedRoadmap)
       .set({ 
