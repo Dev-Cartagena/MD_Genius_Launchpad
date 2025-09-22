@@ -26,7 +26,7 @@ interface RoadmapItem {
   title: string;
   description: string;
   itemType: string;
-  weekNumber: number;
+  week: number;
   orderIndex: number;
   estimatedHours: number;
   autoCompletionType: string;
@@ -238,7 +238,7 @@ export default function Roadmap() {
 
   // Group items by week
   const itemsByWeek = roadmap.items.reduce((acc, item) => {
-    const week = item.weekNumber;
+    const week = item.week;
     if (!acc[week]) acc[week] = [];
     acc[week].push(item);
     return acc;
