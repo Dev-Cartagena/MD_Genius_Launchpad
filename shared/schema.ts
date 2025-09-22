@@ -359,6 +359,31 @@ export const investorInterests = pgTable("investor_interests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const investorSessions = pgTable("investor_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  investorId: varchar("investor_id").notNull().references(() => investors.id),
+  participantIds: varchar("participant_ids").array(),
+  title: varchar("title").notNull(),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  agenda: text("agenda"),
+  notes: text("notes"),
+  attendance: jsonb("attendance"),
+  meetingLink: varchar("meeting_link"),
+  sessionType: varchar("session_type"), // "pitch", "feedback", "due_diligence", "demo_day"
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const investorCohortParticipation = pgTable("investor_cohort_participation", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  investorId: varchar("investor_id").notNull().references(() => investors.id),
+  cohortId: varchar("cohort_id").notNull().references(() => cohorts.id),
+  role: varchar("role"), // "judge", "advisor", "funding_partner", "demo_day_evaluator"
+  status: varchar("status").default("active"), // "active", "inactive"
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Funding
 export const fundingPrograms = pgTable("funding_programs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -705,6 +730,22 @@ export const insertMentorSessionSchema = createInsertSchema(mentorSessions).omit
   createdAt: true,
 });
 
+export const insertInvestorSchema = createInsertSchema(investors).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInvestorSessionSchema = createInsertSchema(investorSessions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInvestorCohortParticipationSchema = createInsertSchema(investorCohortParticipation).omit({
+  id: true,
+  createdAt: true,
+  assignedAt: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -744,3 +785,9 @@ export type MentorProfile = typeof mentorProfiles.$inferSelect;
 export type InsertMentorProfile = z.infer<typeof insertMentorProfileSchema>;
 export type MentorSession = typeof mentorSessions.$inferSelect;
 export type InsertMentorSession = z.infer<typeof insertMentorSessionSchema>;
+export type Investor = typeof investors.$inferSelect;
+export type InsertInvestor = z.infer<typeof insertInvestorSchema>;
+export type InvestorSession = typeof investorSessions.$inferSelect;
+export type InsertInvestorSession = z.infer<typeof insertInvestorSessionSchema>;
+export type InvestorCohortParticipation = typeof investorCohortParticipation.$inferSelect;
+export type InsertInvestorCohortParticipation = z.infer<typeof insertInvestorCohortParticipationSchema>;

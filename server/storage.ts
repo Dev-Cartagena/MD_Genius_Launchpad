@@ -13,6 +13,8 @@ import {
   mentorSessions,
   investors,
   investorInterests,
+  investorSessions,
+  investorCohortParticipation,
   messages,
   aiConversations,
   fundingPrograms,
@@ -54,6 +56,13 @@ import {
   type InsertMentorProfile,
   type MentorSession,
   type InsertMentorSession,
+  type Investor,
+  type InsertInvestor,
+  type InvestorInterest,
+  type InvestorSession,
+  type InsertInvestorSession,
+  type InvestorCohortParticipation,
+  type InsertInvestorCohortParticipation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, ilike, or, gt, isNull, sql } from "drizzle-orm";
@@ -139,8 +148,32 @@ export interface IStorage {
   getMentorSession(sessionId: string): Promise<MentorSession | undefined>;
   
   // Investor operations
-  getInvestors(): Promise<any[]>;
-  getInvestorInterests(projectId: string): Promise<any[]>;
+  getInvestors(): Promise<Investor[]>;
+  getInvestor(id: string): Promise<Investor | undefined>;
+  createInvestor(investor: InsertInvestor): Promise<Investor>;
+  updateInvestor(id: string, data: Partial<Investor>): Promise<Investor>;
+  deactivateInvestor(id: string): Promise<Investor>;
+  getInvestorsByUser(userId: string): Promise<Investor[]>;
+  
+  // Investor interest management
+  getInvestorInterests(projectId: string): Promise<InvestorInterest[]>;
+  createInvestorInterest(interest: { investorId: string; projectId: string; level?: string; questions?: string[]; notes?: string }): Promise<InvestorInterest>;
+  updateInvestorInterest(id: string, data: Partial<InvestorInterest>): Promise<InvestorInterest>;
+  
+  // Investor session management
+  getInvestorSessions(investorId: string): Promise<InvestorSession[]>;
+  getInvestorSessionsForParticipant(participantId: string): Promise<InvestorSession[]>;
+  createInvestorSession(session: InsertInvestorSession): Promise<InvestorSession>;
+  updateInvestorSession(sessionId: string, data: Partial<InvestorSession>): Promise<InvestorSession>;
+  getInvestorSession(sessionId: string): Promise<InvestorSession | undefined>;
+  cancelInvestorSession(sessionId: string): Promise<void>;
+  
+  // Investor-cohort participation management
+  getInvestorCohortParticipation(investorId: string): Promise<InvestorCohortParticipation[]>;
+  getCohortInvestors(cohortId: string): Promise<(InvestorCohortParticipation & { investor: Investor })[]>;
+  assignInvestorToCohort(participation: InsertInvestorCohortParticipation): Promise<InvestorCohortParticipation>;
+  updateInvestorCohortRole(participationId: string, role: string): Promise<InvestorCohortParticipation>;
+  removeInvestorFromCohort(participationId: string): Promise<void>;
   
   // AI Coach operations
   createAiConversation(conversation: InsertAiConversation): Promise<AiConversation>;
@@ -739,7 +772,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Investor operations
-  async getInvestors(): Promise<any[]> {
+  async getInvestors(): Promise<Investor[]> {
     return await db
       .select()
       .from(investors)
@@ -747,12 +780,217 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(investors.organization));
   }
 
-  async getInvestorInterests(projectId: string): Promise<any[]> {
+  async getInvestor(id: string): Promise<Investor | undefined> {
+    const [investor] = await db
+      .select()
+      .from(investors)
+      .where(eq(investors.id, id));
+    return investor;
+  }
+
+  async createInvestor(investor: InsertInvestor): Promise<Investor> {
+    const [newInvestor] = await db
+      .insert(investors)
+      .values(investor)
+      .returning();
+    return newInvestor;
+  }
+
+  async updateInvestor(id: string, data: Partial<Investor>): Promise<Investor> {
+    const allowedFields = {
+      organization: data.organization,
+      contactEmail: data.contactEmail,
+      sectors: data.sectors,
+      stages: data.stages,
+      geography: data.geography,
+      checkSize: data.checkSize,
+      preferences: data.preferences,
+      ndaStatus: data.ndaStatus,
+    };
+    
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(investors)
+      .set(updateData)
+      .where(eq(investors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deactivateInvestor(id: string): Promise<Investor> {
+    const [updated] = await db
+      .update(investors)
+      .set({ isActive: false })
+      .where(eq(investors.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getInvestorsByUser(userId: string): Promise<Investor[]> {
+    return await db
+      .select()
+      .from(investors)
+      .where(and(eq(investors.userId, userId), eq(investors.isActive, true)))
+      .orderBy(asc(investors.organization));
+  }
+
+  // Investor interest management
+  async getInvestorInterests(projectId: string): Promise<InvestorInterest[]> {
     return await db
       .select()
       .from(investorInterests)
       .where(eq(investorInterests.projectId, projectId))
       .orderBy(desc(investorInterests.createdAt));
+  }
+
+  async createInvestorInterest(interest: { investorId: string; projectId: string; level?: string; questions?: string[]; notes?: string }): Promise<InvestorInterest> {
+    const insertData = {
+      investorId: interest.investorId,
+      projectId: interest.projectId,
+      level: interest.level as any,
+      questions: interest.questions,
+      notes: interest.notes,
+    };
+    
+    const [newInterest] = await db
+      .insert(investorInterests)
+      .values(insertData)
+      .returning();
+    return newInterest;
+  }
+
+  async updateInvestorInterest(id: string, data: Partial<InvestorInterest>): Promise<InvestorInterest> {
+    const allowedFields = {
+      level: data.level,
+      questions: data.questions,
+      notes: data.notes,
+      meetings: data.meetings,
+    };
+    
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(investorInterests)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(investorInterests.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Investor session management
+  async getInvestorSessions(investorId: string): Promise<InvestorSession[]> {
+    return await db
+      .select()
+      .from(investorSessions)
+      .where(eq(investorSessions.investorId, investorId))
+      .orderBy(desc(investorSessions.startTime));
+  }
+
+  async getInvestorSessionsForParticipant(participantId: string): Promise<InvestorSession[]> {
+    return await db
+      .select()
+      .from(investorSessions)
+      .where(sql`${participantId} = ANY(${investorSessions.participantIds})`)
+      .orderBy(desc(investorSessions.startTime));
+  }
+
+  async createInvestorSession(session: InsertInvestorSession): Promise<InvestorSession> {
+    const [newSession] = await db
+      .insert(investorSessions)
+      .values(session)
+      .returning();
+    return newSession;
+  }
+
+  async updateInvestorSession(sessionId: string, data: Partial<InvestorSession>): Promise<InvestorSession> {
+    const allowedFields = {
+      title: data.title,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      agenda: data.agenda,
+      notes: data.notes,
+      attendance: data.attendance,
+      meetingLink: data.meetingLink,
+      participantIds: data.participantIds,
+      sessionType: data.sessionType,
+    };
+    
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(investorSessions)
+      .set(updateData)
+      .where(eq(investorSessions.id, sessionId))
+      .returning();
+    return updated;
+  }
+
+  async getInvestorSession(sessionId: string): Promise<InvestorSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(investorSessions)
+      .where(eq(investorSessions.id, sessionId));
+    return session;
+  }
+
+  async cancelInvestorSession(sessionId: string): Promise<void> {
+    await db
+      .delete(investorSessions)
+      .where(eq(investorSessions.id, sessionId));
+  }
+
+  // Investor-cohort participation management
+  async getInvestorCohortParticipation(investorId: string): Promise<InvestorCohortParticipation[]> {
+    return await db
+      .select()
+      .from(investorCohortParticipation)
+      .where(and(eq(investorCohortParticipation.investorId, investorId), eq(investorCohortParticipation.status, "active")))
+      .orderBy(desc(investorCohortParticipation.assignedAt));
+  }
+
+  async getCohortInvestors(cohortId: string): Promise<(InvestorCohortParticipation & { investor: Investor })[]> {
+    const results = await db
+      .select()
+      .from(investorCohortParticipation)
+      .innerJoin(investors, eq(investorCohortParticipation.investorId, investors.id))
+      .where(and(eq(investorCohortParticipation.cohortId, cohortId), eq(investorCohortParticipation.status, "active")))
+      .orderBy(asc(investors.organization));
+    
+    return results.map(result => ({
+      ...result.investor_cohort_participation,
+      investor: result.investors
+    }));
+  }
+
+  async assignInvestorToCohort(participation: InsertInvestorCohortParticipation): Promise<InvestorCohortParticipation> {
+    const [newParticipation] = await db
+      .insert(investorCohortParticipation)
+      .values(participation)
+      .returning();
+    return newParticipation;
+  }
+
+  async updateInvestorCohortRole(participationId: string, role: string): Promise<InvestorCohortParticipation> {
+    const [updated] = await db
+      .update(investorCohortParticipation)
+      .set({ role })
+      .where(eq(investorCohortParticipation.id, participationId))
+      .returning();
+    return updated;
+  }
+
+  async removeInvestorFromCohort(participationId: string): Promise<void> {
+    await db
+      .update(investorCohortParticipation)
+      .set({ status: "inactive" })
+      .where(eq(investorCohortParticipation.id, participationId));
   }
 
   // AI Coach operations

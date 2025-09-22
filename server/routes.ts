@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -35,6 +35,10 @@ const resetPasswordSchema = z.object({
 // Validation schemas for mentor operations
 const updateMentorProfileSchema = insertMentorProfileSchema.partial().omit({ userId: true });
 const updateMentorSessionSchema = insertMentorSessionSchema.partial().omit({ mentorId: true });
+
+// Validation schemas for investor operations
+const updateInvestorSchema = insertInvestorSchema.partial().omit({ userId: true });
+const updateInvestorSessionSchema = insertInvestorSessionSchema.partial().omit({ investorId: true });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1256,6 +1260,343 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching investors:", error);
       res.status(500).json({ message: "Failed to fetch investors" });
+    }
+  });
+
+  // Admin Investor Management Routes
+  app.get('/api/admin/investors', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const investors = await storage.getInvestors();
+      res.json(investors);
+    } catch (error) {
+      console.error("Error fetching admin investors:", error);
+      res.status(500).json({ message: "Failed to fetch investors" });
+    }
+  });
+
+  app.get('/api/admin/investors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      const investor = await storage.getInvestor(id);
+      
+      if (!investor) {
+        return res.status(404).json({ message: "Investor not found" });
+      }
+      
+      res.json(investor);
+    } catch (error) {
+      console.error("Error fetching investor:", error);
+      res.status(500).json({ message: "Failed to fetch investor" });
+    }
+  });
+
+  app.post('/api/admin/investors', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const validatedData = insertInvestorSchema.parse(req.body);
+      const investor = await storage.createInvestor(validatedData);
+      res.status(201).json(investor);
+    } catch (error) {
+      console.error("Error creating investor:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create investor" });
+    }
+  });
+
+  app.put('/api/admin/investors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      const updateData = updateInvestorSchema.parse(req.body);
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      
+      const investor = await storage.updateInvestor(id, updateData);
+      res.json(investor);
+    } catch (error) {
+      console.error("Error updating investor:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to update investor" });
+    }
+  });
+
+  app.delete('/api/admin/investors/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      const investor = await storage.deactivateInvestor(id);
+      res.json(investor);
+    } catch (error) {
+      console.error("Error deactivating investor:", error);
+      res.status(500).json({ message: "Failed to deactivate investor" });
+    }
+  });
+
+  // Investor Session Management Routes
+  app.get('/api/admin/investor-sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      // Get all investor sessions across all investors
+      const investors = await storage.getInvestors();
+      const allSessions = [];
+      
+      for (const investor of investors) {
+        const sessions = await storage.getInvestorSessions(investor.id);
+        allSessions.push(...sessions.map(session => ({ ...session, investorOrganization: investor.organization })));
+      }
+      
+      res.json(allSessions);
+    } catch (error) {
+      console.error("Error fetching admin investor sessions:", error);
+      res.status(500).json({ message: "Failed to fetch investor sessions" });
+    }
+  });
+
+  app.post('/api/admin/investor-sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const validatedData = insertInvestorSessionSchema.parse(req.body);
+      const session = await storage.createInvestorSession(validatedData);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error creating investor session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create investor session" });
+    }
+  });
+
+  app.put('/api/admin/investor-sessions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      const updateData = updateInvestorSessionSchema.parse(req.body);
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      
+      const session = await storage.updateInvestorSession(id, updateData);
+      res.json(session);
+    } catch (error) {
+      console.error("Error updating investor session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to update investor session" });
+    }
+  });
+
+  app.delete('/api/admin/investor-sessions/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      await storage.cancelInvestorSession(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error canceling investor session:", error);
+      res.status(500).json({ message: "Failed to cancel investor session" });
+    }
+  });
+
+  // Investor-Cohort Participation Management Routes
+  app.get('/api/admin/cohorts/:cohortId/investors', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { cohortId } = req.params;
+      const cohortInvestors = await storage.getCohortInvestors(cohortId);
+      res.json(cohortInvestors);
+    } catch (error) {
+      console.error("Error fetching cohort investors:", error);
+      res.status(500).json({ message: "Failed to fetch cohort investors" });
+    }
+  });
+
+  app.post('/api/admin/investors/:investorId/cohorts', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { investorId } = req.params;
+      const { cohortId, role } = req.body;
+      
+      const validatedData = insertInvestorCohortParticipationSchema.parse({
+        investorId,
+        cohortId,
+        role: role || "advisor"
+      });
+      
+      const participation = await storage.assignInvestorToCohort(validatedData);
+      res.status(201).json(participation);
+    } catch (error) {
+      console.error("Error assigning investor to cohort:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to assign investor to cohort" });
+    }
+  });
+
+  app.put('/api/admin/investor-cohort-participation/:id/role', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      const { role } = req.body;
+      
+      if (!role) {
+        return res.status(400).json({ message: "Role is required" });
+      }
+      
+      const participation = await storage.updateInvestorCohortRole(id, role);
+      res.json(participation);
+    } catch (error) {
+      console.error("Error updating investor cohort role:", error);
+      res.status(500).json({ message: "Failed to update investor cohort role" });
+    }
+  });
+
+  app.delete('/api/admin/investor-cohort-participation/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      await storage.removeInvestorFromCohort(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing investor from cohort:", error);
+      res.status(500).json({ message: "Failed to remove investor from cohort" });
+    }
+  });
+
+  // Investor Interest Management Routes
+  app.get('/api/admin/investor-interests', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      // Get all projects and their investor interests
+      const projects = await storage.getAllProjects();
+      const allInterests = [];
+      
+      for (const project of projects) {
+        const interests = await storage.getInvestorInterests(project.id);
+        allInterests.push(...interests.map(interest => ({ ...interest, projectName: project.name })));
+      }
+      
+      res.json(allInterests);
+    } catch (error) {
+      console.error("Error fetching admin investor interests:", error);
+      res.status(500).json({ message: "Failed to fetch investor interests" });
+    }
+  });
+
+  app.post('/api/admin/investor-interests', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { investorId, projectId, level, questions, notes } = req.body;
+      
+      if (!investorId || !projectId) {
+        return res.status(400).json({ message: "Investor ID and Project ID are required" });
+      }
+      
+      const interest = await storage.createInvestorInterest({
+        investorId,
+        projectId,
+        level,
+        questions,
+        notes
+      });
+      
+      res.status(201).json(interest);
+    } catch (error) {
+      console.error("Error creating investor interest:", error);
+      res.status(500).json({ message: "Failed to create investor interest" });
+    }
+  });
+
+  app.put('/api/admin/investor-interests/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      
+      const interest = await storage.updateInvestorInterest(id, updateData);
+      res.json(interest);
+    } catch (error) {
+      console.error("Error updating investor interest:", error);
+      res.status(500).json({ message: "Failed to update investor interest" });
     }
   });
 
