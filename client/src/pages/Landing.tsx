@@ -16,12 +16,8 @@ import {
 } from "lucide-react";
 
 export default function Landing() {
-  const stats = [
-    { label: "Success Rate", value: "92%", icon: TrendingUp },
-    { label: "Startups Launched", value: "150+", icon: Rocket },
-    { label: "Funding Raised", value: "$50M+", icon: Award },
-    { label: "Mentor Network", value: "200+", icon: Users },
-  ];
+  // Stats will be populated with real data when available
+  const stats: any[] = [];
 
   const features = [
     {
@@ -46,26 +42,8 @@ export default function Landing() {
     },
   ];
 
-  const testimonials = [
-    {
-      name: "Sarah Chen",
-      role: "CEO, MedAI Analytics",
-      content: "The program transformed my AI research into a thriving startup. The mentorship and network are invaluable.",
-      rating: 5
-    },
-    {
-      name: "Marcus Rodriguez", 
-      role: "Founder, AgriTech AI",
-      content: "From idea to $2M seed round in 6 months. MD Genius provided the framework and connections we needed.",
-      rating: 5
-    },
-    {
-      name: "Dr. Emily Watson",
-      role: "CTO, CleanTech AI",
-      content: "The technical depth combined with business acumen made this the perfect launchpad for our AI venture.",
-      rating: 5
-    }
-  ];
+  // Alumni testimonials will be populated with real testimonials when available
+  const testimonials: any[] = [];
 
   const cohortTimeline = [
     { week: "1-2", title: "Foundation", description: "AI fundamentals, problem identification, team formation" },
@@ -117,18 +95,20 @@ export default function Landing() {
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            {stats.map((stat, index) => (
-              <Card key={index} className="glass-card border-0">
-                <CardContent className="p-6 text-center">
-                  <stat.icon className="w-8 h-8 mx-auto mb-3 text-accent" />
-                  <div className="text-2xl font-bold mb-1" data-testid={`stat-value-${index}`}>{stat.value}</div>
-                  <div className="text-sm text-muted-foreground">{stat.label}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Stats section hidden until real data is available */}
+          {stats.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+              {stats.map((stat, index) => (
+                <Card key={index} className="glass-card border-0">
+                  <CardContent className="p-6 text-center">
+                    <stat.icon className="w-8 h-8 mx-auto mb-3 text-accent" />
+                    <div className="text-2xl font-bold mb-1" data-testid={`stat-value-${index}`}>{stat.value}</div>
+                    <div className="text-sm text-muted-foreground">{stat.label}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -211,28 +191,39 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="glass-card border-0">
-                <CardContent className="p-8">
-                  <div className="flex items-center mb-4">
-                    {Array.from({ length: testimonial.rating }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground italic mb-6 leading-relaxed" data-testid={`testimonial-content-${index}`}>
-                    "{testimonial.content}"
-                  </p>
-                  <div>
-                    <div className="font-bold" data-testid={`testimonial-name-${index}`}>{testimonial.name}</div>
-                    <div className="text-sm text-muted-foreground" data-testid={`testimonial-role-${index}`}>
-                      {testimonial.role}
+          {testimonials.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {testimonials.map((testimonial, index) => (
+                <Card key={index} className="glass-card border-0">
+                  <CardContent className="p-8">
+                    <div className="flex items-center mb-4">
+                      {Array.from({ length: testimonial.rating }).map((_, i) => (
+                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                      ))}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <p className="text-muted-foreground italic mb-6 leading-relaxed" data-testid={`testimonial-content-${index}`}>
+                      "{testimonial.content}"
+                    </p>
+                    <div>
+                      <div className="font-bold" data-testid={`testimonial-name-${index}`}>{testimonial.name}</div>
+                      <div className="text-sm text-muted-foreground" data-testid={`testimonial-role-${index}`}>
+                        {testimonial.role}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-muted-foreground text-lg mb-4">
+                Success stories from our alumni will be featured here soon.
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Check back after our first cohort graduates to see their achievements.
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

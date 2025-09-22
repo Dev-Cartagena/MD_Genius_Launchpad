@@ -56,105 +56,13 @@ export default function Investors() {
     enabled: !isInvestor,
   });
 
-  // Mock startup data for directory
-  const mockStartups = [
-    {
-      id: "1",
-      name: "EcoAI Analytics",
-      founder: {
-        firstName: "Alex",
-        lastName: "Rodriguez",
-        profileImageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
-      },
-      stage: "validation",
-      sector: "CleanTech",
-      description: "AI-powered sustainability analytics platform helping businesses reduce their carbon footprint through intelligent resource optimization and predictive modeling.",
-      traction: "12 pilot customers, $50K ARR",
-      fundingGoal: "$500K",
-      readinessScore: 85,
-      teamSize: 3,
-      location: "San Francisco",
-      founded: "2025",
-      aiComponents: ["Machine Learning", "Predictive Analytics", "Computer Vision"],
-      isPublic: true,
-      hasNDA: false
-    },
-    {
-      id: "2",
-      name: "HealthTech AI",
-      founder: {
-        firstName: "Sarah",
-        lastName: "Kim",
-        profileImageUrl: "https://images.unsplash.com/photo-1494790108755-2616b612b386?w=150&h=150&fit=crop&crop=face"
-      },
-      stage: "mvp_build",
-      sector: "HealthTech",
-      description: "Machine learning platform for early disease detection using medical imaging and biomarkers. Helping healthcare providers improve patient outcomes through AI-powered diagnostics.",
-      traction: "FDA approval pending, 2 hospital pilots",
-      fundingGoal: "$1.2M",
-      readinessScore: 78,
-      teamSize: 5,
-      location: "Boston",
-      founded: "2023",
-      aiComponents: ["Deep Learning", "Computer Vision", "Medical AI"],
-      isPublic: true,
-      hasNDA: true
-    },
-    {
-      id: "3",
-      name: "AgriTech Optimizer",
-      founder: {
-        firstName: "Michael",
-        lastName: "Chen",
-        profileImageUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
-      },
-      stage: "pitch_ready",
-      sector: "AgriTech",
-      description: "Precision agriculture platform using computer vision and IoT sensors for crop optimization. Helping farmers increase yields while reducing environmental impact.",
-      traction: "500+ farms onboarded, $200K MRR",
-      fundingGoal: "$2M",
-      readinessScore: 92,
-      teamSize: 8,
-      location: "Austin",
-      founded: "2022",
-      aiComponents: ["Computer Vision", "IoT Analytics", "Predictive Modeling"],
-      isPublic: true,
-      hasNDA: false
-    }
-  ];
+  // Use only real project data from API
 
-  // Mock investor data
-  const mockInvestors = [
-    {
-      id: "1",
-      organization: "TechVentures AI Fund",
-      contactEmail: "partners@techventures.com",
-      sectors: ["AI/ML", "HealthTech", "FinTech"],
-      stages: ["Seed", "Series A"],
-      geography: ["North America", "Europe"],
-      checkSize: "$250K - $2M",
-      portfolioSize: 45,
-      notableInvestments: ["OpenAI", "Anthropic", "Stability AI"],
-      description: "Leading AI-focused venture fund investing in transformative artificial intelligence companies.",
-      website: "https://techventures.com"
-    },
-    {
-      id: "2",
-      organization: "Green Impact Ventures",
-      contactEmail: "team@greenimpact.vc",
-      sectors: ["CleanTech", "Sustainability", "Climate"],
-      stages: ["Pre-Seed", "Seed"],
-      geography: ["Global"],
-      checkSize: "$100K - $1M",
-      portfolioSize: 32,
-      notableInvestments: ["Tesla Energy", "Beyond Meat", "Impossible Foods"],
-      description: "Climate-focused venture capital firm backing companies solving environmental challenges.",
-      website: "https://greenimpact.vc"
-    }
-  ];
+  // Use only real investor data from API
 
-  const displayStartups = projects.length > 0 ? projects : mockStartups;
-  const displayInvestors = investors.length > 0 ? investors : mockInvestors;
+  // Use only real data from APIs
+  const displayStartups = projects;
+  const displayInvestors = investors;
 
   // Request meeting mutation
   const requestMeeting = useMutation({
@@ -192,21 +100,29 @@ export default function Investors() {
   });
 
   const filteredStartups = displayStartups.filter((startup: any) => {
-    const matchesSearch = searchQuery === "" || 
-      startup.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      startup.sector.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      startup.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const name = startup?.name || "";
+    const sector = startup?.sector || "";
+    const description = startup?.description || "";
+    const stage = startup?.stage || "";
     
-    const matchesSector = selectedSector === "all" || startup.sector === selectedSector;
-    const matchesStage = selectedStage === "all" || startup.stage === selectedStage;
+    const matchesSearch = searchQuery === "" || 
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sector.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesSector = selectedSector === "all" || sector === selectedSector;
+    const matchesStage = selectedStage === "all" || stage === selectedStage;
 
     return matchesSearch && matchesSector && matchesStage;
   });
 
   const filteredInvestors = displayInvestors.filter((investor: any) => {
+    const organization = investor?.organization || "";
+    const sectors = investor?.sectors || [];
+    
     const matchesSearch = searchQuery === "" ||
-      investor.organization.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      investor.sectors.some((sector: string) => sector.toLowerCase().includes(searchQuery.toLowerCase()));
+      organization.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sectors.some((sector: string) => sector.toLowerCase().includes(searchQuery.toLowerCase()));
     
     return matchesSearch;
   });
@@ -309,9 +225,8 @@ export default function Investors() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
                           <Avatar className="w-12 h-12">
-                            <AvatarImage src={startup.founder.profileImageUrl} alt={startup.name} />
                             <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-                              {startup.name.split(' ').map((n: string) => n[0]).join('')}
+                              {(startup.name || "S").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
@@ -319,7 +234,7 @@ export default function Investors() {
                               {startup.name}
                             </CardTitle>
                             <p className="text-sm text-muted-foreground">
-                              by {startup.founder.firstName} {startup.founder.lastName}
+                              by {startup.founder?.firstName || ""} {startup.founder?.lastName || startup.ownerName || "Founder"}
                             </p>
                           </div>
                         </div>
@@ -335,7 +250,7 @@ export default function Investors() {
                             }`}
                             data-testid={`startup-stage-${startup.id}`}
                           >
-                            {startup.stage.replace('_', ' ')}
+                            {(startup.stage || "ideation").replace('_', ' ')}
                           </Badge>
                         </div>
                       </div>
@@ -367,11 +282,11 @@ export default function Investors() {
                             <div className="w-12 h-2 bg-secondary rounded-full">
                               <div 
                                 className="h-2 bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
-                                style={{ width: `${startup.readinessScore}%` }}
+                                style={{ width: `${startup.readinessScore || 0}%` }}
                               ></div>
                             </div>
                             <span className="font-medium" data-testid={`startup-readiness-${startup.id}`}>
-                              {startup.readinessScore}%
+                              {startup.readinessScore || 0}%
                             </span>
                           </div>
                         </div>
@@ -381,11 +296,11 @@ export default function Investors() {
                         <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                           <span className="flex items-center space-x-1">
                             <Users className="w-3 h-3" />
-                            <span>{startup.teamSize} team</span>
+                            <span>{startup.teamSize || "N/A"} team</span>
                           </span>
                           <span className="flex items-center space-x-1">
                             <Building className="w-3 h-3" />
-                            <span>{startup.location}</span>
+                            <span>{startup.location || "Not specified"}</span>
                           </span>
                         </div>
                         <div className="flex space-x-2">
@@ -481,7 +396,7 @@ export default function Investors() {
                         <div>
                           <h4 className="text-sm font-medium mb-2">Notable Investments</h4>
                           <div className="flex flex-wrap gap-1">
-                            {investor.notableInvestments.map((investment: string, index: number) => (
+                            {(investor.notableInvestments || []).map((investment: string, index: number) => (
                               <Badge key={index} variant="outline" className="text-xs">
                                 {investment}
                               </Badge>
