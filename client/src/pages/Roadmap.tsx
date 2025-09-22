@@ -326,14 +326,14 @@ export default function Roadmap() {
                   <Calendar className="w-5 h-5" />
                   Week {week}
                   <Badge variant="outline" className="ml-auto">
-                    {itemsByWeek[week].filter(item => item.assignment?.status === 'completed').length}/
-                    {itemsByWeek[week].length} completed
+                    {(itemsByWeek[week] || []).filter(item => item.assignment?.status === 'completed').length}/
+                    {(itemsByWeek[week] || []).length} completed
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {itemsByWeek[week]
+                  {(itemsByWeek[week] || [])
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((item) => (
                     <div
