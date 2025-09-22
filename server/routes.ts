@@ -504,6 +504,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch roadmap template" });
     }
   });
+
+  app.get('/api/admin/roadmap/templates/:templateId/items', isAuthenticated, async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const items = await storage.getRoadmapItemsByTemplate(templateId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error getting roadmap items for template:", error);
+      res.status(500).json({ message: "Failed to get roadmap items" });
+    }
+  });
+
+  app.post('/api/admin/roadmap/templates/:templateId/items', isAuthenticated, async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      // Merge templateId from params with request body
+      const itemData = { ...req.body, templateId };
+      const validatedData = insertRoadmapItemSchema.parse(itemData);
+      const item = await storage.createRoadmapItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating roadmap item for template:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create roadmap item" });
+    }
+  });
   
   app.post('/api/admin/roadmap/templates/:templateId/assign', isAuthenticated, async (req: any, res) => {
     try {

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { isUnauthorizedError } from "@/lib/auth";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import type { RoadmapTemplate, RoadmapItem } from "@shared/schema";
 
 // UI Components
@@ -28,15 +28,16 @@ import { Plus, Edit, Trash2, Eye, Calendar, Target, CheckCircle, Clock, Users } 
 const templateFormSchema = z.object({
   name: z.string().min(1, "Template name is required"),
   description: z.string().min(1, "Description is required"),
-  durationWeeks: z.number().min(1, "Duration must be at least 1 week").max(52, "Duration cannot exceed 52 weeks"),
 });
 
 const itemFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
-  type: z.enum(["task", "milestone", "deliverable"]),
-  week: z.number().min(1, "Week must be at least 1"),
-  priority: z.enum(["low", "medium", "high"]),
+  type: z.enum(["task", "milestone", "deliverable", "checkin", "learning"]),
+  week: z.coerce.number().min(1, "Week must be at least 1"),
+  orderIndex: z.coerce.number().min(0, "Order index must be 0 or greater"),
+  isOptional: z.boolean().default(false),
+  estimatedHours: z.coerce.number().min(1, "Estimated hours must be at least 1").optional(),
 });
 
 type TemplateFormData = z.infer<typeof templateFormSchema>;
@@ -62,7 +63,6 @@ export default function AdminRoadmapManager() {
     defaultValues: {
       name: "",
       description: "",
-      durationWeeks: 8,
     },
   });
 
@@ -73,7 +73,9 @@ export default function AdminRoadmapManager() {
       description: "",
       type: "task",
       week: 1,
-      priority: "medium",
+      orderIndex: 0,
+      isOptional: false,
+      estimatedHours: 1,
     },
   });
 
@@ -83,7 +85,7 @@ export default function AdminRoadmapManager() {
   });
 
   const { data: selectedTemplateItems = [], isLoading: itemsLoading } = useQuery<RoadmapItem[]>({
-    queryKey: ["/api/admin/roadmap/templates", selectedTemplate, "items"],
+    queryKey: [`/api/admin/roadmap/templates/${selectedTemplate}/items`],
     enabled: !!selectedTemplate,
   });
 
@@ -130,7 +132,7 @@ export default function AdminRoadmapManager() {
         title: "Item Created",
         description: "Roadmap item has been created successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/roadmap/templates", selectedTemplate, "items"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/roadmap/templates/${selectedTemplate}/items`] });
       itemForm.reset();
       setIsCreateItemOpen(false);
     },
@@ -154,7 +156,7 @@ export default function AdminRoadmapManager() {
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ItemFormData }) => {
-      const response = await apiRequest("PUT", `/api/admin/roadmap/items/${id}`, data);
+      const response = await apiRequest("PATCH", `/api/admin/roadmap/items/${id}`, data);
       return response.json();
     },
     onSuccess: () => {
@@ -162,7 +164,7 @@ export default function AdminRoadmapManager() {
         title: "Item Updated",
         description: "Roadmap item has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/roadmap/templates", selectedTemplate, "items"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/roadmap/templates/${selectedTemplate}/items`] });
       itemForm.reset();
       setEditingItem(null);
     },
@@ -194,7 +196,7 @@ export default function AdminRoadmapManager() {
         title: "Item Deleted",
         description: "Roadmap item has been deleted successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/roadmap/templates", selectedTemplate, "items"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/roadmap/templates/${selectedTemplate}/items`] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -237,7 +239,12 @@ export default function AdminRoadmapManager() {
 
   const handleCreateItem = (data: ItemFormData) => {
     if (!selectedTemplate) return;
-    createItemMutation.mutate(data);
+    // Add the templateId and ensure all required fields are present
+    const itemData = {
+      ...data,
+      templateId: selectedTemplate,
+    };
+    createItemMutation.mutate(itemData);
   };
 
   const handleUpdateItem = (data: ItemFormData) => {
@@ -248,10 +255,12 @@ export default function AdminRoadmapManager() {
   const handleEditItem = (item: RoadmapItem) => {
     setEditingItem(item);
     itemForm.setValue("title", item.title);
-    itemForm.setValue("description", item.description);
-    itemForm.setValue("type", item.type as "task" | "milestone" | "deliverable");
+    itemForm.setValue("description", item.description || "");
+    itemForm.setValue("type", item.type as "task" | "milestone" | "deliverable" | "checkin" | "learning");
     itemForm.setValue("week", item.week);
-    itemForm.setValue("priority", item.priority as "low" | "medium" | "high");
+    itemForm.setValue("orderIndex", item.orderIndex);
+    itemForm.setValue("isOptional", item.isOptional || false);
+    itemForm.setValue("estimatedHours", item.estimatedHours || 1);
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -274,15 +283,8 @@ export default function AdminRoadmapManager() {
       case "task": return "default";
       case "milestone": return "secondary";
       case "deliverable": return "outline";
-      default: return "default";
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "destructive";
-      case "medium": return "default";
-      case "low": return "secondary";
+      case "checkin": return "destructive";
+      case "learning": return "default";
       default: return "default";
     }
   };
@@ -347,26 +349,6 @@ export default function AdminRoadmapManager() {
                   )}
                 />
                 
-                <FormField
-                  control={templateForm.control}
-                  name="durationWeeks"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration (weeks)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field}
-                          type="number"
-                          min="1"
-                          max="52"
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          data-testid="input-template-duration"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 
                 <Button 
                   type="submit" 
@@ -417,12 +399,7 @@ export default function AdminRoadmapManager() {
               data-testid={`template-card-${template.id}`}
             >
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-base">{template.name}</CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    {template.durationWeeks} weeks
-                  </Badge>
-                </div>
+                <CardTitle className="text-base">{template.name}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground line-clamp-3">
@@ -555,7 +532,7 @@ export default function AdminRoadmapManager() {
                                   {...field}
                                   type="number"
                                   min="1"
-                                  max={selectedTemplateData?.durationWeeks || 8}
+                                  max="12"
                                   onChange={(e) => field.onChange(parseInt(e.target.value))}
                                   data-testid="input-item-week"
                                 />
@@ -567,22 +544,19 @@ export default function AdminRoadmapManager() {
                         
                         <FormField
                           control={itemForm.control}
-                          name="priority"
+                          name="orderIndex"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Priority</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger data-testid="select-item-priority">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="low">Low</SelectItem>
-                                  <SelectItem value="medium">Medium</SelectItem>
-                                  <SelectItem value="high">High</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <FormLabel>Order Index</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field}
+                                  type="number"
+                                  min="0"
+                                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                  data-testid="input-item-order"
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -654,12 +628,11 @@ export default function AdminRoadmapManager() {
                                     >
                                       {item.type}
                                     </Badge>
-                                    <Badge 
-                                      variant={getPriorityColor(item.priority) as any}
-                                      className="text-xs"
-                                    >
-                                      {item.priority}
-                                    </Badge>
+                                    {item.isOptional && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Optional
+                                      </Badge>
+                                    )}
                                   </div>
                                   <p className="text-sm text-muted-foreground line-clamp-2">
                                     {item.description}
