@@ -10,7 +10,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import type { Module, Lesson, Milestone, UserProgress } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import type { Module, Lesson, Milestone, UserProgress, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
+
+// Extended roadmap types for curriculum integration
+type RoadmapItemWithAssignment = RoadmapItem & {
+  assignment: AssignedRoadmap | null;
+};
+
+type ProjectRoadmap = {
+  template: RoadmapTemplate;
+  items: RoadmapItemWithAssignment[];
+};
 import {
   BookOpen,
   PlayCircle,
@@ -24,11 +35,14 @@ import {
   Users,
   Lightbulb,
   AlertCircle,
-  Info
+  Info,
+  ListTodo,
+  Play
 } from "lucide-react";
 
 export default function CurriculumView() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
@@ -60,6 +74,9 @@ export default function CurriculumView() {
       );
     }
   })();
+
+  // Get current project for participants (for roadmap fetching)
+  const currentProject = user?.role !== 'administrator' ? projects[0] : null;
 
   // Auto-select first active cohort for administrators on initial load
   useEffect(() => {
@@ -103,6 +120,12 @@ export default function CurriculumView() {
     enabled: !!selectedModule,
   });
 
+  // Fetch roadmap for current project (participants only)
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap>({
+    queryKey: ['/api/projects', currentProject?.id, 'roadmap'],
+    enabled: !!currentProject?.id && user?.role !== 'administrator',
+  });
+
   // Create progress map for easy lookup
   const progressMap = new Map(userProgress.map(p => [p.lessonId, p]));
 
@@ -122,6 +145,28 @@ export default function CurriculumView() {
     onError: (error) => {
       console.error('Failed to mark lesson complete:', error);
       // Could show toast notification here
+    }
+  });
+
+  // Mutation to update roadmap item status
+  const updateRoadmapStatusMutation = useMutation({
+    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: 'pending' | 'in_progress' | 'completed' }) => {
+      return apiRequest('PATCH', `/api/roadmap/assignments/${assignmentId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject?.id, 'roadmap'] });
+      toast({
+        title: "Status Updated",
+        description: "Roadmap item status has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update roadmap status:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update roadmap item status. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
@@ -152,6 +197,26 @@ export default function CurriculumView() {
       const dueWeek = Math.ceil(milestone.orderIndex / 2); // Approximate week based on order
       return dueWeek === selectedWeek;
     });
+  };
+
+  const getCurrentWeekRoadmapItems = () => {
+    if (!roadmap || user?.role === 'administrator') return [];
+    return roadmap.items.filter((item: RoadmapItemWithAssignment) => item.week === selectedWeek);
+  };
+
+  const handleRoadmapStatusUpdate = async (assignmentId: string, currentStatus: string) => {
+    if (user?.role === 'administrator' || !assignmentId) return;
+    
+    let newStatus: 'pending' | 'in_progress' | 'completed';
+    if (currentStatus === 'pending') {
+      newStatus = 'in_progress';
+    } else if (currentStatus === 'in_progress') {
+      newStatus = 'completed';
+    } else {
+      return; // Already completed
+    }
+    
+    await updateRoadmapStatusMutation.mutateAsync({ assignmentId, status: newStatus });
   };
 
   // Set selected module when week changes
@@ -891,6 +956,105 @@ export default function CurriculumView() {
               )}
             </CardContent>
           </Card>
+
+          {/* Week Roadmap - For Participants Only */}
+          {user?.role !== 'administrator' && (
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-lg">
+                  <ListTodo className="w-5 h-5" />
+                  <span>Week {selectedWeek} Roadmap</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {roadmapLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <Card key={i} className="animate-pulse bg-secondary/30">
+                        <CardContent className="p-4">
+                          <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-muted rounded w-1/2"></div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : getCurrentWeekRoadmapItems().length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No roadmap items this week.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {getCurrentWeekRoadmapItems().map((item: RoadmapItemWithAssignment) => (
+                      <Card key={item.id} className="bg-secondary/30">
+                        <CardContent className="p-4">
+                          <div className="flex items-start space-x-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              item.assignment?.status === 'completed' 
+                                ? 'bg-green-400/20' 
+                                : item.assignment?.status === 'in_progress'
+                                ? 'bg-blue-400/20'
+                                : 'bg-gray-400/20'
+                            }`}>
+                              {item.assignment?.status === 'completed' ? (
+                                <CheckCircle className="w-4 h-4 text-green-400" />
+                              ) : item.assignment?.status === 'in_progress' ? (
+                                <Play className="w-4 h-4 text-blue-400" />
+                              ) : (
+                                <Clock className="w-4 h-4 text-gray-400" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mb-2">
+                                {item.description}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-xs"
+                                  data-testid={`roadmap-type-${item.id}`}
+                                >
+                                  {item.type}
+                                </Badge>
+                                {item.assignment ? (
+                                  (() => {
+                                    const assignment = item.assignment;
+                                    if (!assignment?.id) return null;
+                                    return (
+                                      <Button
+                                        size="sm"
+                                        variant={assignment.status === 'completed' ? "secondary" : "outline"}
+                                        disabled={updateRoadmapStatusMutation.isPending || assignment.status === 'completed'}
+                                        onClick={() => handleRoadmapStatusUpdate(assignment.id as string, assignment.status as string)}
+                                        className="text-xs"
+                                        data-testid={`button-roadmap-${assignment.status}-${item.id}`}
+                                      >
+                                        {assignment.status === 'completed' ? (
+                                          'Completed'
+                                        ) : assignment.status === 'in_progress' ? (
+                                          updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
+                                        ) : (
+                                          updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
+                                        )}
+                                      </Button>
+                                    );
+                                  })()
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Not Assigned
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quick Actions */}
           <Card className="glass-card">
