@@ -94,51 +94,51 @@ export default function MentorDashboard() {
     return `${diffMins} min`;
   };
   
-  // Calculate mentor metrics from real data
+  // Calculate mentor metrics from real data only
   const mentorStats = {
-    activeMentees: mentees.length,
+    activeMentees: Array.from(new Set(mentorSessions.flatMap(s => s.participantIds || []))).length,
     totalSessions: mentorSessions.length,
-    avgRating: 4.8, // Could be calculated from session feedback in the future
-    hoursThisMonth: Math.floor(mentorSessions.length * 0.75), // Approximate
-    completedProjects: 5, // Could be calculated from mentee progress
-    upcomingSessions: getUpcomingSessions().length
+    upcomingSessions: getUpcomingSessions().length,
+    completedSessions: mentorSessions.filter(s => new Date(s.startTime) < new Date()).length
   };
   
   const upcomingSessions = getUpcomingSessions();
 
-  const recentFeedback = [
-    {
-      id: 1,
-      mentee: "Alex Rodriguez",
-      project: "EcoAI Analytics",
-      milestone: "Market Validation",
-      status: "needs_revision",
-      lastUpdated: "2 hours ago"
-    },
-    {
-      id: 2,
-      mentee: "Emily Zhang",
-      project: "FinTech Analytics",
-      milestone: "MVP Development",
-      status: "approved",
-      lastUpdated: "1 day ago"
-    },
-    {
-      id: 3,
-      mentee: "David Wilson",
-      project: "EduAI Platform",
-      milestone: "Problem Definition",
-      status: "submitted",
-      lastUpdated: "3 days ago"
-    }
-  ];
+  // Derive recent feedback from actual session data with proper sorting and null safety
+  const recentFeedback = mentorSessions
+    .filter(session => session.notes && session.notes.trim().length > 10) // Sessions with substantial notes/feedback
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()) // Sort by most recent first
+    .slice(0, 5) // Get most recent 5 with feedback
+    .map(session => ({
+      id: session.id,
+      mentee: session.participantIds?.[0] || "Participant", // Real participant ID (to be improved with user lookup)
+      project: session.title || "Session",
+      milestone: session.agenda || "Session Notes",
+      status: new Date(session.startTime) > new Date() ? "scheduled" : "completed",
+      lastUpdated: new Date(session.startTime).toLocaleDateString()
+    }));
 
-  const menteeProgress = [
-    { name: "Alex Rodriguez", project: "EcoAI Analytics", progress: 75, stage: "Validation", readiness: 70 },
-    { name: "Sarah Kim", project: "HealthTech AI", progress: 60, stage: "MVP Build", readiness: 65 },
-    { name: "Michael Chen", project: "AgriTech Optimizer", progress: 85, stage: "Pitch Ready", readiness: 82 },
-    { name: "Emily Zhang", project: "FinTech Analytics", progress: 45, stage: "Ideation", readiness: 48 },
-  ];
+  // Only show mentee progress if we have real session data - no synthetic calculations
+  const menteeProgress = Array.from(new Set(
+    mentorSessions
+      .flatMap(session => session.participantIds || [])
+      .filter(Boolean)
+  )).slice(0, 4).map((participantId, index) => {
+    const participantSessions = mentorSessions
+      .filter(s => s.participantIds?.includes(participantId))
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()); // Sort by recency
+    
+    const sessionCount = participantSessions.length;
+    const lastSession = participantSessions[0]; // Most recent
+    
+    return {
+      name: `Participant ${participantId.slice(0, 8)}`, // Show real ID (shortened)
+      project: lastSession?.title || "No Recent Sessions",
+      sessionCount, // Show real session count instead of synthetic progress
+      lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString() : "No sessions",
+      hasNotes: Boolean(lastSession?.notes?.trim())
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -150,7 +150,7 @@ export default function MentorDashboard() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Mentees</p>
                 <p className="text-2xl font-bold" data-testid="metric-mentees">{mentorStats.activeMentees}</p>
-                <p className="text-xs text-primary mt-1">Across 2 cohorts</p>
+                <p className="text-xs text-primary mt-1">Current mentees</p>
               </div>
               <Users className="w-8 h-8 text-primary opacity-80" />
             </div>
@@ -161,9 +161,9 @@ export default function MentorDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Monthly Hours</p>
-                <p className="text-2xl font-bold" data-testid="metric-hours">{mentorStats.hoursThisMonth}</p>
-                <p className="text-xs text-accent mt-1">↑ 20% from last month</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Sessions</p>
+                <p className="text-2xl font-bold" data-testid="metric-total">{mentorStats.totalSessions}</p>
+                <p className="text-xs text-accent mt-1">All time</p>
               </div>
               <Clock className="w-8 h-8 text-accent opacity-80" />
             </div>
@@ -174,18 +174,11 @@ export default function MentorDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Session Rating</p>
-                <p className="text-2xl font-bold" data-testid="metric-rating">{mentorStats.avgRating}</p>
-                <div className="flex items-center mt-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star 
-                      key={star} 
-                      className={`w-3 h-3 ${star <= mentorStats.avgRating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-                    />
-                  ))}
-                </div>
+                <p className="text-sm font-medium text-muted-foreground">Upcoming Sessions</p>
+                <p className="text-2xl font-bold" data-testid="metric-upcoming">{mentorStats.upcomingSessions}</p>
+                <p className="text-xs text-primary mt-1">Next 7 days</p>
               </div>
-              <Star className="w-8 h-8 text-yellow-400 opacity-80" />
+              <Clock className="w-8 h-8 text-primary opacity-80" />
             </div>
           </CardContent>
         </Card>
@@ -194,9 +187,9 @@ export default function MentorDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Completed Projects</p>
-                <p className="text-2xl font-bold" data-testid="metric-completed">{mentorStats.completedProjects}</p>
-                <p className="text-xs text-green-400 mt-1">All successful exits</p>
+                <p className="text-sm font-medium text-muted-foreground">Completed Sessions</p>
+                <p className="text-2xl font-bold" data-testid="metric-completed">{mentorStats.completedSessions}</p>
+                <p className="text-xs text-green-400 mt-1">Past sessions</p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-400 opacity-80" />
             </div>
@@ -380,16 +373,15 @@ export default function MentorDashboard() {
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
                       <Avatar className="w-10 h-10">
-                        <AvatarImage src={`/placeholder-avatar-${index + 1}.jpg`} alt={mentee.name} />
-                        <AvatarFallback>{mentee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <AvatarFallback>{mentee.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-medium text-sm" data-testid={`mentee-name-${index}`}>
                             {mentee.name}
                           </p>
-                          <Badge variant="outline" data-testid={`mentee-stage-${index}`}>
-                            {mentee.stage}
+                          <Badge variant="outline" data-testid={`mentee-sessions-${index}`}>
+                            {mentee.sessionCount} sessions
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mb-3">
@@ -398,22 +390,16 @@ export default function MentorDashboard() {
                         
                         <div className="space-y-2">
                           <div className="flex justify-between text-xs">
-                            <span>Program Progress</span>
-                            <span className="font-medium" data-testid={`mentee-progress-${index}`}>
-                              {mentee.progress}%
+                            <span>Last Session</span>
+                            <span className="font-medium" data-testid={`mentee-last-session-${index}`}>
+                              {mentee.lastSessionDate}
                             </span>
                           </div>
-                          <div className="w-full bg-secondary rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all duration-500" 
-                              style={{ width: `${mentee.progress}%` }}
-                            ></div>
-                          </div>
                           
-                          <div className="flex justify-between text-xs mt-2">
-                            <span>Readiness Score</span>
-                            <span className="font-medium" data-testid={`mentee-readiness-${index}`}>
-                              {mentee.readiness}%
+                          <div className="flex justify-between text-xs">
+                            <span>Has Notes</span>
+                            <span className={`font-medium ${mentee.hasNotes ? 'text-green-600' : 'text-gray-500'}`} data-testid={`mentee-notes-${index}`}>
+                              {mentee.hasNotes ? 'Yes' : 'No'}
                             </span>
                           </div>
                         </div>

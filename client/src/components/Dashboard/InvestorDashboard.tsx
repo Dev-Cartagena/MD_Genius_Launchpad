@@ -30,96 +30,35 @@ export default function InvestorDashboard() {
     queryKey: ["/api/investor/interests"],
   });
 
-  // Mock investor metrics
+  // Real investor metrics based on available data
   const investorStats = {
-    startupsViewed: 42,
-    meetingsScheduled: 8,
-    activeDiligence: 3,
-    portfolioInterest: 12,
-    demoAttendance: 5
+    startupsViewed: projects.length, // Real count of available projects
+    meetingsScheduled: 0, // Would need real meeting data
+    activeDiligence: 0, // Would need real diligence tracking
+    portfolioInterest: interests.length, // Real count of interests
+    demoAttendance: 0 // Would need real event attendance data
   };
 
-  const featuredStartups = [
-    {
-      id: 1,
-      name: "EcoAI Analytics",
-      founder: "Alex Rodriguez",
-      stage: "validation",
-      sector: "CleanTech",
-      description: "AI-powered sustainability analytics helping businesses reduce carbon footprint through intelligent optimization.",
-      traction: "12 pilot customers, $50K ARR",
-      fundingGoal: "$500K",
-      readinessScore: 85,
-      teamSize: 3,
-      location: "San Francisco",
-      founded: "2024"
-    },
-    {
-      id: 2,
-      name: "HealthTech AI",
-      founder: "Sarah Kim",
-      stage: "mvp_build",
-      sector: "HealthTech",
-      description: "Machine learning platform for early disease detection using medical imaging and biomarkers.",
-      traction: "FDA approval pending, 2 hospital pilots",
-      fundingGoal: "$1.2M",
-      readinessScore: 78,
-      teamSize: 5,
-      location: "Boston",
-      founded: "2023"
-    },
-    {
-      id: 3,
-      name: "AgriTech Optimizer",
-      founder: "Michael Chen",
-      stage: "pitch_ready",
-      sector: "AgriTech",
-      description: "Precision agriculture platform using computer vision and IoT for crop optimization.",
-      traction: "500+ farms onboarded, $200K MRR",
-      fundingGoal: "$2M",
-      readinessScore: 92,
-      teamSize: 8,
-      location: "Austin",
-      founded: "2022"
-    }
-  ];
+  // Use real project data only, no synthetic values
+  const featuredStartups = projects.slice(0, 6).map((project: any) => ({
+    id: project.id,
+    name: project.title || "Untitled Project",
+    founder: project.ownerName,
+    stage: project.currentStage,
+    sector: project.tags?.[0],
+    description: project.description,
+    traction: project.traction,
+    fundingGoal: project.fundingGoal,
+    teamSize: project.teamSize,
+    location: project.location,
+    founded: project.createdAt ? new Date(project.createdAt).getFullYear().toString() : null
+  })).filter(startup => startup.name !== "Untitled Project"); // Only show projects with real titles
 
-  const upcomingEvents = [
-    {
-      id: 1,
-      type: "demo_day",
-      title: "Q1 2024 Demo Day",
-      date: "March 15, 2024",
-      time: "2:00 PM PST",
-      startups: 12,
-      registered: true
-    },
-    {
-      id: 2,
-      type: "meeting",
-      title: "1:1 with EcoAI Analytics",
-      date: "Tomorrow",
-      time: "10:00 AM",
-      startup: "EcoAI Analytics",
-      confirmed: true
-    },
-    {
-      id: 3,
-      type: "pitch",
-      title: "AgriTech Optimizer Pitch",
-      date: "Friday",
-      time: "3:00 PM",
-      startup: "AgriTech Optimizer",
-      confirmed: false
-    }
-  ];
+  // Only show events if we have real event data - currently none available
+  const upcomingEvents: any[] = []; // Empty until real events API is implemented
 
-  const recentActivity = [
-    { id: 1, action: "Viewed", startup: "FinTech Analytics", time: "2 hours ago" },
-    { id: 2, action: "Requested meeting", startup: "EcoAI Analytics", time: "1 day ago" },
-    { id: 3, action: "Downloaded deck", startup: "HealthTech AI", time: "2 days ago" },
-    { id: 4, action: "Attended demo", startup: "AgriTech Optimizer", time: "1 week ago" },
-  ];
+  // Only show activity if we have real activity data - currently none available
+  const recentActivity: any[] = []; // Empty until real activity tracking API is implemented
 
   return (
     <div className="space-y-6">
