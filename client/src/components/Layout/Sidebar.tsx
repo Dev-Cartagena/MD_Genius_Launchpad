@@ -13,7 +13,8 @@ import {
   Folder, 
   Rocket,
   Settings,
-  Bot
+  Bot,
+  Map
 } from "lucide-react";
 import ChatModal from "@/components/AICoach/ChatModal";
 
@@ -25,6 +26,7 @@ export default function Sidebar() {
   const navigationItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard", roles: ["participant", "mentor", "investor", "administrator"] },
     { href: "/curriculum", icon: BookOpen, label: "Curriculum", roles: ["participant"] },
+    { href: "/roadmap", icon: Map, label: "Roadmap", roles: ["participant"] },
     { href: "/project", icon: Lightbulb, label: "My Project", roles: ["participant"] },
     { href: "/mentors", icon: Users, label: "Mentors", roles: ["participant", "mentor", "administrator"] },
     { href: "/investors", icon: TrendingUp, label: "Investors", roles: ["participant", "investor", "administrator"] },

@@ -11,6 +11,7 @@ import Home from "@/pages/Home";
 import Application from "@/pages/Application";
 import Dashboard from "@/pages/Dashboard";
 import Curriculum from "@/pages/Curriculum";
+import Roadmap from "@/pages/Roadmap";
 import Project from "@/pages/Project";
 import Mentors from "@/pages/Mentors";
 import Investors from "@/pages/Investors";
@@ -49,6 +50,7 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/apply" component={Application} />
           <Route path="/curriculum" component={Curriculum} />
+          <Route path="/roadmap" component={Roadmap} />
           <Route path="/project" component={Project} />
           <Route path="/mentors" component={Mentors} />
           <Route path="/investors" component={Investors} />
