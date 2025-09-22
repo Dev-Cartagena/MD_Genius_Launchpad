@@ -94,6 +94,7 @@ export interface IStorage {
   createCohort(cohort: InsertCohort): Promise<Cohort>;
   
   // Curriculum operations
+  getModule(id: string): Promise<Module | undefined>;
   getModulesByCohort(cohortId: string): Promise<Module[]>;
   getLessonsByModule(moduleId: string): Promise<Lesson[]>;
   getLesson(id: string): Promise<Lesson | undefined>;
@@ -428,6 +429,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Curriculum operations
+  async getModule(id: string): Promise<Module | undefined> {
+    const [module] = await db
+      .select()
+      .from(modules)
+      .where(eq(modules.id, id));
+    return module;
+  }
+
   async getModulesByCohort(cohortId: string): Promise<Module[]> {
     return await db
       .select()
@@ -932,7 +941,12 @@ export class DatabaseStorage implements IStorage {
   // Participant Roadmap Assignments
   async getParticipantRoadmap(projectId: string): Promise<{
     template: RoadmapTemplate;
-    items: Array<RoadmapItem & { assignment: AssignedRoadmap | null }>;
+    items: Array<RoadmapItem & { 
+      assignment: AssignedRoadmap | null;
+      lesson?: any;
+      module?: any;
+      progressData?: any;
+    }>;
   } | undefined> {
     // Get project 
     const project = await this.getProject(projectId);
@@ -995,14 +1009,96 @@ export class DatabaseStorage implements IStorage {
       .where(eq(roadmapItems.templateId, template.id))
       .orderBy(asc(roadmapItems.week), asc(roadmapItems.orderIndex));
 
-    const itemsWithAssignments = results.map(row => ({
-      ...row,
-      assignment: row.assignment || null,
+    // Enrich items with curriculum data and auto-computed status
+    const enrichedItems = await Promise.all(results.map(async (row) => {
+      const item: any = {
+        ...row,
+        assignment: row.assignment || null,
+      };
+
+      // Add lesson data if item has lessonId
+      if (item.lessonId) {
+        const lesson = await this.getLesson(item.lessonId);
+        if (lesson) {
+          item.lesson = lesson;
+        }
+      }
+
+      // Add module data if item has moduleId
+      if (item.moduleId) {
+        const module = await this.getModule(item.moduleId);
+        if (module) {
+          item.module = module;
+        }
+      }
+
+      // Auto-compute status for learning items based on userProgress
+      if (item.autoCompletionType === 'lesson' || item.autoCompletionType === 'module') {
+        let computedStatus = 'not_started';
+        let progressData = null;
+
+        if (item.autoCompletionType === 'lesson' && item.lessonId) {
+          const progress = await this.getUserProgress(project.ownerId, item.lessonId);
+          progressData = {
+            type: 'lesson',
+            isCompleted: progress?.isCompleted || false,
+            completedAt: progress?.completedAt,
+            score: progress?.score,
+            timeSpent: progress?.timeSpent,
+          };
+          
+          if (progress?.isCompleted) {
+            computedStatus = 'completed';
+          } else if (progress?.attempts && progress.attempts > 0) {
+            computedStatus = 'in_progress';
+          }
+        } else if (item.autoCompletionType === 'module' && item.moduleId) {
+          const moduleProgress = await this.getUserProgressForModule(project.ownerId, item.moduleId);
+          const totalLessons = moduleProgress.length;
+          const completedLessons = moduleProgress.filter(p => p.isCompleted).length;
+          const completionRate = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+          
+          progressData = {
+            type: 'module',
+            totalLessons,
+            completedLessons,
+            completionRate,
+            isCompleted: completionRate >= (item.autoThreshold || 100),
+          };
+          
+          if (completionRate >= (item.autoThreshold || 100)) {
+            computedStatus = 'completed';
+          } else if (completedLessons > 0) {
+            computedStatus = 'in_progress';
+          }
+        }
+
+        // Update assignment status if it differs from computed status
+        if (item.assignment && item.assignment.status !== computedStatus) {
+          await this.updateRoadmapAssignment(item.assignment.id, {
+            status: computedStatus as any,
+            autoCompleted: true,
+            ...(computedStatus === 'completed' ? { completedAt: new Date() } : {})
+          });
+          
+          // Update the local assignment object to reflect the change
+          item.assignment = {
+            ...item.assignment,
+            status: computedStatus as any,
+            autoCompleted: true,
+            ...(computedStatus === 'completed' ? { completedAt: new Date() } : {})
+          };
+        }
+
+        item.progressData = progressData;
+      }
+
+      return item;
     }));
 
     return {
       template,
-      items: itemsWithAssignments,
+      items: enrichedItems,
     };
   }
 
