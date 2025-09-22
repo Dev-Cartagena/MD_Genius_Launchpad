@@ -1,5 +1,20 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import type { MentorProfile, MentorSession, User } from "@shared/schema";
+
+// Extended mentor type for UI compatibility
+type ExtendedMentor = (MentorProfile & { user: User }) & {
+  // Optional UI fields for compatibility with mock data
+  rating?: number;
+  totalSessions?: number;
+  responseTime?: string;
+  isAvailable?: boolean;
+  nextAvailable?: string;
+  linkedinUrl?: string;
+};
 import AppLayout from "@/components/Layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,16 +45,237 @@ import {
   ExternalLink
 } from "lucide-react";
 
+// Session booking form schema
+const sessionBookingSchema = z.object({
+  title: z.string().min(5, "Session title must be at least 5 characters"),
+  agenda: z.string().min(10, "Please provide at least 10 characters for the session agenda"),
+  startTime: z.string().min(1, "Please select a start time"),
+  duration: z.number().min(30, "Session must be at least 30 minutes").max(120, "Session cannot exceed 2 hours").default(60),
+});
+
+type SessionBookingFormData = z.infer<typeof sessionBookingSchema>;
+
+// Session Booking Dialog Component
+function SessionBookingDialog({ mentor, isOpen, onClose }: { 
+  mentor: ExtendedMentor; 
+  isOpen: boolean; 
+  onClose: () => void; 
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const form = useForm<SessionBookingFormData>({
+    resolver: zodResolver(sessionBookingSchema),
+    defaultValues: {
+      title: "",
+      agenda: "",
+      startTime: "",
+      duration: 60,
+    },
+  });
+
+  // Generate time slots with accurate labels
+  const generateTimeSlots = () => {
+    const slots = [];
+    const now = new Date();
+    
+    // Generate slots for next 7 days
+    for (let day = 1; day <= 7; day++) {
+      const date = new Date(now.getTime() + day * 24 * 60 * 60 * 1000);
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      // Add morning and afternoon slots
+      const morningSlot = new Date(date);
+      morningSlot.setHours(10, 0, 0, 0);
+      
+      const afternoonSlot = new Date(date);
+      afternoonSlot.setHours(14, 0, 0, 0);
+      
+      slots.push({
+        value: morningSlot.toISOString(),
+        label: `${dayName} ${dateStr} at 10:00 AM`
+      });
+      
+      slots.push({
+        value: afternoonSlot.toISOString(),
+        label: `${dayName} ${dateStr} at 2:00 PM`
+      });
+    }
+    
+    return slots.slice(0, 8); // Return first 8 slots
+  };
+  
+  const timeSlots = generateTimeSlots();
+
+  const bookSession = useMutation({
+    mutationFn: async (data: SessionBookingFormData) => {
+      const endTime = new Date(new Date(data.startTime).getTime() + data.duration * 60 * 1000).toISOString();
+      
+      return apiRequest("POST", "/api/sessions/book", {
+        mentorId: mentor.id,
+        title: data.title,
+        agenda: data.agenda,
+        startTime: data.startTime,
+        endTime: endTime,
+        participantIds: [], // Will be set by the API
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Session Booked!",
+        description: `Your session with ${mentor.user.firstName} has been scheduled successfully.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions/my"] });
+      form.reset();
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Booking Failed",
+        description: "Failed to book session. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: SessionBookingFormData) => {
+    bookSession.mutate(data);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Schedule Session with {mentor.user.firstName} {mentor.user.lastName}</DialogTitle>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., Product Strategy Discussion"
+                      {...field}
+                      data-testid={`input-session-title-${mentor.id}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Available Time Slots</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid={`select-timeslot-${mentor.id}`}>
+                        <SelectValue placeholder="Select a time slot" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {timeSlots.map((slot) => (
+                        <SelectItem key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="duration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Duration</FormLabel>
+                  <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
+                    <FormControl>
+                      <SelectTrigger data-testid={`select-duration-${mentor.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="60">60 minutes</SelectItem>
+                      <SelectItem value="90">90 minutes</SelectItem>
+                      <SelectItem value="120">120 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="agenda"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Agenda</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="What would you like to discuss in this session? Include specific questions or topics..."
+                      className="min-h-[80px]"
+                      {...field}
+                      data-testid={`textarea-session-agenda-${mentor.id}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+                data-testid={`button-cancel-booking-${mentor.id}`}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={bookSession.isPending}
+                className="flex-1"
+                data-testid={`button-confirm-booking-${mentor.id}`}
+              >
+                {bookSession.isPending ? "Booking..." : "Book Session"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Mentors() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedExpertise, setSelectedExpertise] = useState("all");
   const [selectedIndustry, setSelectedIndustry] = useState("all");
+  const [selectedMentorForBooking, setSelectedMentorForBooking] = useState<ExtendedMentor | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch mentors
-  const { data: mentors = [], isLoading } = useQuery({
+  // Fetch mentors with proper typing
+  const { data: mentors = [], isLoading } = useQuery<ExtendedMentor[]>({
     queryKey: ["/api/mentors"],
   });
 
@@ -122,56 +359,26 @@ export default function Mentors() {
     }
   ];
 
-  const displayMentors = mentors.length > 0 ? mentors : mockMentors;
+  // Use real mentors data only - no mock fallback in production
+  const displayMentors = mentors;
 
-  // Schedule session mutation
-  const scheduleSession = useMutation({
-    mutationFn: async ({ mentorId, timeSlot }: { mentorId: string; timeSlot: string }) => {
-      const response = await apiRequest("POST", "/api/mentors/sessions", {
-        mentorId,
-        timeSlot,
-        duration: 60
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Session Scheduled!",
-        description: "Your mentor session has been scheduled. You'll receive a confirmation email shortly.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to schedule session. Please try again.",
-        variant: "destructive",
-      });
-    }
+  // Fetch participant's booked sessions
+  const { data: mySessions = [] } = useQuery<MentorSession[]>({
+    queryKey: ["/api/sessions/my"],
+    enabled: !!user && user.role === 'participant'
   });
 
-  const filteredMentors = displayMentors.filter((mentor: any) => {
+  const filteredMentors = displayMentors.filter((mentor) => {
     const matchesSearch = searchQuery === "" || 
-      mentor.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mentor.user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      mentor.expertise.some((exp: string) => exp.toLowerCase().includes(searchQuery.toLowerCase()));
+      (mentor.user.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (mentor.user.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (mentor.expertise?.some((exp: string) => exp.toLowerCase().includes(searchQuery.toLowerCase())) ?? false);
     
     const matchesExpertise = selectedExpertise === "all" || 
-      mentor.expertise.includes(selectedExpertise);
+      (mentor.expertise?.includes(selectedExpertise) ?? false);
     
     const matchesIndustry = selectedIndustry === "all" ||
-      mentor.industries.includes(selectedIndustry);
+      (mentor.industries?.includes(selectedIndustry) ?? false);
 
     return matchesSearch && matchesExpertise && matchesIndustry;
   });
@@ -268,26 +475,26 @@ export default function Mentors() {
 
         {/* Mentors Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredMentors.map((mentor: any) => (
+          {filteredMentors.map((mentor) => (
             <Card key={mentor.id} className="glass-card hover:scale-105 transition-transform duration-200">
               <CardHeader>
                 <div className="flex items-start space-x-4">
                   <Avatar className="w-16 h-16">
-                    <AvatarImage src={mentor.user.profileImageUrl} alt={`${mentor.user.firstName} ${mentor.user.lastName}`} />
+                    <AvatarImage src={mentor.user.profileImageUrl} alt={`${mentor.user.firstName ?? ''} ${mentor.user.lastName ?? ''}`} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-lg">
-                      {mentor.user.firstName[0]}{mentor.user.lastName[0]}
+                      {((mentor.user.firstName ?? '')[0] ?? '') + ((mentor.user.lastName ?? '')[0] ?? '') || '?'}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg" data-testid={`mentor-name-${mentor.id}`}>
-                        {mentor.user.firstName} {mentor.user.lastName}
+                        {(mentor.user.firstName ?? '')} {(mentor.user.lastName ?? '')}
                       </CardTitle>
                       <div className="flex items-center space-x-1">
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
                         <span className="text-sm font-medium" data-testid={`mentor-rating-${mentor.id}`}>
-                          {mentor.rating}
+                          {mentor.rating ?? '—'}
                         </span>
                       </div>
                     </div>
@@ -295,22 +502,22 @@ export default function Mentors() {
                     <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                       <span className="flex items-center space-x-1">
                         <MessageCircle className="w-3 h-3" />
-                        <span>{mentor.totalSessions} sessions</span>
+                        <span>{mentor.totalSessions ?? 0} sessions</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <Clock className="w-3 h-3" />
-                        <span>Responds {mentor.responseTime}</span>
+                        <span>Responds {mentor.responseTime ?? 'varies'}</span>
                       </span>
                     </div>
                     
                     <div className="flex items-center mt-2">
                       <div className={`w-2 h-2 rounded-full mr-2 ${
-                        mentor.isAvailable ? 'bg-green-400' : 'bg-yellow-400'
+                        (mentor.isAvailable ?? false) ? 'bg-green-400' : 'bg-yellow-400'
                       }`}></div>
                       <span className={`text-xs ${
-                        mentor.isAvailable ? 'text-green-400' : 'text-yellow-400'
+                        (mentor.isAvailable ?? false) ? 'text-green-400' : 'text-yellow-400'
                       }`}>
-                        {mentor.isAvailable ? `Available ${mentor.nextAvailable}` : `Next available: ${mentor.nextAvailable}`}
+                        {(mentor.isAvailable ?? true) ? `Available ${mentor.nextAvailable ?? 'now'}` : `Next available: ${mentor.nextAvailable ?? 'TBD'}`}
                       </span>
                     </div>
                   </div>
@@ -319,14 +526,14 @@ export default function Mentors() {
               
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4 leading-relaxed" data-testid={`mentor-bio-${mentor.id}`}>
-                  {mentor.bio}
+                  {mentor.bio ?? "No bio available"}
                 </p>
                 
                 <div className="space-y-3 mb-4">
                   <div>
                     <h4 className="text-sm font-medium mb-2">Expertise</h4>
                     <div className="flex flex-wrap gap-1">
-                      {mentor.expertise.map((skill: string, index: number) => (
+                      {(mentor.expertise ?? []).map((skill: string, index: number) => (
                         <Badge key={index} variant="secondary" className="text-xs">
                           {skill}
                         </Badge>
@@ -337,7 +544,7 @@ export default function Mentors() {
                   <div>
                     <h4 className="text-sm font-medium mb-2">Industries</h4>
                     <div className="flex flex-wrap gap-1">
-                      {mentor.industries.map((industry: string, index: number) => (
+                      {(mentor.industries ?? []).map((industry: string, index: number) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {industry}
                         </Badge>
@@ -351,7 +558,13 @@ export default function Mentors() {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => window.open(mentor.linkedinUrl, '_blank')}
+                      onClick={() => {
+                        // Sanitize LinkedIn URL for security
+                        const url = mentor.linkedinUrl;
+                        if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
                       data-testid={`button-linkedin-${mentor.id}`}
                     >
                       <LinkedinIcon className="w-3 h-3 mr-1" />
@@ -387,60 +600,16 @@ export default function Mentors() {
                     </Dialog>
                   </div>
                   
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button 
-                        size="sm"
-                        disabled={!mentor.isAvailable}
-                        className={mentor.isAvailable ? "bg-primary" : ""}
-                        data-testid={`button-schedule-${mentor.id}`}
-                      >
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Schedule Session
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Schedule Session with {mentor.user.firstName}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium">Available Time Slots</label>
-                          <Select>
-                            <SelectTrigger className="w-full" data-testid={`select-timeslot-${mentor.id}`}>
-                              <SelectValue placeholder="Select a time slot" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="today-3pm">Today 3:00 PM</SelectItem>
-                              <SelectItem value="tomorrow-10am">Tomorrow 10:00 AM</SelectItem>
-                              <SelectItem value="friday-2pm">Friday 2:00 PM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium">Session Topic</label>
-                          <Textarea 
-                            placeholder="What would you like to discuss in this session?"
-                            className="mt-2"
-                            data-testid={`textarea-session-topic-${mentor.id}`}
-                          />
-                        </div>
-                        
-                        <Button 
-                          className="w-full"
-                          onClick={() => scheduleSession.mutate({ 
-                            mentorId: mentor.id, 
-                            timeSlot: "today-3pm" 
-                          })}
-                          disabled={scheduleSession.isPending}
-                          data-testid={`button-confirm-schedule-${mentor.id}`}
-                        >
-                          {scheduleSession.isPending ? "Scheduling..." : "Confirm Session"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    size="sm"
+                    disabled={mentor.isAvailable === false}
+                    className={(mentor.isAvailable ?? true) ? "bg-primary" : ""}
+                    onClick={() => setSelectedMentorForBooking(mentor)}
+                    data-testid={`button-schedule-${mentor.id}`}
+                  >
+                    <Calendar className="w-3 h-3 mr-1" />
+                    Schedule Session
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -501,6 +670,15 @@ export default function Mentors() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Session Booking Dialog */}
+        {selectedMentorForBooking && (
+          <SessionBookingDialog
+            mentor={selectedMentorForBooking}
+            isOpen={!!selectedMentorForBooking}
+            onClose={() => setSelectedMentorForBooking(null)}
+          />
+        )}
       </div>
     </AppLayout>
   );
