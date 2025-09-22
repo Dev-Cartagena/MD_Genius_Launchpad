@@ -86,6 +86,31 @@ export const objectPermissionEnum = pgEnum("object_permission", [
   "write"
 ]);
 
+export const roadmapItemTypeEnum = pgEnum("roadmap_item_type", [
+  "task",
+  "deliverable", 
+  "milestone",
+  "checkin",
+  "learning"
+]);
+
+export const roadmapStatusEnum = pgEnum("roadmap_status", [
+  "not_started",
+  "in_progress", 
+  "completed",
+  "blocked",
+  "waived"
+]);
+
+export const autoCompletionTypeEnum = pgEnum("auto_completion_type", [
+  "none",
+  "lesson",
+  "module", 
+  "deliverable",
+  "milestone",
+  "mentor_session"
+]);
+
 // User storage table
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -433,6 +458,62 @@ export const aiConversations = pgTable("ai_conversations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Program Roadmap System
+export const roadmapTemplates = pgTable("roadmap_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  cohortId: varchar("cohort_id").references(() => cohorts.id), // null = global template
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const roadmapItems = pgTable("roadmap_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateId: varchar("template_id").notNull().references(() => roadmapTemplates.id),
+  type: roadmapItemTypeEnum("type").notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  week: integer("week").notNull(), // 1-8 for 8-week program
+  dueOffsetDays: integer("due_offset_days").default(0), // days relative to cohort start
+  orderIndex: integer("order_index").notNull(),
+  // Integration with existing entities
+  moduleId: varchar("module_id").references(() => modules.id),
+  lessonId: varchar("lesson_id").references(() => lessons.id),
+  milestoneId: varchar("milestone_id").references(() => milestones.id),
+  // Auto-completion settings
+  autoCompletionType: autoCompletionTypeEnum("auto_completion_type").default("none"),
+  autoRefId: varchar("auto_ref_id"), // ID of the referenced entity for auto-completion
+  autoThreshold: integer("auto_threshold").default(100), // percentage threshold for completion
+  // Dependencies
+  dependencyIds: varchar("dependency_ids").array(), // IDs of other roadmap items that must be completed first
+  isOptional: boolean("is_optional").default(false),
+  estimatedHours: integer("estimated_hours"),
+  tags: text("tags").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const assignedRoadmap = pgTable("assigned_roadmap", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  itemId: varchar("item_id").notNull().references(() => roadmapItems.id),
+  projectId: varchar("project_id").notNull().references(() => projects.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  status: roadmapStatusEnum("status").default("not_started"),
+  completedAt: timestamp("completed_at"),
+  evidenceArtifactId: varchar("evidence_artifact_id").references(() => artifacts.id),
+  notes: text("notes"),
+  blockerReason: text("blocker_reason"),
+  waiveReason: text("waive_reason"),
+  reviewerFeedback: text("reviewer_feedback"),
+  autoCompleted: boolean("auto_completed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("assigned_roadmap_item_project_unq").on(table.itemId, table.projectId),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   applications: many(applications),
@@ -497,6 +578,26 @@ export const lessonsRelations = relations(lessons, ({ one, many }) => ({
 export const userProgressRelations = relations(userProgress, ({ one }) => ({
   user: one(users, { fields: [userProgress.userId], references: [users.id] }),
   lesson: one(lessons, { fields: [userProgress.lessonId], references: [lessons.id] }),
+}));
+
+export const roadmapTemplatesRelations = relations(roadmapTemplates, ({ one, many }) => ({
+  cohort: one(cohorts, { fields: [roadmapTemplates.cohortId], references: [cohorts.id] }),
+  items: many(roadmapItems),
+}));
+
+export const roadmapItemsRelations = relations(roadmapItems, ({ one, many }) => ({
+  template: one(roadmapTemplates, { fields: [roadmapItems.templateId], references: [roadmapTemplates.id] }),
+  module: one(modules, { fields: [roadmapItems.moduleId], references: [modules.id] }),
+  lesson: one(lessons, { fields: [roadmapItems.lessonId], references: [lessons.id] }),
+  milestone: one(milestones, { fields: [roadmapItems.milestoneId], references: [milestones.id] }),
+  assignments: many(assignedRoadmap),
+}));
+
+export const assignedRoadmapRelations = relations(assignedRoadmap, ({ one }) => ({
+  item: one(roadmapItems, { fields: [assignedRoadmap.itemId], references: [roadmapItems.id] }),
+  project: one(projects, { fields: [assignedRoadmap.projectId], references: [projects.id] }),
+  user: one(users, { fields: [assignedRoadmap.userId], references: [users.id] }),
+  evidenceArtifact: one(artifacts, { fields: [assignedRoadmap.evidenceArtifactId], references: [artifacts.id] }),
 }));
 
 // Insert schemas
@@ -569,6 +670,23 @@ export const insertArtifactSchema = createInsertSchema(artifacts).omit({
   createdAt: true,
 });
 
+export const insertRoadmapTemplateSchema = createInsertSchema(roadmapTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAssignedRoadmapSchema = createInsertSchema(assignedRoadmap).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
@@ -598,3 +716,9 @@ export type Score = typeof scores.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Artifact = typeof artifacts.$inferSelect;
 export type InsertArtifact = z.infer<typeof insertArtifactSchema>;
+export type RoadmapTemplate = typeof roadmapTemplates.$inferSelect;
+export type InsertRoadmapTemplate = z.infer<typeof insertRoadmapTemplateSchema>;
+export type RoadmapItem = typeof roadmapItems.$inferSelect;
+export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
+export type AssignedRoadmap = typeof assignedRoadmap.$inferSelect;
+export type InsertAssignedRoadmap = z.infer<typeof insertAssignedRoadmapSchema>;
