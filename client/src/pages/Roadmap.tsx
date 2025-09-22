@@ -34,14 +34,28 @@ interface RoadmapItem {
     id: string;
     status: 'pending' | 'in_progress' | 'completed';
     dueDate?: string;
+    autoCompleted?: boolean;
   };
   lesson?: {
     id: string;
     title: string;
+    content?: string;
   };
   module?: {
     id: string;
     title: string;
+    description?: string;
+    week?: number;
+  };
+  progressData?: {
+    type: 'lesson' | 'module';
+    isCompleted: boolean;
+    completedAt?: string;
+    score?: number;
+    timeSpent?: number;
+    totalLessons?: number;
+    completedLessons?: number;
+    completionRate?: number;
   };
   milestone?: {
     id: string;
@@ -127,6 +141,7 @@ export default function Roadmap() {
   const getItemTypeIcon = (itemType: string) => {
     switch (itemType) {
       case 'lesson':
+      case 'learning':
         return <BookOpen className="w-4 h-4" />;
       case 'task':
         return <Target className="w-4 h-4" />;
@@ -139,6 +154,40 @@ export default function Roadmap() {
       default:
         return <Calendar className="w-4 h-4" />;
     }
+  };
+
+  const isLearningItem = (item: RoadmapItem) => {
+    return item.autoCompletionType === 'lesson' || item.autoCompletionType === 'module' || item.lesson || item.module;
+  };
+
+  const getCurriculumLink = (item: RoadmapItem) => {
+    if (item.lesson) {
+      return `/curriculum?lesson=${item.lesson.id}`;
+    } else if (item.module) {
+      return `/curriculum?module=${item.module.id}`;
+    }
+    return '/curriculum';
+  };
+
+  const getProgressDisplay = (item: RoadmapItem) => {
+    if (!item.progressData) return null;
+
+    if (item.progressData.type === 'lesson') {
+      return (
+        <div className="text-xs text-muted-foreground">
+          {item.progressData.isCompleted ? '✓ Completed' : 'Not started'}
+          {item.progressData.score && ` • Score: ${item.progressData.score}%`}
+        </div>
+      );
+    } else if (item.progressData.type === 'module') {
+      const { completedLessons = 0, totalLessons = 0, completionRate = 0 } = item.progressData;
+      return (
+        <div className="text-xs text-muted-foreground">
+          Progress: {completedLessons}/{totalLessons} lessons ({Math.round(completionRate)}%)
+        </div>
+      );
+    }
+    return null;
   };
 
   if (!user || user.role !== 'participant') {
@@ -348,10 +397,29 @@ export default function Roadmap() {
                       <div className="flex-1">
                         <h4 className="font-medium">{item.title}</h4>
                         <p className="text-sm text-muted-foreground">{item.description}</p>
+                        
+                        {/* Learning item specific info */}
+                        {isLearningItem(item) && (
+                          <div className="mt-1">
+                            {item.lesson && (
+                              <p className="text-xs text-blue-600">📚 Lesson: {item.lesson.title}</p>
+                            )}
+                            {item.module && (
+                              <p className="text-xs text-blue-600">📖 Module: {item.module.title}</p>
+                            )}
+                            {getProgressDisplay(item)}
+                          </div>
+                        )}
+                        
                         <div className="flex items-center gap-4 mt-2">
                           <Badge variant="outline" className="text-xs">
                             {item.itemType}
                           </Badge>
+                          {item.assignment?.autoCompleted && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-600 border-green-200">
+                              Auto-completed
+                            </Badge>
+                          )}
                           {item.estimatedHours > 0 && (
                             <span className="text-xs text-muted-foreground">
                               ~{item.estimatedHours}h
@@ -370,34 +438,50 @@ export default function Roadmap() {
                           {item.assignment?.status || 'pending'}
                         </Badge>
                         
-                        {item.assignment && (
+                        {/* Learning items: Show curriculum navigation */}
+                        {isLearningItem(item) ? (
                           <div className="flex gap-1">
-                            {item.assignment.status !== 'completed' && (
-                              <>
-                                {item.assignment.status !== 'in_progress' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(getCurriculumLink(item), '_blank')}
+                              data-testid={`button-curriculum-${item.id}`}
+                            >
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              {item.lesson ? 'View Lesson' : 'View Module'}
+                            </Button>
+                          </div>
+                        ) : (
+                          /* Non-learning items: Show manual controls */
+                          item.assignment && (
+                            <div className="flex gap-1">
+                              {item.assignment.status !== 'completed' && (
+                                <>
+                                  {item.assignment.status !== 'in_progress' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleStatusUpdate(item.assignment!.id, 'in_progress')}
+                                      disabled={updateStatusMutation.isPending}
+                                      data-testid={`button-start-${item.id}`}
+                                    >
+                                      <Play className="w-3 h-3 mr-1" />
+                                      Start
+                                    </Button>
+                                  )}
                                   <Button
                                     size="sm"
-                                    variant="outline"
-                                    onClick={() => handleStatusUpdate(item.assignment!.id, 'in_progress')}
+                                    onClick={() => handleStatusUpdate(item.assignment!.id, 'completed')}
                                     disabled={updateStatusMutation.isPending}
-                                    data-testid={`button-start-${item.id}`}
+                                    data-testid={`button-complete-${item.id}`}
                                   >
-                                    <Play className="w-3 h-3 mr-1" />
-                                    Start
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Complete
                                   </Button>
-                                )}
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(item.assignment!.id, 'completed')}
-                                  disabled={updateStatusMutation.isPending}
-                                  data-testid={`button-complete-${item.id}`}
-                                >
-                                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                                  Complete
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                                </>
+                              )}
+                            </div>
+                          )
                         )}
                       </div>
                     </div>
