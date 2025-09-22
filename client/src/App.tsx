@@ -16,6 +16,7 @@ import Project from "@/pages/Project";
 import Mentors from "@/pages/Mentors";
 import Investors from "@/pages/Investors";
 import Admin from "@/pages/Admin";
+import MentorProfile from "@/pages/MentorProfile";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 
@@ -53,6 +54,7 @@ function Router() {
           <Route path="/roadmap" component={Roadmap} />
           <Route path="/project" component={Project} />
           <Route path="/mentors" component={Mentors} />
+          <Route path="/mentor-profile" component={MentorProfile} />
           <Route path="/investors" component={Investors} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />
