@@ -41,7 +41,9 @@ import {
   Trash2,
   Eye,
   Mail,
-  Shield
+  Shield,
+  MessageCircle,
+  Star
 } from "lucide-react";
 
 const cohortSchema = z.object({
@@ -130,6 +132,14 @@ export default function Admin() {
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/admin/projects"],
+  });
+
+  const { data: mentors = [], isLoading: mentorsLoading } = useQuery<any[]>({
+    queryKey: ["/api/mentors"],
+  });
+
+  const { data: recentSessions = [], isLoading: sessionsLoading } = useQuery<any[]>({
+    queryKey: ["/api/admin/sessions"],
   });
 
   // Calculate real admin metrics from API data
@@ -427,11 +437,12 @@ export default function Admin() {
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
             <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohorts</TabsTrigger>
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
+            <TabsTrigger value="mentors" data-testid="tab-mentors">Mentors</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
           </TabsList>
@@ -909,6 +920,172 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <AdminRoadmapManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="mentors" className="space-y-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Mentor Management</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Manage mentor profiles, sessions, and program participation
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-6">
+                  <Input 
+                    placeholder="Search mentors..." 
+                    className="max-w-sm"
+                    data-testid="input-search-mentors"
+                  />
+                  <Button data-testid="button-invite-mentor">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Invite Mentor
+                  </Button>
+                </div>
+                
+                <div className="space-y-4">
+                  {mentorsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground mt-2">Loading mentors...</p>
+                    </div>
+                  ) : mentors.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No mentors found</p>
+                    </div>
+                  ) : (
+                    mentors.map((mentor) => {
+                      const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || 'Unnamed Mentor';
+                      const initials = mentor.firstName && mentor.lastName 
+                        ? `${mentor.firstName[0]}${mentor.lastName[0]}`
+                        : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
+                      
+                      return (
+                        <Card key={mentor.id} className="bg-secondary/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-accent to-primary rounded-full flex items-center justify-center text-white font-semibold">
+                                  {initials.toUpperCase()}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <p className="font-medium" data-testid={`mentor-name-${mentor.id}`}>
+                                      {fullName}
+                                    </p>
+                                    <Badge variant="outline" className="text-xs">
+                                      {mentor.role}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {mentor.email}
+                                  </p>
+                                  {mentor.mentorProfile && (
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-sm font-medium">
+                                        {mentor.mentorProfile.expertise?.join(', ') || 'No expertise listed'}
+                                      </p>
+                                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                                        <span className="flex items-center">
+                                          <Star className="w-3 h-3 mr-1" />
+                                          Experience: {mentor.mentorProfile.yearsOfExperience || 0} years
+                                        </span>
+                                        <span className="flex items-center">
+                                          <MessageCircle className="w-3 h-3 mr-1" />
+                                          Sessions: {mentor.mentorProfile.totalSessions || 0}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  data-testid={`button-view-mentor-${mentor.id}`}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  data-testid={`button-edit-mentor-${mentor.id}`}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  data-testid={`button-contact-mentor-${mentor.id}`}
+                                >
+                                  <Mail className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Mentor Sessions Overview */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Recent Sessions</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Overview of recent mentoring sessions across the platform
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sessionsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground mt-2 text-sm">Loading sessions...</p>
+                    </div>
+                  ) : recentSessions.length === 0 ? (
+                    <div className="text-center py-4">
+                      <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground text-sm">No recent sessions</p>
+                    </div>
+                  ) : (
+                    recentSessions.map((session) => (
+                      <div key={session.id} className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{session.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(session.scheduledTime).toLocaleDateString()} at {new Date(session.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {session.participantIds?.length || 0} participant(s)
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge 
+                            variant={session.status === 'completed' ? 'default' : session.status === 'confirmed' ? 'secondary' : 'outline'}
+                            className="text-xs"
+                          >
+                            {session.status}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`button-view-session-${session.id}`}
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

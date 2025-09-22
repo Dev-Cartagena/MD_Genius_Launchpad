@@ -680,6 +680,13 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(mentorSessions.startTime));
   }
 
+  async getAllMentorSessions(): Promise<MentorSession[]> {
+    return await db
+      .select()
+      .from(mentorSessions)
+      .orderBy(desc(mentorSessions.startTime));
+  }
+
   async createMentorSession(session: InsertMentorSession): Promise<MentorSession> {
     const [newSession] = await db
       .insert(mentorSessions)

@@ -1225,6 +1225,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Session Management Route
+  app.get('/api/admin/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      // Verify user is an administrator
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Access denied. Administrator role required." });
+      }
+      
+      const sessions = await storage.getAllMentorSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching admin sessions:", error);
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
   // Investor routes
   app.get('/api/investors', isAuthenticated, async (req: any, res) => {
     try {
