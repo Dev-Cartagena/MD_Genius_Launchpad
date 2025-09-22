@@ -1100,6 +1100,38 @@ export class DatabaseStorage implements IStorage {
 
     return relevantItems.map(item => item.id);
   }
+
+  // Additional API support methods
+  async getProjectRoadmap(projectId: string) {
+    return this.getRoadmapByProject(projectId);
+  }
+
+  async getAssignedRoadmapItem(assignmentId: string): Promise<AssignedRoadmap | null> {
+    const [assignment] = await db
+      .select()
+      .from(assignedRoadmap)
+      .where(eq(assignedRoadmap.id, assignmentId))
+      .limit(1);
+    
+    return assignment || null;
+  }
+
+  async updateAssignedRoadmapStatus(assignmentId: string, status: 'pending' | 'in_progress' | 'completed'): Promise<AssignedRoadmap> {
+    const [updated] = await db
+      .update(assignedRoadmap)
+      .set({ 
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(assignedRoadmap.id, assignmentId))
+      .returning();
+    
+    return updated;
+  }
+
+  async assignRoadmapTemplate(templateId: string, projectId: string): Promise<AssignedRoadmap[]> {
+    return this.assignRoadmapToProject(projectId, templateId);
+  }
 }
 
 export const storage = new DatabaseStorage();

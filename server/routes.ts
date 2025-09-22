@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -377,6 +377,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching cohort projects:", error);
       res.status(500).json({ message: "Failed to fetch cohort projects" });
+    }
+  });
+
+  // Roadmap routes
+  
+  // Participant roadmap routes
+  app.get('/api/projects/:projectId/roadmap', isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify project access
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (project.ownerId !== userId && user?.role !== 'administrator' && user?.role !== 'mentor') {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      const roadmap = await storage.getProjectRoadmap(projectId);
+      res.json(roadmap);
+    } catch (error) {
+      console.error("Error fetching project roadmap:", error);
+      res.status(500).json({ message: "Failed to fetch project roadmap" });
+    }
+  });
+  
+  app.patch('/api/roadmap/assignments/:assignmentId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { assignmentId } = req.params;
+      const { status } = req.body;
+      const userId = req.user.claims.sub;
+      
+      // Validate status
+      if (!['pending', 'in_progress', 'completed'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be pending, in_progress, or completed" });
+      }
+      
+      // Get assignment and verify permission
+      const assignment = await storage.getAssignedRoadmapItem(assignmentId);
+      if (!assignment) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      
+      const project = await storage.getProject(assignment.projectId);
+      const user = await storage.getUser(userId);
+      if (project?.ownerId !== userId && user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      const updatedAssignment = await storage.updateAssignedRoadmapStatus(assignmentId, status);
+      
+      // Process auto-completions if marked as completed
+      if (status === 'completed') {
+        await storage.processAutoCompletions(assignment.projectId);
+      }
+      
+      res.json(updatedAssignment);
+    } catch (error) {
+      console.error("Error updating assignment status:", error);
+      res.status(500).json({ message: "Failed to update assignment status" });
+    }
+  });
+  
+  // Admin roadmap template management routes
+  app.get('/api/admin/roadmap/templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const templates = await storage.getRoadmapTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching roadmap templates:", error);
+      res.status(500).json({ message: "Failed to fetch roadmap templates" });
+    }
+  });
+  
+  app.post('/api/admin/roadmap/templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const validatedData = insertRoadmapTemplateSchema.parse(req.body);
+      const template = await storage.createRoadmapTemplate(validatedData);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating roadmap template:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create roadmap template" });
+    }
+  });
+  
+  app.get('/api/admin/roadmap/templates/:templateId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const template = await storage.getRoadmapTemplate(templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching roadmap template:", error);
+      res.status(500).json({ message: "Failed to fetch roadmap template" });
+    }
+  });
+  
+  app.post('/api/admin/roadmap/templates/:templateId/assign', isAuthenticated, async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const { projectId } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      if (!projectId) {
+        return res.status(400).json({ message: "Project ID is required" });
+      }
+      
+      const result = await storage.assignRoadmapTemplate(templateId, projectId);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error assigning roadmap template:", error);
+      res.status(500).json({ message: "Failed to assign roadmap template" });
+    }
+  });
+  
+  app.delete('/api/admin/roadmap/templates/:templateId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      await storage.deleteRoadmapTemplate(templateId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting roadmap template:", error);
+      res.status(500).json({ message: "Failed to delete roadmap template" });
+    }
+  });
+  
+  app.post('/api/admin/roadmap/items', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const validatedData = insertRoadmapItemSchema.parse(req.body);
+      const item = await storage.createRoadmapItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating roadmap item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create roadmap item" });
+    }
+  });
+  
+  app.patch('/api/admin/roadmap/items/:itemId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { itemId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const updateSchema = insertRoadmapItemSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      const updatedItem = await storage.updateRoadmapItem(itemId, validatedData);
+      
+      if (!updatedItem) {
+        return res.status(404).json({ message: "Roadmap item not found" });
+      }
+      
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Error updating roadmap item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to update roadmap item" });
+    }
+  });
+  
+  app.delete('/api/admin/roadmap/items/:itemId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { itemId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      await storage.deleteRoadmapItem(itemId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting roadmap item:", error);
+      res.status(500).json({ message: "Failed to delete roadmap item" });
     }
   });
 
