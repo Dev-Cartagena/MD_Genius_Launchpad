@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -31,6 +31,10 @@ const resetPasswordSchema = z.object({
   token: z.string().min(1, "Reset token is required"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
+
+// Validation schemas for mentor operations
+const updateMentorProfileSchema = insertMentorProfileSchema.partial().omit({ userId: true });
+const updateMentorSessionSchema = insertMentorSessionSchema.partial().omit({ mentorId: true });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1000,6 +1004,224 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching mentors:", error);
       res.status(500).json({ message: "Failed to fetch mentors" });
+    }
+  });
+
+  // Mentor Profile Management Routes
+  app.get('/api/mentor/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Verify user has mentor role
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'mentor') {
+        return res.status(403).json({ message: "Access denied. User must have mentor role." });
+      }
+      
+      const profile = await storage.getMentorProfile(userId);
+      
+      if (!profile) {
+        return res.status(404).json({ message: "Mentor profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching mentor profile:", error);
+      res.status(500).json({ message: "Failed to fetch mentor profile" });
+    }
+  });
+
+  app.post('/api/mentor/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profileData = insertMentorProfileSchema.parse({ ...req.body, userId });
+      
+      // Check if user has mentor role
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'mentor') {
+        return res.status(403).json({ message: "Access denied. User must have mentor role." });
+      }
+      
+      // Check if profile already exists
+      const existingProfile = await storage.getMentorProfile(userId);
+      if (existingProfile) {
+        return res.status(400).json({ message: "Mentor profile already exists. Use PUT to update." });
+      }
+      
+      const profile = await storage.createMentorProfile(profileData);
+      res.status(201).json(profile);
+    } catch (error) {
+      console.error("Error creating mentor profile:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create mentor profile" });
+    }
+  });
+
+  app.put('/api/mentor/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updateData = updateMentorProfileSchema.parse(req.body);
+      
+      // Verify user has mentor role
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'mentor') {
+        return res.status(403).json({ message: "Access denied. User must have mentor role." });
+      }
+      
+      // Check for empty updates
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      
+      // Check if profile exists
+      const existingProfile = await storage.getMentorProfile(userId);
+      if (!existingProfile) {
+        return res.status(404).json({ message: "Mentor profile not found" });
+      }
+      
+      const updatedProfile = await storage.updateMentorProfile(userId, updateData);
+      res.json(updatedProfile);
+    } catch (error) {
+      console.error("Error updating mentor profile:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to update mentor profile" });
+    }
+  });
+
+  // Mentor Session Management Routes
+  app.get('/api/mentor/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessions = await storage.getMentorSessions(userId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching mentor sessions:", error);
+      res.status(500).json({ message: "Failed to fetch mentor sessions" });
+    }
+  });
+
+  app.post('/api/mentor/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionData = insertMentorSessionSchema.parse({ ...req.body, mentorId: userId });
+      
+      // Verify user is a mentor
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'mentor') {
+        return res.status(403).json({ message: "Access denied. User must have mentor role." });
+      }
+      
+      const session = await storage.createMentorSession(sessionData);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error creating mentor session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create mentor session" });
+    }
+  });
+
+  app.put('/api/mentor/sessions/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      const updateData = updateMentorSessionSchema.parse(req.body);
+      
+      // Check for empty updates
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      
+      // Verify session exists and belongs to mentor
+      const session = await storage.getMentorSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      if (session.mentorId !== userId) {
+        return res.status(403).json({ message: "Access denied. You can only update your own sessions." });
+      }
+      
+      const updatedSession = await storage.updateMentorSession(sessionId, updateData);
+      res.json(updatedSession);
+    } catch (error) {
+      console.error("Error updating mentor session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to update mentor session" });
+    }
+  });
+
+  app.get('/api/mentor/sessions/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+      
+      const session = await storage.getMentorSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      
+      // Allow access to mentor or participants
+      const user = await storage.getUser(userId);
+      const isParticipant = session.participantIds?.includes(userId);
+      const isMentor = session.mentorId === userId;
+      
+      if (!isMentor && !isParticipant && user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error fetching mentor session:", error);
+      res.status(500).json({ message: "Failed to fetch mentor session" });
+    }
+  });
+
+  // Participant Session Routes
+  app.get('/api/participant/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessions = await storage.getParticipantSessions(userId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching participant sessions:", error);
+      res.status(500).json({ message: "Failed to fetch participant sessions" });
+    }
+  });
+
+  // Session Booking Route (for participants)
+  app.post('/api/sessions/book', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionData = insertMentorSessionSchema.parse(req.body);
+      
+      // Verify user is a participant
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'participant') {
+        return res.status(403).json({ message: "Access denied. Only participants can book sessions." });
+      }
+      
+      // Add user to participantIds (ensure idempotency - no duplicates)
+      sessionData.participantIds = sessionData.participantIds || [];
+      if (!sessionData.participantIds.includes(userId)) {
+        sessionData.participantIds.push(userId);
+      }
+      
+      const session = await storage.createMentorSession(sessionData);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error booking session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to book session" });
     }
   });
 
