@@ -33,7 +33,7 @@ const templateFormSchema = z.object({
 const itemFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
-  type: z.enum(["task", "milestone", "deliverable", "checkin", "learning"]),
+  type: z.enum(["task", "assignment", "deliverable", "milestone", "checkin", "learning"]),
   week: z.coerce.number().min(1, "Week must be at least 1"),
   orderIndex: z.coerce.number().min(0, "Order index must be 0 or greater"),
   isOptional: z.boolean().default(false),
@@ -256,7 +256,7 @@ export default function AdminRoadmapManager() {
     setEditingItem(item);
     itemForm.setValue("title", item.title);
     itemForm.setValue("description", item.description || "");
-    itemForm.setValue("type", item.type as "task" | "milestone" | "deliverable" | "checkin" | "learning");
+    itemForm.setValue("type", item.type as "task" | "assignment" | "deliverable" | "milestone" | "checkin" | "learning");
     itemForm.setValue("week", item.week);
     itemForm.setValue("orderIndex", item.orderIndex);
     itemForm.setValue("isOptional", item.isOptional || false);
@@ -272,8 +272,11 @@ export default function AdminRoadmapManager() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "task": return <CheckCircle className="w-4 h-4" />;
-      case "milestone": return <Target className="w-4 h-4" />;
+      case "assignment": return <Edit className="w-4 h-4" />;
       case "deliverable": return <Clock className="w-4 h-4" />;
+      case "milestone": return <Target className="w-4 h-4" />;
+      case "checkin": return <Users className="w-4 h-4" />;
+      case "learning": return <Calendar className="w-4 h-4" />;
       default: return <CheckCircle className="w-4 h-4" />;
     }
   };
@@ -281,9 +284,10 @@ export default function AdminRoadmapManager() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "task": return "default";
-      case "milestone": return "secondary";
+      case "assignment": return "secondary";
       case "deliverable": return "outline";
-      case "checkin": return "destructive";
+      case "milestone": return "destructive";
+      case "checkin": return "default";
       case "learning": return "default";
       default: return "default";
     }
@@ -512,8 +516,11 @@ export default function AdminRoadmapManager() {
                                 </FormControl>
                                 <SelectContent>
                                   <SelectItem value="task">Task</SelectItem>
-                                  <SelectItem value="milestone">Milestone</SelectItem>
+                                  <SelectItem value="assignment">Assignment</SelectItem>
                                   <SelectItem value="deliverable">Deliverable</SelectItem>
+                                  <SelectItem value="milestone">Milestone</SelectItem>
+                                  <SelectItem value="checkin">Check-in</SelectItem>
+                                  <SelectItem value="learning">Learning</SelectItem>
                                 </SelectContent>
                               </Select>
                               <FormMessage />

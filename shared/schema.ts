@@ -88,6 +88,7 @@ export const objectPermissionEnum = pgEnum("object_permission", [
 
 export const roadmapItemTypeEnum = pgEnum("roadmap_item_type", [
   "task",
+  "assignment",
   "deliverable", 
   "milestone",
   "checkin",
