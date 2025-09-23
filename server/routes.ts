@@ -1229,6 +1229,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Investor Session Booking Route (for participants)
+  app.post('/api/investor-sessions/book', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionData = insertInvestorSessionSchema.parse(req.body);
+      
+      // Verify user is a participant
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'participant') {
+        return res.status(403).json({ message: "Access denied. Only participants can book sessions." });
+      }
+      
+      // Add user to participantIds (ensure idempotency - no duplicates)
+      sessionData.participantIds = sessionData.participantIds || [];
+      if (!sessionData.participantIds.includes(userId)) {
+        sessionData.participantIds.push(userId);
+      }
+      
+      const session = await storage.createInvestorSession(sessionData);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error booking investor session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to book investor session" });
+    }
+  });
+
   // Admin Session Management Route
   app.get('/api/admin/sessions', isAuthenticated, async (req: any, res) => {
     try {

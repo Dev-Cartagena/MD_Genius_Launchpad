@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import type { Investor } from "@shared/schema";
 import AppLayout from "@/components/Layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,11 +38,270 @@ import {
   Phone
 } from "lucide-react";
 
+// Extended investor type for UI compatibility
+type ExtendedInvestor = Investor & {
+  // Optional UI fields for compatibility with mock data
+  description?: string;
+  portfolioSize?: number;
+  notableInvestments?: string[];
+  website?: string;
+  isAvailable?: boolean;
+  nextAvailable?: string;
+};
+
+// Session booking form schema
+const investorSessionBookingSchema = z.object({
+  title: z.string().min(5, "Session title must be at least 5 characters"),
+  agenda: z.string().min(10, "Please provide at least 10 characters for the session agenda"),
+  startTime: z.string().min(1, "Please select a start time"),
+  duration: z.number().min(30, "Session must be at least 30 minutes").max(120, "Session cannot exceed 2 hours").default(60),
+  sessionType: z.string().default("pitch"),
+});
+
+type InvestorSessionBookingFormData = z.infer<typeof investorSessionBookingSchema>;
+
+// Investor Session Booking Dialog Component
+function InvestorSessionBookingDialog({ investor, isOpen, onClose }: { 
+  investor: ExtendedInvestor; 
+  isOpen: boolean; 
+  onClose: () => void; 
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const form = useForm<InvestorSessionBookingFormData>({
+    resolver: zodResolver(investorSessionBookingSchema),
+    defaultValues: {
+      title: "",
+      agenda: "",
+      startTime: "",
+      duration: 60,
+      sessionType: "pitch",
+    },
+  });
+
+  // Generate time slots with accurate labels
+  const generateTimeSlots = () => {
+    const slots = [];
+    const now = new Date();
+    
+    // Generate slots for next 7 days
+    for (let day = 1; day <= 7; day++) {
+      const date = new Date(now.getTime() + day * 24 * 60 * 60 * 1000);
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      // Add morning and afternoon slots
+      const morningSlot = new Date(date);
+      morningSlot.setHours(10, 0, 0, 0);
+      
+      const afternoonSlot = new Date(date);
+      afternoonSlot.setHours(14, 0, 0, 0);
+      
+      slots.push({
+        value: morningSlot.toISOString(),
+        label: `${dayName} ${dateStr} at 10:00 AM`
+      });
+      
+      slots.push({
+        value: afternoonSlot.toISOString(),
+        label: `${dayName} ${dateStr} at 2:00 PM`
+      });
+    }
+    
+    return slots.slice(0, 8); // Return first 8 slots
+  };
+  
+  const timeSlots = generateTimeSlots();
+
+  const bookSession = useMutation({
+    mutationFn: async (data: InvestorSessionBookingFormData) => {
+      const endTime = new Date(new Date(data.startTime).getTime() + data.duration * 60 * 1000).toISOString();
+      
+      return apiRequest("POST", "/api/investor-sessions/book", {
+        investorId: investor.id,
+        title: data.title,
+        agenda: data.agenda,
+        startTime: data.startTime,
+        endTime: endTime,
+        sessionType: data.sessionType,
+        participantIds: [], // Will be set by the API
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Session Booked!",
+        description: `Your session with ${investor.organization} has been scheduled successfully.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/participant/sessions"] });
+      form.reset();
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Booking Failed",
+        description: "Failed to book session. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: InvestorSessionBookingFormData) => {
+    bookSession.mutate(data);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Schedule Session with {investor.organization}</DialogTitle>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., Funding Discussion"
+                      {...field}
+                      data-testid={`input-session-title-${investor.id}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sessionType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid={`select-session-type-${investor.id}`}>
+                        <SelectValue placeholder="Select session type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="pitch">Pitch Session</SelectItem>
+                      <SelectItem value="feedback">Feedback Session</SelectItem>
+                      <SelectItem value="due_diligence">Due Diligence</SelectItem>
+                      <SelectItem value="demo_day">Demo Day Practice</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Available Time Slots</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid={`select-timeslot-${investor.id}`}>
+                        <SelectValue placeholder="Select a time slot" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {timeSlots.map((slot) => (
+                        <SelectItem key={slot.value} value={slot.value}>
+                          {slot.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="duration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Duration</FormLabel>
+                  <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
+                    <FormControl>
+                      <SelectTrigger data-testid={`select-duration-${investor.id}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="60">60 minutes</SelectItem>
+                      <SelectItem value="90">90 minutes</SelectItem>
+                      <SelectItem value="120">120 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="agenda"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Session Agenda</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="What would you like to discuss? Include specific questions or topics for the session..."
+                      className="min-h-[80px]"
+                      {...field}
+                      data-testid={`textarea-session-agenda-${investor.id}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+                data-testid={`button-cancel-booking-${investor.id}`}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={bookSession.isPending}
+                className="flex-1"
+                data-testid={`button-confirm-booking-${investor.id}`}
+              >
+                {bookSession.isPending ? "Booking..." : "Book Session"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Investors() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSector, setSelectedSector] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
   const [selectedTab, setSelectedTab] = useState("directory");
+  const [selectedInvestorForBooking, setSelectedInvestorForBooking] = useState<ExtendedInvestor | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -416,11 +680,20 @@ export default function Investors() {
                           </Button>
                           <Button 
                             size="sm"
+                            variant="outline"
                             onClick={() => window.open(`mailto:${investor.contactEmail}`, '_blank')}
                             data-testid={`button-contact-investor-${investor.id}`}
                           >
                             <Mail className="w-3 h-3 mr-1" />
                             Contact
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => setSelectedInvestorForBooking(investor)}
+                            data-testid={`button-book-session-${investor.id}`}
+                          >
+                            <Calendar className="w-3 h-3 mr-1" />
+                            Book Session
                           </Button>
                         </div>
                       </div>
@@ -550,6 +823,15 @@ export default function Investors() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Investor Session Booking Dialog */}
+      {selectedInvestorForBooking && (
+        <InvestorSessionBookingDialog
+          investor={selectedInvestorForBooking}
+          isOpen={!!selectedInvestorForBooking}
+          onClose={() => setSelectedInvestorForBooking(null)}
+        />
+      )}
     </AppLayout>
   );
 }
