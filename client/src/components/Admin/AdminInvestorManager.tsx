@@ -247,7 +247,9 @@ export default function AdminInvestorManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       setIsCreateSessionOpen(false);
+      sessionForm.reset();
       toast({ title: "Success", description: "Session created successfully" });
     },
     onError: (error) => {
@@ -265,7 +267,10 @@ export default function AdminInvestorManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cohort-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
       setIsAssignCohortOpen(false);
+      cohortForm.reset();
       toast({ title: "Success", description: "Investor assigned to cohort successfully" });
     },
     onError: (error) => {
@@ -306,6 +311,12 @@ export default function AdminInvestorManager() {
     const start = new Date(startTime);
     const end = new Date(start.getTime() + durationMinutes * 60000);
     return end.toISOString().slice(0, 16);
+  };
+
+  // Helper to combine date and time into ISO string
+  const combineDateTime = (date: string, time: string) => {
+    if (!date || !time) return "";
+    return `${date}T${time}:00`;
   };
 
   // Watch start time to auto-calculate end time
