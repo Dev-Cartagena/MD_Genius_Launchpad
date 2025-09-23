@@ -111,6 +111,36 @@ const investorRoleOptions = [
   "advisor", "judge", "funding_partner", "demo_day_evaluator"
 ];
 
+// Helper function to generate time slots
+const generateTimeSlots = () => {
+  const slots = [];
+  for (let hour = 9; hour <= 17; hour++) {
+    for (let minute = 0; minute < 60; minute += 30) {
+      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const label = new Date(`2000-01-01T${time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      slots.push({ value: time, label });
+    }
+  }
+  return slots;
+};
+
+// Helper function to generate date options for next 30 days
+const generateDateOptions = () => {
+  const dates = [];
+  const today = new Date();
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const value = date.toISOString().split('T')[0];
+    const label = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    dates.push({ value, label });
+  }
+  return dates;
+};
+
+const timeSlots = generateTimeSlots();
+const dateOptions = generateDateOptions();
+
 export default function AdminInvestorManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -270,6 +300,25 @@ export default function AdminInvestorManager() {
     },
   });
 
+  // Helper to calculate end time based on start time and duration
+  const calculateEndTime = (startTime: string, durationMinutes: number = 60) => {
+    if (!startTime) return "";
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+    return end.toISOString().slice(0, 16);
+  };
+
+  // Watch start time to auto-calculate end time
+  const watchStartTime = sessionForm.watch("startTime");
+  
+  // Auto-update end time when start time changes
+  if (watchStartTime) {
+    const calculatedEndTime = calculateEndTime(watchStartTime);
+    if (calculatedEndTime !== sessionForm.getValues("endTime")) {
+      sessionForm.setValue("endTime", calculatedEndTime);
+    }
+  }
+
   const cohortForm = useForm<CohortAssignmentData>({
     resolver: zodResolver(cohortAssignmentSchema),
     defaultValues: {
@@ -403,34 +452,134 @@ export default function AdminInvestorManager() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={sessionForm.control}
-                      name="startTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Start Time</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="datetime-local" data-testid="input-start-time" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={sessionForm.control}
+                        name="startTime"
+                        render={({ field }) => {
+                          const dateValue = field.value ? field.value.split('T')[0] : '';
+                          const timeValue = field.value ? field.value.split('T')[1]?.slice(0, 5) : '';
+                          
+                          return (
+                            <FormItem>
+                              <FormLabel>Date</FormLabel>
+                              <Select 
+                                onValueChange={(date) => {
+                                  const time = timeValue || '09:00';
+                                  field.onChange(`${date}T${time}`);
+                                }}
+                                value={dateValue}
+                              >
+                                <FormControl>
+                                  <SelectTrigger data-testid="select-session-date">
+                                    <SelectValue placeholder="Select date" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {dateOptions.map(date => (
+                                    <SelectItem key={date.value} value={date.value}>
+                                      {date.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                      
+                      <FormField
+                        control={sessionForm.control}
+                        name="startTime"
+                        render={({ field }) => {
+                          const dateValue = field.value ? field.value.split('T')[0] : '';
+                          const timeValue = field.value ? field.value.split('T')[1]?.slice(0, 5) : '';
+                          
+                          return (
+                            <FormItem>
+                              <FormLabel>Start Time</FormLabel>
+                              <Select 
+                                onValueChange={(time) => {
+                                  const date = dateValue || dateOptions[0]?.value;
+                                  field.onChange(`${date}T${time}`);
+                                }}
+                                value={timeValue}
+                              >
+                                <FormControl>
+                                  <SelectTrigger data-testid="select-session-time">
+                                    <SelectValue placeholder="Select time" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {timeSlots.map(slot => (
+                                    <SelectItem key={slot.value} value={slot.value}>
+                                      {slot.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                    </div>
 
-                    <FormField
-                      control={sessionForm.control}
-                      name="endTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>End Time</FormLabel>
-                          <FormControl>
-                            <Input {...field} type="datetime-local" data-testid="input-end-time" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={sessionForm.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Duration</FormLabel>
+                            <Select 
+                              onValueChange={(minutes) => {
+                                const startTime = sessionForm.getValues("startTime");
+                                if (startTime) {
+                                  const endTime = calculateEndTime(startTime, parseInt(minutes));
+                                  field.onChange(endTime);
+                                }
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-session-duration">
+                                  <SelectValue placeholder="Select duration" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="30">30 minutes</SelectItem>
+                                <SelectItem value="60">1 hour</SelectItem>
+                                <SelectItem value="90">1.5 hours</SelectItem>
+                                <SelectItem value="120">2 hours</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={sessionForm.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>End Time</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="datetime-local" 
+                                data-testid="input-end-time"
+                                readOnly
+                                className="bg-muted"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   <FormField
@@ -1001,8 +1150,8 @@ export default function AdminInvestorManager() {
               ))
             ) : cohortAssignments.length > 0 ? (
               cohortAssignments.map((assignment: InvestorCohortParticipation) => {
-                const investor = investors.find(inv => inv.id === assignment.investorId);
-                const cohort = cohorts.find(coh => coh.id === assignment.cohortId);
+                const investor = investors.find((inv: Investor) => inv.id === assignment.investorId);
+                const cohort = cohorts.find((coh: Cohort) => coh.id === assignment.cohortId);
                 return (
                   <Card key={assignment.id} className="glass-card">
                     <CardHeader>
@@ -1015,10 +1164,10 @@ export default function AdminInvestorManager() {
                           </Avatar>
                           <div>
                             <CardTitle className="text-base" data-testid={`assignment-investor-${assignment.id}`}>
-                              {investor?.organization || "Unknown Investor"}
+                              {investor?.organization ?? "Unknown Investor"}
                             </CardTitle>
                             <p className="text-sm text-muted-foreground">
-                              {cohort?.name || "Unknown Cohort"}
+                              {cohort?.name ?? "Unknown Cohort"}
                             </p>
                           </div>
                         </div>
@@ -1028,7 +1177,7 @@ export default function AdminInvestorManager() {
                       <div className="space-y-3">
                         <div>
                           <Badge variant="outline" className="text-xs">
-                            {assignment.role?.charAt(0).toUpperCase() + assignment.role?.slice(1).replace('_', ' ') || "Unknown Role"}
+                            {assignment.role ? assignment.role.charAt(0).toUpperCase() + assignment.role.slice(1).replace('_', ' ') : "Unknown Role"}
                           </Badge>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -1036,7 +1185,7 @@ export default function AdminInvestorManager() {
                             variant={assignment.status === "active" ? "default" : "secondary"}
                             className="text-xs"
                           >
-                            {assignment.status?.charAt(0).toUpperCase() + assignment.status?.slice(1) || "Unknown"}
+                            {assignment.status ? assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1) : "Unknown"}
                           </Badge>
                         </div>
                         {assignment.assignedAt && (
