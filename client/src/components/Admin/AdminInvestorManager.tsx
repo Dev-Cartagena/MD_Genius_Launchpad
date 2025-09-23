@@ -88,7 +88,7 @@ type CohortAssignmentData = z.infer<typeof cohortAssignmentSchema>;
 // Pre-defined options
 const sectorOptions = [
   "Healthcare", "Fintech", "EdTech", "E-commerce", "SaaS", "Cybersecurity",
-  "Climate Tech", "Web3/Blockchain", "Robotics", "IoT", "Gaming", "Media & Entertainment"
+  "Climate Tech", "Web3/Blockchain", "Robotics", "IoT", "Gaming", "Media & Entertainment", "AI/Machine Learning"
 ];
 
 const stageOptions = [
@@ -125,7 +125,7 @@ export default function AdminInvestorManager() {
   const [filterSector, setFilterSector] = useState<string>("all");
 
   // Queries
-  const { data: investors = [], isLoading: investorsLoading } = useQuery({
+  const { data: investors = [], isLoading: investorsLoading } = useQuery<Investor[]>({
     queryKey: ["/api/admin/investors"],
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error)) return false;
@@ -133,7 +133,7 @@ export default function AdminInvestorManager() {
     },
   });
 
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+  const { data: sessions = [], isLoading: sessionsLoading } = useQuery<InvestorSession[]>({
     queryKey: ["/api/admin/investor-sessions"],
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error)) return false;
@@ -141,7 +141,7 @@ export default function AdminInvestorManager() {
     },
   });
 
-  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery({
+  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error)) return false;
@@ -151,6 +151,14 @@ export default function AdminInvestorManager() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/admin/projects"],
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error)) return false;
+      return failureCount < 3;
+    },
+  });
+
+  const { data: cohortAssignments = [], isLoading: assignmentsLoading } = useQuery<InvestorCohortParticipation[]>({
+    queryKey: ["/api/admin/cohort-assignments"],
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error)) return false;
       return failureCount < 3;
@@ -432,7 +440,7 @@ export default function AdminInvestorManager() {
                       <FormItem>
                         <FormLabel>Agenda</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Session agenda" data-testid="textarea-agenda" />
+                          <Textarea {...field} placeholder="Session agenda" data-testid="textarea-agenda" value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -980,12 +988,79 @@ export default function AdminInvestorManager() {
             </Dialog>
           </div>
 
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Cohort assignments coming soon</h3>
-            <p className="text-muted-foreground">
-              This feature will show investor assignments to cohorts and their roles.
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {assignmentsLoading ? (
+              [...Array(3)].map((_, i) => (
+                <Card key={i} className="glass-card">
+                  <CardContent className="p-6">
+                    <Skeleton className="h-6 w-3/4 mb-4" />
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : cohortAssignments.length > 0 ? (
+              cohortAssignments.map((assignment: InvestorCohortParticipation) => {
+                const investor = investors.find(inv => inv.id === assignment.investorId);
+                const cohort = cohorts.find(coh => coh.id === assignment.cohortId);
+                return (
+                  <Card key={assignment.id} className="glass-card">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
+                              {(investor?.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle className="text-base" data-testid={`assignment-investor-${assignment.id}`}>
+                              {investor?.organization || "Unknown Investor"}
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                              {cohort?.name || "Unknown Cohort"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div>
+                          <Badge variant="outline" className="text-xs">
+                            {assignment.role?.charAt(0).toUpperCase() + assignment.role?.slice(1).replace('_', ' ') || "Unknown Role"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge 
+                            variant={assignment.status === "active" ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {assignment.status?.charAt(0).toUpperCase() + assignment.status?.slice(1) || "Unknown"}
+                          </Badge>
+                        </div>
+                        {assignment.assignedAt && (
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            Assigned {new Date(assignment.assignedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              <Card className="glass-card col-span-full">
+                <CardContent className="p-8 text-center">
+                  <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No cohort assignments</h3>
+                  <p className="text-muted-foreground">
+                    Assign investors to cohorts to get started.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>

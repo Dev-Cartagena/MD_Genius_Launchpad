@@ -1526,6 +1526,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/admin/cohort-assignments', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const assignments = await storage.getAllCohortAssignments();
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching cohort assignments:", error);
+      res.status(500).json({ message: "Failed to fetch cohort assignments" });
+    }
+  });
+
   // Investor Interest Management Routes
   app.get('/api/admin/investor-interests', isAuthenticated, async (req: any, res) => {
     try {

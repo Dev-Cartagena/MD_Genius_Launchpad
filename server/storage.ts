@@ -171,6 +171,7 @@ export interface IStorage {
   // Investor-cohort participation management
   getInvestorCohortParticipation(investorId: string): Promise<InvestorCohortParticipation[]>;
   getCohortInvestors(cohortId: string): Promise<(InvestorCohortParticipation & { investor: Investor })[]>;
+  getAllCohortAssignments(): Promise<InvestorCohortParticipation[]>;
   assignInvestorToCohort(participation: InsertInvestorCohortParticipation): Promise<InvestorCohortParticipation>;
   updateInvestorCohortRole(participationId: string, role: string): Promise<InvestorCohortParticipation>;
   removeInvestorFromCohort(participationId: string): Promise<void>;
@@ -984,6 +985,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(investorCohortParticipation.id, participationId))
       .returning();
     return updated;
+  }
+
+  async getAllCohortAssignments(): Promise<InvestorCohortParticipation[]> {
+    return await db
+      .select()
+      .from(investorCohortParticipation)
+      .where(eq(investorCohortParticipation.status, "active"))
+      .orderBy(desc(investorCohortParticipation.assignedAt));
   }
 
   async removeInvestorFromCohort(participationId: string): Promise<void> {
