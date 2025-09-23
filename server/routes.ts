@@ -1275,6 +1275,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Investor Session Management Routes (for investors to manage their own sessions)
+  app.get('/api/investor/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Verify user is an investor and get their investor profile
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'investor') {
+        return res.status(403).json({ message: "Access denied. Only investors can view their sessions." });
+      }
+      
+      // Get investor by user ID and then their sessions
+      const investors = await storage.getInvestorsByUser(userId);
+      if (investors.length === 0) {
+        return res.status(404).json({ message: "Investor profile not found" });
+      }
+      
+      const sessions = await storage.getInvestorSessions(investors[0].id);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching investor sessions:", error);
+      res.status(500).json({ message: "Failed to fetch investor sessions" });
+    }
+  });
+
+  app.post('/api/investor/sessions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const sessionData = insertInvestorSessionSchema.parse(req.body);
+      
+      // Verify user is an investor and get their investor profile
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'investor') {
+        return res.status(403).json({ message: "Access denied. Only investors can create sessions." });
+      }
+      
+      // Get investor by user ID
+      const investors = await storage.getInvestorsByUser(userId);
+      if (investors.length === 0) {
+        return res.status(404).json({ message: "Investor profile not found" });
+      }
+      
+      // Set the investorId from the authenticated investor
+      const sessionWithInvestorId = { ...sessionData, investorId: investors[0].id };
+      
+      const session = await storage.createInvestorSession(sessionWithInvestorId);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error creating investor session:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create investor session" });
+    }
+  });
+
   // Investor routes
   app.get('/api/investors', isAuthenticated, async (req: any, res) => {
     try {

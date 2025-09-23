@@ -22,18 +22,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export default function InvestorDashboard() {
   // Fetch startup directory and interests
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<any[]>({
     queryKey: ["/api/projects"],
   });
 
-  const { data: interests = [] } = useQuery({
+  const { data: interests = [] } = useQuery<any[]>({
     queryKey: ["/api/investor/interests"],
+  });
+
+  // Fetch investor sessions
+  const { data: sessions = [] } = useQuery<any[]>({
+    queryKey: ["/api/investor/sessions"],
   });
 
   // Real investor metrics based on available data
   const investorStats = {
     startupsViewed: projects.length, // Real count of available projects
-    meetingsScheduled: 0, // Would need real meeting data
+    meetingsScheduled: sessions.length, // Real count of scheduled sessions
     activeDiligence: 0, // Would need real diligence tracking
     portfolioInterest: interests.length, // Real count of interests
     demoAttendance: 0 // Would need real event attendance data
@@ -292,6 +297,112 @@ export default function InvestorDashboard() {
             </Card>
           ))}
         </div>
+      </section>
+
+      {/* Scheduled Sessions */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Scheduled Sessions</h2>
+          <Button variant="outline" data-testid="button-view-all-sessions">
+            View All Sessions
+          </Button>
+        </div>
+        
+        {sessions.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {sessions.slice(0, 4).map((session: any) => (
+              <Card key={session.id} className="glass-card">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg" data-testid={`session-title-${session.id}`}>
+                        {session.title}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {session.sessionType && (
+                          <Badge variant="outline" className="mr-2">
+                            {session.sessionType.replace('_', ' ')}
+                          </Badge>
+                        )}
+                        {new Date(session.startTime).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <Badge 
+                      className={`${
+                        new Date(session.startTime) > new Date() ? 'bg-primary/20 text-primary' : 'bg-muted/20 text-muted-foreground'
+                      }`}
+                    >
+                      {new Date(session.startTime) > new Date() ? 'Upcoming' : 'Past'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Participants:</span>
+                      <p className="font-medium">{session.participantIds?.length || 0} participant(s)</p>
+                    </div>
+                    
+                    {session.agenda && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Agenda:</span>
+                        <p className="font-medium line-clamp-2" data-testid={`session-agenda-${session.id}`}>
+                          {session.agenda}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between pt-3 border-t border-border">
+                      <div className="text-xs text-muted-foreground">
+                        Duration: {Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / (1000 * 60))} minutes
+                      </div>
+                      <div className="flex space-x-2">
+                        {new Date(session.startTime) > new Date() && session.meetingLink && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => window.open(session.meetingLink, '_blank')}
+                            data-testid={`button-join-${session.id}`}
+                          >
+                            <Video className="w-3 h-3 mr-1" />
+                            Join
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          data-testid={`button-details-${session.id}`}
+                        >
+                          Details
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="glass-card">
+            <CardContent className="p-8 text-center">
+              <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Sessions Scheduled</h3>
+              <p className="text-muted-foreground mb-4">
+                You don't have any upcoming sessions yet. Participants will request sessions with you through the platform.
+              </p>
+              <Button variant="outline" data-testid="button-availability-settings">
+                Manage Availability
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </section>
 
       {/* Upcoming Events and Activity */}

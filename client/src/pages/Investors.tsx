@@ -135,6 +135,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/participant/sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/investor/sessions"] });
       form.reset();
       onClose();
     },
