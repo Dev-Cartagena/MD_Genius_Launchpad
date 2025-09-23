@@ -78,6 +78,15 @@ Preferred communication style: Simple, everyday language.
 - **Comprehensive Null Safety**: Implemented robust error handling and null safety throughout all rendering paths, preventing runtime crashes when API data is missing or incomplete with graceful fallbacks for all optional fields.
 - **Production-Grade Stability**: Enhanced filtering logic, avatar handling, and data display to handle partial/sparse API responses safely, ensuring consistent UI behavior regardless of data completeness.
 
+### Enhanced Investor Management System (September 2025)
+- **Advanced Session Scheduling**: Complete time picker system with date selection, time slots (9:00 AM - 5:00 PM in 30-minute intervals), and duration options (30 minutes, 1 hour, 1.5 hours, 2 hours).
+- **Timezone-Aware Time Calculation**: Fixed critical time calculation bugs by implementing local datetime formatting instead of UTC conversion, ensuring accurate time display across all timezones without date shifting.
+- **Duration Preservation Logic**: Enhanced form handling to preserve user-selected session duration across date/time changes, preventing unwanted overrides from default 60-minute assumptions.
+- **AI/Machine Learning Sector Addition**: Expanded investment sector options to include "AI/Machine Learning" category for better investor categorization and filtering.
+- **Cohort Assignment Display**: Implemented real-time cohort assignment tracking with dedicated API endpoint (`/api/admin/cohort-assignments`) replacing placeholder content with live administrative data.
+- **Improved Card UI/UX**: Redesigned investor cards with compact layout (max-width constraints), better proportions (smaller avatars, tighter spacing), enhanced typography hierarchy, and more subtle control styling.
+- **Professional Time Display**: Session scheduling now shows accurate end time calculations with proper local timezone handling and preserves user-selected durations across form interactions.
+
 ### Technical Achievements
 - **Database Schema**: Extended with roadmapTemplates, roadmapItems, and assignedRoadmap tables supporting full roadmap lifecycle management.
 - **Storage Interface**: Comprehensive CRUD operations for roadmap management with auto-completion logic and template reusability.
@@ -88,6 +97,8 @@ Preferred communication style: Simple, everyday language.
 - **Learning Item Architecture**: Implemented sophisticated auto-completion logic with configurable thresholds (70% module completion) and real-time status synchronization.
 - **Cross-Component Navigation**: Seamless navigation between roadmap and curriculum views with proper state preservation and cache invalidation strategies.
 - **Authentic Data Architecture**: Transitioned from mock data patterns to real API integration with comprehensive null safety, proper empty states, and production-ready error handling across all marketing and directory components.
+- **Local DateTime Handling**: Implemented timezone-safe datetime formatting and calculation functions for accurate session scheduling across different user locations.
+- **State Preservation**: Enhanced form management with duration tracking state to maintain user selections across form field interactions and recalculations.
 
 ## External Dependencies
 
