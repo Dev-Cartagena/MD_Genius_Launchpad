@@ -308,8 +308,24 @@ export default function AdminInvestorManager() {
   // Helper to calculate end time based on start time and duration
   const calculateEndTime = (startTime: string, durationMinutes: number = 60) => {
     if (!startTime) return "";
-    const start = new Date(startTime);
+    
+    // Ensure we have a complete datetime string
+    let dateTimeString = startTime;
+    if (!startTime.includes('T')) {
+      dateTimeString = `${startTime}T09:00`;
+    }
+    
+    // Add seconds if missing
+    if (!dateTimeString.includes(':00', dateTimeString.lastIndexOf(':'))) {
+      dateTimeString += ':00';
+    }
+    
+    const start = new Date(dateTimeString);
     const end = new Date(start.getTime() + durationMinutes * 60000);
+    
+    // Ensure valid date
+    if (isNaN(end.getTime())) return "";
+    
     return end.toISOString().slice(0, 16);
   };
 
@@ -480,7 +496,15 @@ export default function AdminInvestorManager() {
                               <Select 
                                 onValueChange={(date) => {
                                   const time = timeValue || '09:00';
-                                  field.onChange(`${date}T${time}`);
+                                  const fullDateTime = `${date}T${time}:00`;
+                                  field.onChange(fullDateTime);
+                                  
+                                  // Trigger end time recalculation if duration is set
+                                  const currentDuration = sessionForm.getValues("endTime") ? 60 : 0;
+                                  if (currentDuration > 0) {
+                                    const endTime = calculateEndTime(fullDateTime, currentDuration);
+                                    sessionForm.setValue("endTime", endTime);
+                                  }
                                 }}
                                 value={dateValue}
                               >
@@ -516,7 +540,15 @@ export default function AdminInvestorManager() {
                               <Select 
                                 onValueChange={(time) => {
                                   const date = dateValue || dateOptions[0]?.value;
-                                  field.onChange(`${date}T${time}`);
+                                  const fullDateTime = `${date}T${time}:00`;
+                                  field.onChange(fullDateTime);
+                                  
+                                  // Trigger end time recalculation if duration is set
+                                  const currentDuration = sessionForm.getValues("endTime") ? 60 : 0;
+                                  if (currentDuration > 0) {
+                                    const endTime = calculateEndTime(fullDateTime, currentDuration);
+                                    sessionForm.setValue("endTime", endTime);
+                                  }
                                 }}
                                 value={timeValue}
                               >
