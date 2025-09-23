@@ -305,6 +305,19 @@ export default function AdminInvestorManager() {
     },
   });
 
+  // Track selected duration to preserve user choice
+  const [selectedDuration, setSelectedDuration] = useState(60);
+
+  // Helper to format date as local datetime string (YYYY-MM-DDTHH:mm)
+  const formatLocalDateTime = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   // Helper to calculate end time based on start time and duration
   const calculateEndTime = (startTime: string, durationMinutes: number = 60) => {
     if (!startTime) return "";
@@ -326,7 +339,8 @@ export default function AdminInvestorManager() {
     // Ensure valid date
     if (isNaN(end.getTime())) return "";
     
-    return end.toISOString().slice(0, 16);
+    // Return local datetime string (not UTC)
+    return formatLocalDateTime(end);
   };
 
   // Helper to combine date and time into ISO string
@@ -338,15 +352,15 @@ export default function AdminInvestorManager() {
   // Watch start time to auto-calculate end time
   const watchStartTime = sessionForm.watch("startTime");
   
-  // Auto-update end time when start time changes (default 1 hour)
+  // Auto-update end time when start time changes, preserving selected duration
   useEffect(() => {
     if (watchStartTime) {
-      const calculatedEndTime = calculateEndTime(watchStartTime, 60);
+      const calculatedEndTime = calculateEndTime(watchStartTime, selectedDuration);
       if (calculatedEndTime !== sessionForm.getValues("endTime")) {
         sessionForm.setValue("endTime", calculatedEndTime);
       }
     }
-  }, [watchStartTime, sessionForm]);
+  }, [watchStartTime, sessionForm, selectedDuration]);
 
   const cohortForm = useForm<CohortAssignmentData>({
     resolver: zodResolver(cohortAssignmentSchema),
@@ -499,12 +513,9 @@ export default function AdminInvestorManager() {
                                   const fullDateTime = `${date}T${time}:00`;
                                   field.onChange(fullDateTime);
                                   
-                                  // Trigger end time recalculation if duration is set
-                                  const currentDuration = sessionForm.getValues("endTime") ? 60 : 0;
-                                  if (currentDuration > 0) {
-                                    const endTime = calculateEndTime(fullDateTime, currentDuration);
-                                    sessionForm.setValue("endTime", endTime);
-                                  }
+                                  // Recalculate end time with preserved duration
+                                  const endTime = calculateEndTime(fullDateTime, selectedDuration);
+                                  sessionForm.setValue("endTime", endTime);
                                 }}
                                 value={dateValue}
                               >
@@ -543,12 +554,9 @@ export default function AdminInvestorManager() {
                                   const fullDateTime = `${date}T${time}:00`;
                                   field.onChange(fullDateTime);
                                   
-                                  // Trigger end time recalculation if duration is set
-                                  const currentDuration = sessionForm.getValues("endTime") ? 60 : 0;
-                                  if (currentDuration > 0) {
-                                    const endTime = calculateEndTime(fullDateTime, currentDuration);
-                                    sessionForm.setValue("endTime", endTime);
-                                  }
+                                  // Recalculate end time with preserved duration
+                                  const endTime = calculateEndTime(fullDateTime, selectedDuration);
+                                  sessionForm.setValue("endTime", endTime);
                                 }}
                                 value={timeValue}
                               >
@@ -582,8 +590,9 @@ export default function AdminInvestorManager() {
                             <Select 
                               onValueChange={(minutes) => {
                                 const startTime = sessionForm.getValues("startTime");
+                                const durationMinutes = parseInt(minutes);
+                                setSelectedDuration(durationMinutes); // Save selected duration
                                 if (startTime) {
-                                  const durationMinutes = parseInt(minutes);
                                   const endTime = calculateEndTime(startTime, durationMinutes);
                                   sessionForm.setValue("endTime", endTime);
                                 }
@@ -903,97 +912,94 @@ export default function AdminInvestorManager() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredInvestors.map((investor: Investor) => (
-                <Card key={investor.id} className="glass-card">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-12 h-12">
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
+                <Card key={investor.id} className="glass-card hover:shadow-lg transition-shadow duration-200 max-w-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3 min-w-0 flex-1">
+                        <Avatar className="w-10 h-10 flex-shrink-0">
+                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-medium text-sm">
                             {(investor.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <CardTitle className="text-lg" data-testid={`investor-name-${investor.id}`}>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base font-semibold truncate leading-tight" data-testid={`investor-name-${investor.id}`}>
                             {investor.organization}
                           </CardTitle>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs text-muted-foreground truncate">
                             {investor.contactEmail}
                           </p>
                         </div>
                       </div>
-                      <div className="flex space-x-1">
+                      <div className="flex space-x-1 flex-shrink-0">
                         <Button 
-                          size="sm" 
+                          size="icon" 
                           variant="ghost"
+                          className="h-7 w-7"
                           onClick={() => openEditDialog(investor)}
                           data-testid={`button-edit-${investor.id}`}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3 h-3" />
                         </Button>
                         <Button 
-                          size="sm" 
+                          size="icon" 
                           variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
                           onClick={() => deactivateInvestorMutation.mutate(investor.id)}
                           data-testid={`button-deactivate-${investor.id}`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Sectors</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {(investor.sectors || []).map((sector: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {sector}
-                            </Badge>
-                          ))}
-                        </div>
+                  <CardContent className="pt-0 space-y-2">
+                    <div>
+                      <h4 className="text-xs font-medium mb-1 text-muted-foreground">Sectors</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {(investor.sectors || []).map((sector: string, index: number) => (
+                          <Badge key={index} variant="secondary" className="text-xs px-2 py-0.5 h-5">
+                            {sector}
+                          </Badge>
+                        ))}
                       </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Stages</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {(investor.stages || []).map((stage: string, index: number) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {stage}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 border-t border-border">
-                        <div className="text-xs text-muted-foreground">
-                          <span className="flex items-center space-x-1">
-                            <Building className="w-3 h-3" />
-                            <span>{investor.checkSize || "Not specified"}</span>
-                          </span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => window.open(`mailto:${investor.contactEmail}`, '_blank')}
-                            data-testid={`button-contact-${investor.id}`}
-                          >
-                            <Mail className="w-3 h-3 mr-1" />
-                            Contact
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {investor.ndaStatus && (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <CheckCircle className="w-3 h-3" />
-                          <span className="text-xs">NDA Signed</span>
-                        </div>
-                      )}
                     </div>
+                    
+                    <div>
+                      <h4 className="text-xs font-medium mb-1 text-muted-foreground">Stages</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {(investor.stages || []).map((stage: string, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs px-2 py-0.5 h-5">
+                            {stage}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center space-x-1 text-xs">
+                        <Building className="w-3 h-3 text-muted-foreground" />
+                        <span className="font-medium">{investor.checkSize || "Not specified"}</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => window.open(`mailto:${investor.contactEmail}`, '_blank')}
+                        data-testid={`button-contact-${investor.id}`}
+                      >
+                        <Mail className="w-3 h-3 mr-1" />
+                        Contact
+                      </Button>
+                    </div>
+                    
+                    {investor.ndaStatus && (
+                      <div className="flex items-center space-x-1 text-green-600">
+                        <CheckCircle className="w-3 h-3" />
+                        <span className="text-xs font-medium">NDA Signed</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
