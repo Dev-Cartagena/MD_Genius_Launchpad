@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -322,13 +322,15 @@ export default function AdminInvestorManager() {
   // Watch start time to auto-calculate end time
   const watchStartTime = sessionForm.watch("startTime");
   
-  // Auto-update end time when start time changes
-  if (watchStartTime) {
-    const calculatedEndTime = calculateEndTime(watchStartTime);
-    if (calculatedEndTime !== sessionForm.getValues("endTime")) {
-      sessionForm.setValue("endTime", calculatedEndTime);
+  // Auto-update end time when start time changes (default 1 hour)
+  useEffect(() => {
+    if (watchStartTime) {
+      const calculatedEndTime = calculateEndTime(watchStartTime, 60);
+      if (calculatedEndTime !== sessionForm.getValues("endTime")) {
+        sessionForm.setValue("endTime", calculatedEndTime);
+      }
     }
-  }
+  }, [watchStartTime, sessionForm]);
 
   const cohortForm = useForm<CohortAssignmentData>({
     resolver: zodResolver(cohortAssignmentSchema),
@@ -549,8 +551,9 @@ export default function AdminInvestorManager() {
                               onValueChange={(minutes) => {
                                 const startTime = sessionForm.getValues("startTime");
                                 if (startTime) {
-                                  const endTime = calculateEndTime(startTime, parseInt(minutes));
-                                  field.onChange(endTime);
+                                  const durationMinutes = parseInt(minutes);
+                                  const endTime = calculateEndTime(startTime, durationMinutes);
+                                  sessionForm.setValue("endTime", endTime);
                                 }
                               }}
                             >
