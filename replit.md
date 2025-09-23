@@ -2,7 +2,7 @@
 
 ## Overview
 
-The MD Genius AI Startup Launchpad is a comprehensive full-stack web application designed to manage the complete lifecycle of an AI startup accelerator program. It supports talent acquisition, application management, cohort organization, curriculum delivery, project development, mentorship coordination, investor engagement, and funding disbursement. The platform aims to streamline and professionalize the AI startup acceleration process, providing authentic, data-driven experiences for all stakeholders.
+The MD Genius AI Startup Launchpad is a full-stack web application for managing an 8-week AI startup accelerator program. It streamlines talent acquisition, application management, cohort organization, curriculum delivery, project development, mentorship, investor engagement, and funding. The platform aims to professionalize the AI startup acceleration process with data-driven experiences for all stakeholders.
 
 ## User Preferences
 
@@ -14,39 +14,46 @@ The MD Genius AI Startup Launchpad is a comprehensive full-stack web application
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a dark-first UI with a glassmorphism aesthetic, neon gradients, and responsive design. It utilizes Radix UI primitives with shadcn/ui design system and Tailwind CSS for styling, ensuring ARIA-compliant and accessible components. Role-based dashboards provide intuitive workflows and real-time updates.
+- **Design System**: Dark-first UI with glassmorphism, neon gradients, and responsive design.
+- **Components**: Radix UI primitives with shadcn/ui.
+- **Styling**: Tailwind CSS with custom themes.
+- **User Experience**: Role-based dashboards, intuitive workflows, and real-time updates.
 
 ### Technical Implementations
-- **Frontend**: React 18 with TypeScript and Vite, using TanStack Query v5 for server state, Wouter for routing, and React Hook Form with Zod for form validation.
-- **Backend**: Node.js with TypeScript and Express.js REST API, employing Drizzle ORM with PostgreSQL for type-safe database interactions and Express sessions for management.
-- **Authentication & Authorization**: A dual authentication system integrates Replit OIDC and local email/password. It uses HTTP-only cookies for sessions, bcrypt for password security, and Role-Based Access Control (RBAC) with six defined roles (`public_visitor`, `applicant`, `participant`, `mentor`, `investor`, `administrator`).
-- **Database Design**: PostgreSQL (Neon serverless) with Drizzle Kit migrations defines a comprehensive relational schema (25+ tables) covering user management, application workflow, cohorts, curriculum, projects, mentorship, investor relations, roadmaps, communications, and AI interactions.
-- **AI Integration**: OpenAI GPT-5 powers an AI Coach service with five specialized coaching modes (Process Guide, Ideation, Technical, Go-to-Market, Pitch Coach), offering contextual guidance, persistent chat history, and source attribution.
-- **File Storage**: Google Cloud Storage handles scalable file management for documents, images, and videos.
+- **Frontend**: React 18 (TypeScript, Vite), TanStack Query v5 for state, Wouter for routing, React Hook Form with Zod validation.
+- **Backend**: Node.js (TypeScript, Express.js) REST API with Drizzle ORM for PostgreSQL.
+- **Authentication**: Dual system (Replit OIDC + local email/password) with HTTP-only cookies and bcrypt hashing.
+- **Authorization**: Role-Based Access Control (RBAC) with six roles: `public_visitor`, `applicant`, `participant`, `mentor`, `investor`, `administrator`.
+- **AI Integration**: OpenAI GPT-5 for an AI Coach service with 5 specialized modes and contextual guidance.
+- **File Storage**: Google Cloud Storage for scalable asset management.
 
 ### Feature Specifications
-- **User Management**: Dual authentication, secure password management, comprehensive user profiles, and role-based access.
-- **Application Management**: Multi-step forms, status tracking, admin review interface, and automated workflows.
-- **Cohort & Program Management**: Tools for cohort creation, calendar integration, track organization, and participant assignment.
-- **Curriculum & Learning**: 8-week structured modules, progress tracking, quiz system, and resource library.
-- **Advanced Roadmap System**: Template-based 8-week AI startup accelerator roadmaps (57 structured items), auto-completion logic, and project assignment.
-- **Project Management**: Five-stage lifecycle, team management, artifact storage, and readiness scoring.
-- **Mentor Management**: Detailed mentor profiles, multi-expertise categorization (12 areas, 12 industries), advanced session booking with 7-day availability, and session management.
-- **Investor Management**: Comprehensive investor profiles, investment focus tracking, advanced session scheduling with timezone-aware calculations, and cohort assignment tracking.
-- **Communication & Collaboration**: Message threading, multi-channel notification system, and announcements.
-- **Analytics & Assessment**: Rubric-based scoring, performance metrics, and audit trails.
-- **Funding & Disbursement**: Management of grants, stipends, and prizes tied to milestone-based disbursement.
+- **User Management**: Dual authentication, secure password management, comprehensive profiles, role-based access.
+- **Application Management**: Multi-step forms, status tracking, admin review, automated workflows.
+- **Program Management**: Cohort creation, calendar integration, track organization, participant assignment.
+- **Curriculum**: 8-week modules, progress tracking, quizzes, resource library.
+- **Roadmap System**: Template-based (57 structured items), auto-completion, project assignment, admin management.
+- **AI Coach**: GPT-5 powered guidance (Process, Ideation, Technical, Go-to-Market, Pitch modes).
+- **Project Management**: 5-stage lifecycle, team management, artifact storage, readiness scoring.
+- **Mentor Management**: Detailed profiles (expertise, industry), advanced session booking (7-day windows, morning/afternoon slots), session lifecycle.
+- **Investor Management**: Comprehensive organization profiles, investment focus, advanced session scheduling (timezone-aware, duration options).
+- **Communication**: Message threading, multi-channel notifications, announcements.
+- **Analytics**: Rubric-based scoring, performance metrics, AI-driven readiness scoring.
+- **Funding**: Grant/stipend/prize management, milestone-based disbursement.
+
+### System Design Choices
+- **Database**: PostgreSQL with Neon serverless deployment, Drizzle Kit for migrations.
+- **API Design**: RESTful with proper status codes, error handling, and comprehensive middleware.
+- **Performance**: TanStack Query caching, lazy loading, optimized builds.
+- **Accessibility**: ARIA-compliant and WCAG-compliant components.
 
 ## External Dependencies
 
-### Third-Party Services
-- **Database**: Neon PostgreSQL (serverless)
-- **Authentication**: Replit OIDC
+- **Database**: Neon PostgreSQL serverless database
+- **Authentication**: Replit OIDC provider
 - **AI Services**: OpenAI API (GPT-5 model)
 - **File Storage**: Google Cloud Storage
 - **Email Services**: Integrated email delivery
-
-### Key Libraries & Frameworks
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Radix UI, TanStack Query v5, Wouter
-- **Backend**: Express.js, Drizzle ORM, Passport.js, bcrypt, connect-pg-simple
+- **Frontend Frameworks**: React 18, TypeScript, Vite, Tailwind CSS, Radix UI, TanStack Query v5, Wouter
+- **Backend Frameworks**: Express.js, Drizzle ORM, Passport.js, bcrypt, connect-pg-simple
 - **Validation**: Zod
