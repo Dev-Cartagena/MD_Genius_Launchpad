@@ -27,7 +27,7 @@ import { z } from "zod";
 import { 
   Plus, Edit, Trash2, BookOpen, Users, Clock, 
   ChevronDown, ChevronRight, Copy, PlayCircle,
-  FileText, HelpCircle, Calendar, Target
+  FileText, HelpCircle, Calendar, Target, X, ExternalLink
 } from "lucide-react";
 
 // Form schemas
@@ -252,12 +252,19 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/modules'
+          (query.queryKey[0] === '/api/admin/modules' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
       // Force refetch the current modules query if selectedCohort exists
       if (selectedCohort) {
         queryClient.refetchQueries({ 
-          queryKey: ['/api/admin/modules', selectedCohort],
+          queryKey: ['/api/admin/modules', { cohortId: selectedCohort }],
+          exact: true 
+        });
+      }
+      // Force refetch cohort lessons overview after module creation
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
           exact: true 
         });
       }
@@ -283,8 +290,15 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/modules'
+          (query.queryKey[0] === '/api/admin/modules' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
+      // Force refetch cohort lessons overview after module update
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
+          exact: true 
+        });
+      }
       setEditingModule(null);
       toast({ title: "Module updated successfully" });
     },
@@ -306,8 +320,15 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/modules'
+          (query.queryKey[0] === '/api/admin/modules' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
+      // Force refetch cohort lessons overview after module deletion
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
+          exact: true 
+        });
+      }
       toast({ title: "Module deleted successfully" });
     },
     onError: (error: any) => {
@@ -328,8 +349,15 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/modules'
+          (query.queryKey[0] === '/api/admin/modules' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
+      // Force refetch cohort lessons overview after module duplication
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
+          exact: true 
+        });
+      }
       toast({ title: "Module duplicated successfully" });
     },
     onError: (error: any) => {
@@ -1464,7 +1492,106 @@ export default function AdminCurriculumManager() {
             </DialogHeader>
             <Form {...moduleForm}>
               <form onSubmit={moduleForm.handleSubmit(handleUpdateModule)} className="space-y-4">
-                {/* Similar form fields as create module */}
+                <FormField
+                  control={moduleForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Module Title</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Introduction to AI Fundamentals" 
+                          {...field} 
+                          data-testid="input-edit-module-title"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={moduleForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Describe what participants will learn in this module"
+                          {...field} 
+                          data-testid="input-edit-module-description"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={moduleForm.control}
+                    name="week"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Week Number</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min={1} 
+                            {...field} 
+                            data-testid="input-edit-module-week"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={moduleForm.control}
+                    name="orderIndex"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Order Index</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min={0} 
+                            {...field} 
+                            data-testid="input-edit-module-order"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={moduleForm.control}
+                  name="cohortId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cohort</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        data-testid="select-edit-module-cohort"
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select cohort" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(cohorts as Cohort[]).map((cohort: Cohort) => (
+                            <SelectItem key={cohort.id} value={cohort.id}>
+                              {cohort.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="flex justify-end gap-2">
                   <Button 
                     type="button" 
