@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -45,7 +45,7 @@ const lessonFormSchema = z.object({
   moduleId: z.string().min(1, "Module is required"),
   orderIndex: z.coerce.number().min(0, "Order index must be 0 or greater"),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute").optional(),
-  resources: z.array(z.string()).default([]),
+  media: z.array(z.string()).default([]),
 });
 
 const quizFormSchema = z.object({
@@ -105,7 +105,7 @@ export default function AdminCurriculumManager() {
       content: "",
       moduleId: "",
       orderIndex: 0,
-      resources: [],
+      media: [],
     },
   });
 
@@ -118,6 +118,71 @@ export default function AdminCurriculumManager() {
       maxAttempts: 3,
     },
   });
+
+  // Populate forms with existing data when editing, reset when closing
+  useEffect(() => {
+    if (editingModule) {
+      // Populate form with existing data
+      moduleForm.reset({
+        title: editingModule.title,
+        description: editingModule.description || "",
+        cohortId: editingModule.cohortId,
+        week: editingModule.week,
+        orderIndex: editingModule.orderIndex,
+      });
+    } else {
+      // Reset to defaults when not editing
+      moduleForm.reset({
+        title: "",
+        description: "",
+        cohortId: "",
+        week: 1,
+        orderIndex: 0,
+      });
+    }
+  }, [editingModule, moduleForm]);
+
+  useEffect(() => {
+    if (editingLesson) {
+      // Populate form with existing data
+      lessonForm.reset({
+        title: editingLesson.title,
+        content: editingLesson.content || "",
+        moduleId: editingLesson.moduleId,
+        orderIndex: editingLesson.orderIndex,
+        media: editingLesson.media || [],
+      });
+    } else {
+      // Reset to defaults when not editing
+      lessonForm.reset({
+        title: "",
+        content: "",
+        moduleId: "",
+        orderIndex: 0,
+        media: [],
+      });
+    }
+  }, [editingLesson, lessonForm]);
+
+  useEffect(() => {
+    if (editingQuiz) {
+      // Populate form with existing data
+      quizForm.reset({
+        title: editingQuiz.title,
+        questions: editingQuiz.questions as { question: string; options: string[]; correctAnswer: number; }[],
+        passThreshold: editingQuiz.passThreshold ?? 70,
+        maxAttempts: editingQuiz.maxAttempts ?? 3,
+      });
+    } else {
+      // Reset to defaults when not editing
+      quizForm.reset({
+        title: "",
+        questions: [{ question: "", options: ["", ""], correctAnswer: 0 }],
+        passThreshold: 70,
+        maxAttempts: 3,
+      });
+    }
+  }, [editingQuiz, quizForm]);
 
   // Queries
   const { data: cohorts = [], isLoading: isLoadingCohorts } = useQuery({
@@ -138,7 +203,7 @@ export default function AdminCurriculumManager() {
     queryKey: ['/api/admin/quizzes'],
   });
 
-  // Get lessons for selected module
+  // Get lessons for selected module (used in Modules tab)
   const { data: lessons = [] } = useQuery({
     queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
     queryFn: async () => {
@@ -147,6 +212,34 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     enabled: !!selectedModule,
+  });
+
+  // Get all lessons for all modules in selected cohort (used in Lessons tab)
+  const { data: allCohortLessons = [], isLoading: isLoadingAllLessons } = useQuery({
+    queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
+    queryFn: async () => {
+      if (!selectedCohort || !modules || modules.length === 0) return [];
+      
+      // Fetch lessons for all modules in this cohort
+      const lessonPromises = (modules as Module[]).map(async (module) => {
+        try {
+          const response = await apiRequest("GET", `/api/admin/lessons?moduleId=${module.id}`);
+          const moduleLessons = await response.json();
+          return moduleLessons.map((lesson: Lesson) => ({
+            ...lesson,
+            moduleName: module.title,
+            moduleWeek: module.week,
+          }));
+        } catch (error) {
+          console.error(`Failed to fetch lessons for module ${module.id}:`, error);
+          return [];
+        }
+      });
+
+      const allLessons = await Promise.all(lessonPromises);
+      return allLessons.flat();
+    },
+    enabled: !!selectedCohort && !!modules && Array.isArray(modules) && modules.length > 0,
   });
 
   // Mutations
@@ -257,12 +350,19 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/lessons'
+          (query.queryKey[0] === '/api/admin/lessons' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
       // Force refetch the current lessons query if selectedModule exists
       if (selectedModule) {
         queryClient.refetchQueries({ 
           queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+          exact: true 
+        });
+      }
+      // Force refetch cohort lessons overview
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
           exact: true 
         });
       }
@@ -288,11 +388,18 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/lessons'
+          (query.queryKey[0] === '/api/admin/lessons' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
       if (selectedModule) {
         queryClient.refetchQueries({ 
           queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+          exact: true 
+        });
+      }
+      // Force refetch cohort lessons overview
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
           exact: true 
         });
       }
@@ -317,11 +424,18 @@ export default function AdminCurriculumManager() {
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
-          query.queryKey[0] === '/api/admin/lessons'
+          (query.queryKey[0] === '/api/admin/lessons' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
       if (selectedModule) {
         queryClient.refetchQueries({ 
           queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+          exact: true 
+        });
+      }
+      // Force refetch cohort lessons overview
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/cohort-lessons', { cohortId: selectedCohort }],
           exact: true 
         });
       }
@@ -950,13 +1064,119 @@ export default function AdminCurriculumManager() {
               </Dialog>
             </div>
             
-            <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <p className="text-muted-foreground text-center">
-                  Lessons are managed within modules. Go to the Modules tab to create and edit lessons.
-                </p>
-              </CardContent>
-            </Card>
+{/* Lesson Overview - All lessons grouped by module */}
+            {isLoadingAllLessons ? (
+              <div className="space-y-4">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            ) : allCohortLessons.length > 0 ? (
+              <div className="space-y-6">
+                {/* Group lessons by module */}
+                {modulesWithLessons.map((module) => {
+                  const moduleLessons = allCohortLessons.filter((lesson: any) => lesson.moduleId === module.id);
+                  
+                  return (
+                    <Card key={module.id} className="border-white/10 bg-white/5 backdrop-blur-sm">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="flex items-center gap-2">
+                              <BookOpen className="h-5 w-5" />
+                              {module.title}
+                              <Badge variant="secondary" className="ml-2">
+                                {moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                              {module.cohortName} • Week {module.week}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              lessonForm.reset({
+                                title: "",
+                                content: "",
+                                moduleId: module.id,
+                                orderIndex: moduleLessons.length,
+                                media: [],
+                              });
+                              setIsCreateLessonOpen(true);
+                            }}
+                            data-testid={`button-add-lesson-overview-${module.id}`}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Lesson
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {moduleLessons.length > 0 ? (
+                          <div className="space-y-2">
+                            {moduleLessons.map((lesson: any, index: number) => (
+                              <div
+                                key={lesson.id}
+                                className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Badge variant="outline">{index + 1}</Badge>
+                                  <div>
+                                    <div className="font-medium">{lesson.title}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      <span className="flex items-center gap-2">
+                                        <Clock className="h-3 w-3" />
+                                        Lesson {index + 1}
+                                        {lesson.media && lesson.media.length > 0 && (
+                                          <>
+                                            • <FileText className="h-3 w-3" />
+                                            {lesson.media.length} resource{lesson.media.length !== 1 ? 's' : ''}
+                                          </>
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setEditingLesson(lesson)}
+                                    data-testid={`button-edit-lesson-overview-${lesson.id}`}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => deleteLessonMutation.mutate(lesson.id)}
+                                    data-testid={`button-delete-lesson-overview-${lesson.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-muted-foreground">
+                            No lessons in this module yet. Click "Add Lesson" to create the first one.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <p className="text-muted-foreground text-center">
+                    No lessons found for this cohort. Create modules and lessons to get started.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Quizzes Tab */}
