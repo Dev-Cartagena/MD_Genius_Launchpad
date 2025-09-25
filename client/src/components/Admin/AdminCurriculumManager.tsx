@@ -125,7 +125,12 @@ export default function AdminCurriculumManager() {
   });
 
   const { data: modules = [], isLoading: isLoadingModules } = useQuery({
-    queryKey: ['/api/admin/modules', selectedCohort],
+    queryKey: ['/api/admin/modules', { cohortId: selectedCohort }],
+    queryFn: async () => {
+      if (!selectedCohort) return [];
+      const response = await apiRequest("GET", `/api/admin/modules?cohortId=${selectedCohort}`);
+      return response.json();
+    },
     enabled: !!selectedCohort,
   });
 
@@ -135,7 +140,12 @@ export default function AdminCurriculumManager() {
 
   // Get lessons for selected module
   const { data: lessons = [] } = useQuery({
-    queryKey: ['/api/admin/lessons', selectedModule],
+    queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+    queryFn: async () => {
+      if (!selectedModule) return [];
+      const response = await apiRequest("GET", `/api/admin/lessons?moduleId=${selectedModule}`);
+      return response.json();
+    },
     enabled: !!selectedModule,
   });
 
@@ -146,7 +156,18 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/modules'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/modules'
+      });
+      // Force refetch the current modules query if selectedCohort exists
+      if (selectedCohort) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/modules', selectedCohort],
+          exact: true 
+        });
+      }
       setIsCreateModuleOpen(false);
       moduleForm.reset();
       toast({ title: "Module created successfully" });
@@ -166,7 +187,11 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/modules'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/modules'
+      });
       setEditingModule(null);
       toast({ title: "Module updated successfully" });
     },
@@ -185,7 +210,11 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/modules'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/modules'
+      });
       toast({ title: "Module deleted successfully" });
     },
     onError: (error: any) => {
@@ -203,7 +232,11 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/modules'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/modules'
+      });
       toast({ title: "Module duplicated successfully" });
     },
     onError: (error: any) => {
@@ -221,7 +254,18 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/lessons'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/lessons'
+      });
+      // Force refetch the current lessons query if selectedModule exists
+      if (selectedModule) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+          exact: true 
+        });
+      }
       setIsCreateLessonOpen(false);
       lessonForm.reset();
       toast({ title: "Lesson created successfully" });
@@ -241,7 +285,17 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/lessons'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/lessons'
+      });
+      if (selectedModule) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+          exact: true 
+        });
+      }
       setEditingLesson(null);
       toast({ title: "Lesson updated successfully" });
     },
@@ -260,7 +314,17 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/lessons'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          query.queryKey[0] === '/api/admin/lessons'
+      });
+      if (selectedModule) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
+          exact: true 
+        });
+      }
       toast({ title: "Lesson deleted successfully" });
     },
     onError: (error: any) => {
@@ -550,7 +614,7 @@ export default function AdminCurriculumManager() {
                             <FormLabel>Cohort</FormLabel>
                             <Select 
                               onValueChange={field.onChange} 
-                              defaultValue={field.value || selectedCohort || ""}
+                              value={field.value}
                               data-testid="select-module-cohort"
                             >
                               <FormControl>
@@ -789,7 +853,7 @@ export default function AdminCurriculumManager() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Module</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-lesson-module">
                                   <SelectValue placeholder="Select module" />
