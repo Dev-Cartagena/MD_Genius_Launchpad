@@ -1003,6 +1003,97 @@ export default function AdminCurriculumManager() {
                           </FormItem>
                         )}
                       />
+                      
+                      {/* Media Resources Section */}
+                      <FormField
+                        control={lessonForm.control}
+                        name="media"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Media Resources</FormLabel>
+                            <FormControl>
+                              <div className="space-y-3">
+                                {field.value.map((resource: string, index: number) => (
+                                  <div key={index} className="flex items-center gap-2 p-3 border border-white/10 rounded-lg bg-white/5">
+                                    <div className="flex-1">
+                                      <Input
+                                        placeholder="Enter URL or file reference (e.g., https://youtube.com/watch?v=..., file.pdf, https://docs.google.com/...)"
+                                        value={resource}
+                                        onChange={(e) => {
+                                          const newResources = [...field.value];
+                                          newResources[index] = e.target.value;
+                                          field.onChange(newResources);
+                                        }}
+                                        data-testid={`input-lesson-resource-${index}`}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {/* Resource type indicator */}
+                                      {resource.includes('youtube.com') || resource.includes('youtu.be') || resource.includes('vimeo.com') ? (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <PlayCircle className="h-3 w-3 mr-1" />
+                                          Video
+                                        </Badge>
+                                      ) : resource.includes('.pdf') || resource.includes('pdf') ? (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <FileText className="h-3 w-3 mr-1" />
+                                          PDF
+                                        </Badge>
+                                      ) : resource.startsWith('http') ? (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <ExternalLink className="h-3 w-3 mr-1" />
+                                          Link
+                                        </Badge>
+                                      ) : resource ? (
+                                        <Badge variant="secondary" className="text-xs">
+                                          <FileText className="h-3 w-3 mr-1" />
+                                          File
+                                        </Badge>
+                                      ) : null}
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          const newResources = field.value.filter((_: string, i: number) => i !== index);
+                                          field.onChange(newResources);
+                                        }}
+                                        data-testid={`button-remove-resource-${index}`}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    field.onChange([...field.value, ""]);
+                                  }}
+                                  className="w-full"
+                                  data-testid="button-add-resource"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Media Resource
+                                </Button>
+                                <div className="text-sm text-muted-foreground">
+                                  <p>Supported resources:</p>
+                                  <ul className="list-disc list-inside space-y-1 mt-1">
+                                    <li><strong>Video URLs:</strong> YouTube, Vimeo, or direct video links</li>
+                                    <li><strong>PDF Files:</strong> Document links or uploaded files</li>
+                                    <li><strong>External Links:</strong> Websites, articles, or other resources</li>
+                                    <li><strong>File References:</strong> Any uploaded files or assets</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={lessonForm.control}
