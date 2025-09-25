@@ -418,7 +418,15 @@ export default function AdminCurriculumManager() {
           Array.isArray(query.queryKey) && 
           (query.queryKey[0] === '/api/admin/lessons' || query.queryKey[0] === '/api/admin/cohort-lessons')
       });
-      if (selectedModule) {
+      // Force refetch lessons for the module of the edited lesson
+      if (editingLesson && editingLesson.moduleId) {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/admin/lessons', { moduleId: editingLesson.moduleId }],
+          exact: true 
+        });
+      }
+      // Also refetch for selectedModule if it exists and is different
+      if (selectedModule && selectedModule !== editingLesson?.moduleId) {
         queryClient.refetchQueries({ 
           queryKey: ['/api/admin/lessons', { moduleId: selectedModule }],
           exact: true 
@@ -1624,7 +1632,194 @@ export default function AdminCurriculumManager() {
             </DialogHeader>
             <Form {...lessonForm}>
               <form onSubmit={lessonForm.handleSubmit(handleUpdateLesson)} className="space-y-4">
-                {/* Similar form fields as create lesson */}
+                <FormField
+                  control={lessonForm.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lesson Title</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Introduction to Machine Learning" 
+                          {...field} 
+                          data-testid="input-edit-lesson-title"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={lessonForm.control}
+                  name="moduleId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Module</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-lesson-module">
+                            <SelectValue placeholder="Select module" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(modules as Module[]).map((module: Module) => (
+                            <SelectItem key={module.id} value={module.id}>
+                              {module.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={lessonForm.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Content</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter the lesson content, materials, and instructions"
+                          className="min-h-[200px]"
+                          {...field} 
+                          data-testid="input-edit-lesson-content"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Media Resources Section */}
+                <FormField
+                  control={lessonForm.control}
+                  name="media"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Media Resources</FormLabel>
+                      <FormControl>
+                        <div className="space-y-3">
+                          {field.value.map((resource: string, index: number) => (
+                            <div key={index} className="flex items-center gap-2 p-3 border border-white/10 rounded-lg bg-white/5">
+                              <div className="flex-1">
+                                <Input
+                                  placeholder="Enter URL or file reference (e.g., https://youtube.com/watch?v=..., file.pdf, https://docs.google.com/...)"
+                                  value={resource}
+                                  onChange={(e) => {
+                                    const newResources = [...field.value];
+                                    newResources[index] = e.target.value;
+                                    field.onChange(newResources);
+                                  }}
+                                  data-testid={`input-edit-lesson-resource-${index}`}
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {/* Resource type indicator */}
+                                {resource.includes('youtube.com') || resource.includes('youtu.be') || resource.includes('vimeo.com') ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <PlayCircle className="h-3 w-3 mr-1" />
+                                    Video
+                                  </Badge>
+                                ) : resource.includes('.pdf') || resource.includes('pdf') ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    PDF
+                                  </Badge>
+                                ) : resource.startsWith('http') ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    Link
+                                  </Badge>
+                                ) : resource ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    File
+                                  </Badge>
+                                ) : null}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    const newResources = field.value.filter((_: string, i: number) => i !== index);
+                                    field.onChange(newResources);
+                                  }}
+                                  data-testid={`button-remove-edit-resource-${index}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              field.onChange([...field.value, ""]);
+                            }}
+                            className="w-full"
+                            data-testid="button-add-edit-resource"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Media Resource
+                          </Button>
+                          <div className="text-sm text-muted-foreground">
+                            <p>Supported resources:</p>
+                            <ul className="list-disc list-inside space-y-1 mt-1">
+                              <li><strong>Video URLs:</strong> YouTube, Vimeo, or direct video links</li>
+                              <li><strong>PDF Files:</strong> Document links or uploaded files</li>
+                              <li><strong>External Links:</strong> Websites, articles, or other resources</li>
+                              <li><strong>File References:</strong> Any uploaded files or assets</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={lessonForm.control}
+                    name="duration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duration (minutes)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min={1} 
+                            {...field} 
+                            data-testid="input-edit-lesson-duration"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={lessonForm.control}
+                    name="orderIndex"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Order Index</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min={0} 
+                            {...field} 
+                            data-testid="input-edit-lesson-order"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button 
                     type="button" 
