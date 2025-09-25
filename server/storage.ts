@@ -32,8 +32,11 @@ import {
   type Project,
   type InsertProject,
   type Cohort,
+  type InsertCohort,
   type Module,
+  type InsertModule,
   type Lesson,
+  type InsertLesson,
   type Milestone,
   type Deliverable,
   type InsertDeliverable,
@@ -45,7 +48,6 @@ import {
   type InsertMessage,
   type AiConversation,
   type InsertAiConversation,
-  type InsertCohort,
   type RoadmapTemplate,
   type InsertRoadmapTemplate,
   type RoadmapItem,
@@ -616,6 +618,113 @@ export class DatabaseStorage implements IStorage {
       attempts: 1, // TODO: Increment existing attempts
     };
     return this.createOrUpdateUserProgress(progressData);
+  }
+
+  // Curriculum Management Operations (Admin)
+  async createModule(module: InsertModule): Promise<Module> {
+    const [newModule] = await db
+      .insert(modules)
+      .values(module)
+      .returning();
+    return newModule;
+  }
+
+  async updateModule(id: string, data: Partial<Module>): Promise<Module> {
+    const allowedFields = {
+      title: data.title,
+      description: data.description,
+      week: data.week,
+      objectives: data.objectives,
+      resources: data.resources,
+      orderIndex: data.orderIndex,
+    };
+    
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(modules)
+      .set(updateData)
+      .where(eq(modules.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteModule(id: string): Promise<void> {
+    await db.delete(modules).where(eq(modules.id, id));
+  }
+
+  async createLesson(lesson: InsertLesson): Promise<Lesson> {
+    const [newLesson] = await db
+      .insert(lessons)
+      .values(lesson)
+      .returning();
+    return newLesson;
+  }
+
+  async updateLesson(id: string, data: Partial<Lesson>): Promise<Lesson> {
+    const allowedFields = {
+      title: data.title,
+      content: data.content,
+      media: data.media,
+      quizId: data.quizId,
+      prerequisites: data.prerequisites,
+      orderIndex: data.orderIndex,
+    };
+    
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(lessons)
+      .set(updateData)
+      .where(eq(lessons.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteLesson(id: string): Promise<void> {
+    await db.delete(lessons).where(eq(lessons.id, id));
+  }
+
+  async duplicateModule(moduleId: string, newCohortId: string): Promise<Module> {
+    // Get the original module
+    const originalModule = await this.getModule(moduleId);
+    if (!originalModule) {
+      throw new Error('Module not found');
+    }
+
+    // Create new module
+    const moduleData: InsertModule = {
+      cohortId: newCohortId,
+      title: originalModule.title,
+      description: originalModule.description,
+      week: originalModule.week,
+      objectives: originalModule.objectives,
+      resources: originalModule.resources,
+      orderIndex: originalModule.orderIndex,
+    };
+    
+    const newModule = await this.createModule(moduleData);
+
+    // Get and duplicate lessons
+    const originalLessons = await this.getLessonsByModule(moduleId);
+    for (const lesson of originalLessons) {
+      const lessonData: InsertLesson = {
+        moduleId: newModule.id,
+        title: lesson.title,
+        content: lesson.content,
+        media: lesson.media,
+        quizId: lesson.quizId,
+        prerequisites: lesson.prerequisites,
+        orderIndex: lesson.orderIndex,
+      };
+      await this.createLesson(lessonData);
+    }
+
+    return newModule;
   }
 
   // Deliverable operations

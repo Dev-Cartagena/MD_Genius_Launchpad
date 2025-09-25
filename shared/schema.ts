@@ -687,6 +687,11 @@ export const insertLessonSchema = createInsertSchema(lessons).omit({
   createdAt: true,
 });
 
+export const insertQuizSchema = createInsertSchema(quizzes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserProgressSchema = createInsertSchema(userProgress).omit({
   id: true,
   createdAt: true,
@@ -760,6 +765,8 @@ export type Module = typeof modules.$inferSelect;
 export type InsertModule = z.infer<typeof insertModuleSchema>;
 export type Lesson = typeof lessons.$inferSelect;
 export type InsertLesson = z.infer<typeof insertLessonSchema>;
+export type Quiz = typeof quizzes.$inferSelect;
+export type InsertQuiz = z.infer<typeof insertQuizSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 export type Deliverable = typeof deliverables.$inferSelect;
 export type InsertDeliverable = z.infer<typeof insertDeliverableSchema>;
