@@ -9,6 +9,7 @@ import {
   deliverables,
   artifacts,
   userProgress,
+  quizzes,
   mentorProfiles,
   mentorSessions,
   investors,
@@ -37,6 +38,8 @@ import {
   type InsertModule,
   type Lesson,
   type InsertLesson,
+  type Quiz,
+  type InsertQuiz,
   type Milestone,
   type Deliverable,
   type InsertDeliverable,
@@ -725,6 +728,54 @@ export class DatabaseStorage implements IStorage {
     }
 
     return newModule;
+  }
+
+  // Quiz Management Operations (Admin)
+  async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
+    const [newQuiz] = await db
+      .insert(quizzes)
+      .values(quiz)
+      .returning();
+    return newQuiz;
+  }
+
+  async getQuiz(id: string): Promise<Quiz | undefined> {
+    const [quiz] = await db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.id, id));
+    return quiz;
+  }
+
+  async getAllQuizzes(): Promise<Quiz[]> {
+    return await db
+      .select()
+      .from(quizzes)
+      .orderBy(desc(quizzes.createdAt));
+  }
+
+  async updateQuiz(id: string, data: Partial<Quiz>): Promise<Quiz> {
+    const allowedFields = {
+      title: data.title,
+      questions: data.questions,
+      passThreshold: data.passThreshold,
+      maxAttempts: data.maxAttempts,
+    };
+    
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(quizzes)
+      .set(updateData)
+      .where(eq(quizzes.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteQuiz(id: string): Promise<void> {
+    await db.delete(quizzes).where(eq(quizzes.id, id));
   }
 
   // Deliverable operations

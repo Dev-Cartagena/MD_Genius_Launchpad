@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertModuleSchema, insertLessonSchema, insertQuizSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -792,6 +792,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching lesson:", error);
       res.status(500).json({ message: "Failed to fetch lesson" });
+    }
+  });
+
+  // Admin Curriculum Management Routes
+  
+  // Module Management
+  app.get('/api/admin/modules', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { cohortId } = req.query;
+      let modules;
+      if (cohortId) {
+        modules = await storage.getModulesByCohort(cohortId as string);
+      } else {
+        // Get all modules across all cohorts
+        const cohorts = await storage.getCohorts();
+        const allModules = await Promise.all(
+          cohorts.map(async (cohort: any) => {
+            const cohortModules = await storage.getModulesByCohort(cohort.id);
+            return cohortModules.map((module: any) => ({
+              ...module,
+              cohortName: cohort.name
+            }));
+          })
+        );
+        modules = allModules.flat();
+      }
+      
+      res.json(modules);
+    } catch (error) {
+      console.error("Error fetching modules:", error);
+      res.status(500).json({ message: "Failed to fetch modules" });
+    }
+  });
+
+  app.post('/api/admin/modules', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const moduleData = insertModuleSchema.parse(req.body);
+      const module = await storage.createModule(moduleData);
+      res.status(201).json(module);
+    } catch (error) {
+      console.error("Error creating module:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create module" });
+    }
+  });
+
+  app.put('/api/admin/modules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const updateData = req.body;
+      const module = await storage.updateModule(id, updateData);
+      res.json(module);
+    } catch (error) {
+      console.error("Error updating module:", error);
+      res.status(500).json({ message: "Failed to update module" });
+    }
+  });
+
+  app.delete('/api/admin/modules/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      await storage.deleteModule(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting module:", error);
+      res.status(500).json({ message: "Failed to delete module" });
+    }
+  });
+
+  app.post('/api/admin/modules/:id/duplicate', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { newCohortId } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const duplicatedModule = await storage.duplicateModule(id, newCohortId);
+      res.status(201).json(duplicatedModule);
+    } catch (error) {
+      console.error("Error duplicating module:", error);
+      res.status(500).json({ message: "Failed to duplicate module" });
+    }
+  });
+
+  // Lesson Management
+  app.get('/api/admin/lessons', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { moduleId } = req.query;
+      if (!moduleId) {
+        return res.status(400).json({ message: "moduleId is required" });
+      }
+      
+      const lessons = await storage.getLessonsByModule(moduleId as string);
+      res.json(lessons);
+    } catch (error) {
+      console.error("Error fetching lessons:", error);
+      res.status(500).json({ message: "Failed to fetch lessons" });
+    }
+  });
+
+  app.post('/api/admin/lessons', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const lessonData = insertLessonSchema.parse(req.body);
+      const lesson = await storage.createLesson(lessonData);
+      res.status(201).json(lesson);
+    } catch (error) {
+      console.error("Error creating lesson:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create lesson" });
+    }
+  });
+
+  app.put('/api/admin/lessons/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const updateData = req.body;
+      const lesson = await storage.updateLesson(id, updateData);
+      res.json(lesson);
+    } catch (error) {
+      console.error("Error updating lesson:", error);
+      res.status(500).json({ message: "Failed to update lesson" });
+    }
+  });
+
+  app.delete('/api/admin/lessons/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      await storage.deleteLesson(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting lesson:", error);
+      res.status(500).json({ message: "Failed to delete lesson" });
+    }
+  });
+
+  // Quiz Management
+  app.get('/api/admin/quizzes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const quizzes = await storage.getAllQuizzes();
+      res.json(quizzes);
+    } catch (error) {
+      console.error("Error fetching quizzes:", error);
+      res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+  });
+
+  app.post('/api/admin/quizzes', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const quizData = insertQuizSchema.parse(req.body);
+      const quiz = await storage.createQuiz(quizData);
+      res.status(201).json(quiz);
+    } catch (error) {
+      console.error("Error creating quiz:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      res.status(500).json({ message: "Failed to create quiz" });
+    }
+  });
+
+  app.put('/api/admin/quizzes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const updateData = req.body;
+      const quiz = await storage.updateQuiz(id, updateData);
+      res.json(quiz);
+    } catch (error) {
+      console.error("Error updating quiz:", error);
+      res.status(500).json({ message: "Failed to update quiz" });
+    }
+  });
+
+  app.delete('/api/admin/quizzes/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (user?.role !== 'administrator') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      await storage.deleteQuiz(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting quiz:", error);
+      res.status(500).json({ message: "Failed to delete quiz" });
     }
   });
 
