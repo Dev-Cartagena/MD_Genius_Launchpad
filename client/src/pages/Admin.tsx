@@ -21,6 +21,7 @@ import type { User, Application, Project, Cohort } from "@shared/schema";
 
 // Admin Components
 import AdminRoadmapManager from "@/components/Admin/AdminRoadmapManager";
+import AdminCurriculumManager from "@/components/Admin/AdminCurriculumManager";
 import AdminInvestorManager from "@/components/Admin/AdminInvestorManager";
 import {
   Users,
@@ -438,11 +439,12 @@ export default function Admin() {
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
             <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohorts</TabsTrigger>
             <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
+            <TabsTrigger value="curriculum" data-testid="tab-curriculum">Curriculum</TabsTrigger>
             <TabsTrigger value="mentors" data-testid="tab-mentors">Mentors</TabsTrigger>
             <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
@@ -928,6 +930,20 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <AdminRoadmapManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="curriculum" className="space-y-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Curriculum Management</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Manage educational modules, lessons, and assessments for your accelerator program
+                </p>
+              </CardHeader>
+              <CardContent>
+                <AdminCurriculumManager />
               </CardContent>
             </Card>
           </TabsContent>
