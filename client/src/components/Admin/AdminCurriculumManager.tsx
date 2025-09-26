@@ -678,7 +678,7 @@ export default function AdminCurriculumManager() {
                     Create Module
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Module</DialogTitle>
                   </DialogHeader>
@@ -974,7 +974,7 @@ export default function AdminCurriculumManager() {
                     Create Lesson
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Lesson</DialogTitle>
                   </DialogHeader>
@@ -1317,7 +1317,7 @@ export default function AdminCurriculumManager() {
                     Create Quiz
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl">
+                <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Quiz</DialogTitle>
                   </DialogHeader>
@@ -1494,7 +1494,7 @@ export default function AdminCurriculumManager() {
       {/* Edit Module Dialog */}
       {editingModule && (
         <Dialog open={!!editingModule} onOpenChange={() => setEditingModule(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Module</DialogTitle>
             </DialogHeader>
@@ -1626,7 +1626,7 @@ export default function AdminCurriculumManager() {
       {/* Edit Lesson Dialog */}
       {editingLesson && (
         <Dialog open={!!editingLesson} onOpenChange={() => setEditingLesson(null)}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Lesson</DialogTitle>
             </DialogHeader>
@@ -1846,7 +1846,7 @@ export default function AdminCurriculumManager() {
       {/* Edit Quiz Dialog */}
       {editingQuiz && (
         <Dialog open={!!editingQuiz} onOpenChange={() => setEditingQuiz(null)}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Quiz</DialogTitle>
             </DialogHeader>
