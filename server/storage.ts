@@ -59,6 +59,7 @@ import {
   type InsertAssignedRoadmap,
   type MentorProfile,
   type InsertMentorProfile,
+  type MentorWithProfile,
   type MentorSession,
   type InsertMentorSession,
   type Investor,
@@ -144,7 +145,7 @@ export interface IStorage {
   createArtifact(artifact: InsertArtifact): Promise<Artifact>;
   
   // Mentor operations
-  getMentors(): Promise<User[]>;
+  getMentors(): Promise<MentorWithProfile[]>;
   getMentorProfile(userId: string): Promise<MentorProfile | undefined>;
   getMentorProfileById(id: string): Promise<MentorProfile | undefined>;
   createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
@@ -857,10 +858,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Mentor operations
-  async getMentors(): Promise<User[]> {
+  async getMentors(): Promise<MentorWithProfile[]> {
     return await db
-      .select()
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        role: users.role,
+        bio: users.bio,
+        mentorProfile: {
+          id: mentorProfiles.id,
+          expertise: mentorProfiles.expertise,
+          availability: mentorProfiles.availability,
+          bio: mentorProfiles.bio,
+          industries: mentorProfiles.industries,
+          isActive: mentorProfiles.isActive,
+        }
+      })
       .from(users)
+      .leftJoin(mentorProfiles, eq(users.id, mentorProfiles.userId))
       .where(eq(users.role, "mentor"))
       .orderBy(asc(users.firstName));
   }

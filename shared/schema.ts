@@ -794,6 +794,25 @@ export const adminUpdateMentorProfileSchema = insertMentorProfileSchema.partial(
   userId: true,
 });
 
+// Mentor with profile DTO for frontend use - matches actual storage return shape
+export type MentorWithProfile = {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+  role: "public_visitor" | "applicant" | "participant" | "mentor" | "investor" | "administrator";
+  bio: string | null;
+  mentorProfile: {
+    id: string;
+    expertise: string[] | null;
+    availability: any;
+    bio: string | null;
+    industries: string[] | null;
+    isActive: boolean | null;
+  } | null;
+};
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;

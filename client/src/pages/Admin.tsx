@@ -17,7 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import type { User, Application, Project, Cohort } from "@shared/schema";
+import type { User, Application, Project, Cohort, MentorWithProfile } from "@shared/schema";
 
 // Admin Components
 import AdminRoadmapManager from "@/components/Admin/AdminRoadmapManager";
@@ -78,6 +78,17 @@ const inviteUserSchema = z.object({
 type EditUserFormData = z.infer<typeof editUserSchema>;
 type InviteUserFormData = z.infer<typeof inviteUserSchema>;
 
+// Mentor management schemas
+const editMentorProfileSchema = z.object({
+  expertise: z.array(z.string()).optional(),
+  bio: z.string().optional(),
+  industries: z.array(z.string()).optional(),
+  availability: z.any().optional(),
+  isActive: z.boolean().optional(),
+});
+
+type EditMentorProfileFormData = z.infer<typeof editMentorProfileSchema>;
+
 // Admin-specific types for processed data
 interface ProcessedApplication {
   id: string;
@@ -124,6 +135,10 @@ export default function Admin() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
   
+  // Mentor management state
+  const [viewingMentor, setViewingMentor] = useState<MentorWithProfile | null>(null);
+  const [editingMentor, setEditingMentor] = useState<MentorWithProfile | null>(null);
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -162,7 +177,7 @@ export default function Admin() {
     queryKey: ["/api/admin/projects"],
   });
 
-  const { data: mentors = [], isLoading: mentorsLoading } = useQuery<any[]>({
+  const { data: mentors = [], isLoading: mentorsLoading } = useQuery<MentorWithProfile[]>({
     queryKey: ["/api/mentors"],
   });
 
@@ -285,6 +300,18 @@ export default function Admin() {
     },
   });
 
+  // Mentor profile form
+  const editMentorForm = useForm<EditMentorProfileFormData>({
+    resolver: zodResolver(editMentorProfileSchema),
+    defaultValues: {
+      expertise: [],
+      bio: "",
+      industries: [],
+      availability: {},
+      isActive: true,
+    },
+  });
+
   // Create cohort mutation
   const createCohort = useMutation({
     mutationFn: async (data: CohortFormData) => {
@@ -355,6 +382,42 @@ export default function Admin() {
     }
   });
 
+  // Update mentor profile mutation
+  const updateMentorProfile = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: EditMentorProfileFormData }) => {
+      const response = await apiRequest("PATCH", `/api/admin/mentors/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mentor Profile Updated!",
+        description: "Mentor profile has been updated successfully.",
+      });
+      // Invalidate mentor queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
+      setEditingMentor(null);
+      editMentorForm.reset();
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update mentor profile. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Handler for opening edit dialog
   const handleEditCohort = (cohort: Cohort) => {
     setEditingCohort(cohort);
@@ -369,6 +432,28 @@ export default function Admin() {
       endDate,
       capacity: cohort.capacity,
     });
+  };
+
+  // Mentor management handlers
+  const handleViewMentor = (mentor: MentorWithProfile) => {
+    setViewingMentor(mentor);
+  };
+
+  const handleEditMentor = (mentor: MentorWithProfile) => {
+    setEditingMentor(mentor);
+    // Reset form with mentor profile data
+    editMentorForm.reset({
+      expertise: mentor.mentorProfile?.expertise || [],
+      bio: mentor.mentorProfile?.bio || "",
+      industries: mentor.mentorProfile?.industries || [],
+      availability: mentor.mentorProfile?.availability || {},
+      isActive: mentor.mentorProfile?.isActive ?? true,
+    });
+  };
+
+  const handleEditMentorSubmit = (data: EditMentorProfileFormData) => {
+    if (!editingMentor?.mentorProfile) return;
+    updateMentorProfile.mutate({ id: editingMentor.mentorProfile.id, data });
   };
 
   // Update application status mutation
@@ -1037,6 +1122,177 @@ export default function Admin() {
     );
   };
 
+  // View Mentor Dialog Component
+  const ViewMentorDialog = () => {
+    if (!viewingMentor) return null;
+
+    const fullName = `${viewingMentor.firstName || ''} ${viewingMentor.lastName || ''}`.trim() || 'Unnamed Mentor';
+
+    return (
+      <Dialog open={!!viewingMentor} onOpenChange={() => setViewingMentor(null)}>
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Mentor Profile - {fullName}</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              View mentor information and profile details
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Name</label>
+                <p className="text-sm" data-testid="mentor-name">{fullName}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                <p className="text-sm" data-testid="mentor-email">{viewingMentor.email}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Role</label>
+                <p className="text-sm" data-testid="mentor-role">{viewingMentor.role}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Status</label>
+                <p className="text-sm" data-testid="mentor-status">
+                  {viewingMentor.mentorProfile?.isActive ? 'Active' : 'Inactive'}
+                </p>
+              </div>
+            </div>
+
+            {/* Mentor Profile Details */}
+            {viewingMentor.mentorProfile && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Bio</label>
+                  <p className="text-sm" data-testid="mentor-bio">
+                    {viewingMentor.mentorProfile.bio || 'No bio provided'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Expertise</label>
+                  <p className="text-sm" data-testid="mentor-expertise">
+                    {viewingMentor.mentorProfile.expertise?.join(', ') || 'No expertise listed'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Industries</label>
+                  <p className="text-sm" data-testid="mentor-industries">
+                    {viewingMentor.mentorProfile.industries?.join(', ') || 'No industries listed'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setViewingMentor(null)}
+              data-testid="button-close-view-mentor"
+            >
+              Close
+            </Button>
+            <Button 
+              onClick={() => {
+                setViewingMentor(null);
+                handleEditMentor(viewingMentor);
+              }}
+              data-testid="button-edit-mentor-from-view"
+            >
+              Edit Profile
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Edit Mentor Profile Dialog Component
+  const EditMentorDialog = () => {
+    if (!editingMentor) return null;
+
+    const fullName = `${editingMentor.firstName || ''} ${editingMentor.lastName || ''}`.trim() || 'Unnamed Mentor';
+
+    return (
+      <Dialog open={!!editingMentor} onOpenChange={() => setEditingMentor(null)}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Mentor Profile - {fullName}</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              Update mentor profile information
+            </div>
+          </DialogHeader>
+          
+          <Form {...editMentorForm}>
+            <form onSubmit={editMentorForm.handleSubmit(handleEditMentorSubmit)} className="space-y-4">
+              <FormField
+                control={editMentorForm.control}
+                name="bio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bio</FormLabel>
+                    <FormControl>
+                      <textarea 
+                        className="w-full p-2 border rounded-md min-h-[100px]"
+                        placeholder="Enter mentor bio" 
+                        {...field}
+                        data-testid="input-edit-mentor-bio"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editMentorForm.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Active Status</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Enable or disable this mentor profile
+                      </p>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        data-testid="input-edit-mentor-active"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditingMentor(null)}
+                  data-testid="button-cancel-edit-mentor"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateMentorProfile.isPending}
+                  data-testid="button-submit-edit-mentor"
+                >
+                  {updateMentorProfile.isPending ? "Updating..." : "Update Profile"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   return (
     <AppLayout 
       title="Admin Panel" 
@@ -1631,6 +1887,7 @@ export default function Admin() {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  onClick={() => handleViewMentor(mentor)}
                                   data-testid={`button-view-mentor-${mentor.id}`}
                                 >
                                   <Eye className="w-4 h-4" />
@@ -1638,12 +1895,7 @@ export default function Admin() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => {
-                                    toast({
-                                      title: "Feature Coming Soon",
-                                      description: "Admin mentor editing will be available in the next update.",
-                                    });
-                                  }}
+                                  onClick={() => handleEditMentor(mentor)}
                                   data-testid={`button-edit-mentor-${mentor.id}`}
                                 >
                                   <Edit className="w-4 h-4" />
@@ -1908,6 +2160,10 @@ export default function Admin() {
       {/* User Management Dialogs */}
       <EditUserDialog />
       <InviteUserDialog />
+
+      {/* Mentor Management Dialogs */}
+      <ViewMentorDialog />
+      <EditMentorDialog />
 
       {/* Cohort Edit Dialog */}
       <Dialog open={!!editingCohort} onOpenChange={() => setEditingCohort(null)}>
