@@ -146,8 +146,10 @@ export interface IStorage {
   // Mentor operations
   getMentors(): Promise<User[]>;
   getMentorProfile(userId: string): Promise<MentorProfile | undefined>;
+  getMentorProfileById(id: string): Promise<MentorProfile | undefined>;
   createMentorProfile(profile: InsertMentorProfile): Promise<MentorProfile>;
   updateMentorProfile(userId: string, data: Partial<MentorProfile>): Promise<MentorProfile>;
+  updateMentorProfileById(id: string, data: Partial<MentorProfile>): Promise<MentorProfile>;
   getMentorSessions(mentorId: string): Promise<MentorSession[]>;
   getParticipantSessions(participantId: string): Promise<MentorSession[]>;
   createMentorSession(session: InsertMentorSession): Promise<MentorSession>;
@@ -898,6 +900,37 @@ export class DatabaseStorage implements IStorage {
       .update(mentorProfiles)
       .set(updateData)
       .where(eq(mentorProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getMentorProfileById(id: string): Promise<MentorProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(mentorProfiles)
+      .where(eq(mentorProfiles.id, id));
+    return profile;
+  }
+
+  async updateMentorProfileById(id: string, data: Partial<MentorProfile>): Promise<MentorProfile> {
+    // Whitelist allowed fields to prevent mass assignment security issues
+    const allowedFields = {
+      expertise: data.expertise,
+      availability: data.availability,
+      bio: data.bio,
+      industries: data.industries,
+      isActive: data.isActive,
+    };
+    
+    // Remove undefined values
+    const updateData = Object.fromEntries(
+      Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
+    );
+    
+    const [updated] = await db
+      .update(mentorProfiles)
+      .set(updateData)
+      .where(eq(mentorProfiles.id, id))
       .returning();
     return updated;
   }

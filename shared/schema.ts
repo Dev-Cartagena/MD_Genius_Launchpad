@@ -785,6 +785,15 @@ export const insertInvestorCohortParticipationSchema = createInsertSchema(invest
   assignedAt: true,
 });
 
+// Update schemas
+export const updateMentorProfileSchema = insertMentorProfileSchema.partial().omit({
+  userId: true,
+});
+
+export const adminUpdateMentorProfileSchema = insertMentorProfileSchema.partial().omit({
+  userId: true,
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
