@@ -272,6 +272,19 @@ export default function Admin() {
     },
   });
 
+  // Edit cohort state and form
+  const [editingCohort, setEditingCohort] = useState<Cohort | null>(null);
+  const editCohortForm = useForm<CohortFormData>({
+    resolver: zodResolver(cohortSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      startDate: "",
+      endDate: "",
+      capacity: 15,
+    },
+  });
+
   // Create cohort mutation
   const createCohort = useMutation({
     mutationFn: async (data: CohortFormData) => {
@@ -305,6 +318,58 @@ export default function Admin() {
       });
     }
   });
+
+  // Update cohort mutation
+  const updateCohort = useMutation({
+    mutationFn: async (data: CohortFormData) => {
+      if (!editingCohort) throw new Error("No cohort being edited");
+      const response = await apiRequest("PATCH", `/api/admin/cohorts/${editingCohort.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cohort Updated!",
+        description: "Cohort has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
+      setEditingCohort(null);
+      editCohortForm.reset();
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update cohort. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Handler for opening edit dialog
+  const handleEditCohort = (cohort: Cohort) => {
+    setEditingCohort(cohort);
+    // Format dates to string format expected by the form
+    const startDate = new Date(cohort.startDate).toISOString().split('T')[0];
+    const endDate = new Date(cohort.endDate).toISOString().split('T')[0];
+    
+    editCohortForm.reset({
+      name: cohort.name,
+      description: cohort.description || "",
+      startDate,
+      endDate,
+      capacity: cohort.capacity,
+    });
+  };
 
   // Update application status mutation
   const updateApplicationStatus = useMutation({
@@ -1433,12 +1498,7 @@ export default function Admin() {
                             <Button 
                               size="sm" 
                               variant="outline"
-                              onClick={() => {
-                                toast({
-                                  title: "Feature Coming Soon",
-                                  description: "Cohort editing functionality will be available in the next update.",
-                                });
-                              }}
+                              onClick={() => handleEditCohort(cohort)}
                               data-testid={`button-edit-cohort-${cohort.id}`}
                             >
                               <Edit className="w-3 h-3 mr-1" />
@@ -1848,6 +1908,130 @@ export default function Admin() {
       {/* User Management Dialogs */}
       <EditUserDialog />
       <InviteUserDialog />
+
+      {/* Cohort Edit Dialog */}
+      <Dialog open={!!editingCohort} onOpenChange={() => setEditingCohort(null)}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Cohort</DialogTitle>
+          </DialogHeader>
+          <Form {...editCohortForm}>
+            <form onSubmit={editCohortForm.handleSubmit((data) => updateCohort.mutate(data))} className="space-y-4">
+              <FormField
+                control={editCohortForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cohort Name</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="e.g., 2025 Q1 Cohort"
+                        data-testid="input-edit-cohort-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editCohortForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field}
+                        placeholder="Describe the cohort focus and goals..."
+                        data-testid="textarea-edit-cohort-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editCohortForm.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="date"
+                          data-testid="input-edit-cohort-start-date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editCohortForm.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          type="date"
+                          data-testid="input-edit-cohort-end-date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={editCohortForm.control}
+                name="capacity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Capacity</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        min="1"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        data-testid="input-edit-cohort-capacity"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditingCohort(null)}
+                  data-testid="button-cancel-edit-cohort"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateCohort.isPending}
+                  data-testid="button-submit-edit-cohort"
+                >
+                  {updateCohort.isPending ? "Updating..." : "Update Cohort"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

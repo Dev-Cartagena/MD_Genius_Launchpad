@@ -58,9 +58,7 @@ function Router() {
           <Route path="/investors" component={Investors} />
           <Route path="/terms" component={Terms} />
           <Route path="/privacy" component={Privacy} />
-          {user?.role === 'administrator' && (
-            <Route path="/admin" component={Admin} />
-          )}
+          <Route path="/admin" component={Admin} />
         </>
       )}
       <Route component={NotFound} />
