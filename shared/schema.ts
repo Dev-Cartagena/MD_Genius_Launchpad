@@ -717,6 +717,24 @@ export const insertUserProgressSchema = createInsertSchema(userProgress).omit({
 export const insertCohortSchema = createInsertSchema(cohorts).omit({
   id: true,
   createdAt: true,
+}).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+});
+
+export const adminUpdateCohortSchema = createInsertSchema(cohorts).pick({
+  name: true,
+  description: true,
+  startDate: true,
+  endDate: true,
+  capacity: true,
+  tracks: true,
+  calendarId: true,
+  isActive: true,
+}).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  capacity: z.number().int().min(1, "Capacity must be at least 1"),
 });
 
 export const insertArtifactSchema = createInsertSchema(artifacts).omit({

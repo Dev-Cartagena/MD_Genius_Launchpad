@@ -107,6 +107,7 @@ export interface IStorage {
   getActiveCohorts(): Promise<Cohort[]>;
   getCohort(id: string): Promise<Cohort | undefined>;
   createCohort(cohort: InsertCohort): Promise<Cohort>;
+  updateCohort(id: string, data: Partial<Cohort>): Promise<Cohort>;
   
   // Curriculum operations
   getModule(id: string): Promise<Module | undefined>;
@@ -485,6 +486,20 @@ export class DatabaseStorage implements IStorage {
       .values(cohort)
       .returning();
     return newCohort;
+  }
+
+  async updateCohort(id: string, data: Partial<Cohort>): Promise<Cohort> {
+    const [updatedCohort] = await db
+      .update(cohorts)
+      .set(data)
+      .where(eq(cohorts.id, id))
+      .returning();
+    
+    if (!updatedCohort) {
+      throw new Error(`Cohort with id ${id} not found`);
+    }
+    
+    return updatedCohort;
   }
 
   // Curriculum operations

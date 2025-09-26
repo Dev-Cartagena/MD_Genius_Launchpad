@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertModuleSchema, insertLessonSchema, insertQuizSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema, insertUserSchema, upsertUserSchema, adminUpdateUserSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertModuleSchema, insertLessonSchema, insertQuizSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema, insertUserSchema, upsertUserSchema, adminUpdateUserSchema, adminUpdateCohortSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -1340,6 +1340,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating cohort:", error);
       res.status(400).json({ message: "Failed to create cohort" });
+    }
+  });
+
+  app.patch('/api/admin/cohorts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check admin permissions
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'administrator') {
+        return res.status(403).json({ message: "Administrator access required" });
+      }
+      
+      const { id } = req.params;
+      
+      // Validate update data using restricted schema
+      const updateData = adminUpdateCohortSchema.partial().parse(req.body);
+      
+      // Update cohort (throws error if cohort doesn't exist)
+      const updatedCohort = await storage.updateCohort(id, updateData);
+      res.json(updatedCohort);
+    } catch (error) {
+      console.error("Error updating cohort:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.errors[0].message });
+      }
+      if (error instanceof Error && error.message.includes('not found')) {
+        return res.status(404).json({ message: "Cohort not found" });
+      }
+      res.status(500).json({ message: "Failed to update cohort" });
     }
   });
 
