@@ -447,7 +447,10 @@ export default function AdminRoadmapManager() {
                 </p>
               </div>
               
-              <Dialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen}>
+              <Dialog open={isCreateItemOpen || !!editingItem} onOpenChange={(open) => {
+                setIsCreateItemOpen(open);
+                if (!open) setEditingItem(null);
+              }}>
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-item">
                     <Plus className="w-4 h-4 mr-2" />
