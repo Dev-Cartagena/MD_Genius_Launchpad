@@ -77,6 +77,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   
   // Email/Password authentication operations
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -248,6 +249,25 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    // First check if user exists
+    const existingUser = await this.getUser(id);
+    if (!existingUser) {
+      return undefined;
+    }
+
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    
+    return updatedUser;
   }
 
   async getAllUsers(): Promise<User[]> {

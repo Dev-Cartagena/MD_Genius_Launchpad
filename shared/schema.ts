@@ -649,6 +649,22 @@ export const upsertUserSchema = createInsertSchema(users).pick({
   role: true,
 });
 
+export const adminUpdateUserSchema = createInsertSchema(users).pick({
+  email: true,
+  firstName: true,
+  lastName: true,
+  profileImageUrl: true,
+  role: true,
+  bio: true,
+  skills: true,
+  interests: true,
+  industryFocus: true,
+  timezone: true,
+  locale: true,
+  profileVisibility: true,
+  isActive: true,
+});
+
 export const insertApplicationSchema = createInsertSchema(applications).omit({
   id: true,
   createdAt: true,

@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { aiCoachService } from "./aiCoach";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertModuleSchema, insertLessonSchema, insertQuizSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema, insertUserSchema, upsertUserSchema } from "@shared/schema";
+import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertModuleSchema, insertLessonSchema, insertQuizSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema, insertUserSchema, upsertUserSchema, adminUpdateUserSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -1248,12 +1248,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { id } = req.params;
-      const updateData = upsertUserSchema.partial().parse({
-        id,
-        ...req.body
-      });
       
-      const updatedUser = await storage.upsertUser(updateData);
+      // Validate update data using restricted schema (ignores any id in body)
+      const updateData = adminUpdateUserSchema.partial().parse(req.body);
+      
+      // Check if email is being changed and if it's already taken
+      if (updateData.email) {
+        const existingUser = await storage.getUserByEmail(updateData.email);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(400).json({ message: "Email address is already in use" });
+        }
+      }
+      
+      // Update user (returns undefined if user doesn't exist)
+      const updatedUser = await storage.updateUser(id, updateData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
       res.json(updatedUser);
     } catch (error) {
       console.error("Error updating user:", error);

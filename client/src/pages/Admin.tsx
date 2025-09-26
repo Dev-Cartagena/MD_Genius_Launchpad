@@ -58,6 +58,26 @@ const cohortSchema = z.object({
 
 type CohortFormData = z.infer<typeof cohortSchema>;
 
+// User management schemas
+const userRoles = ["public_visitor", "applicant", "participant", "mentor", "investor", "administrator"] as const;
+
+const editUserSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().email("Please enter a valid email address"),
+  role: z.enum(userRoles, { required_error: "Please select a role" }),
+});
+
+const inviteUserSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  email: z.string().email("Please enter a valid email address"),
+  role: z.enum(userRoles, { required_error: "Please select a role" }),
+});
+
+type EditUserFormData = z.infer<typeof editUserSchema>;
+type InviteUserFormData = z.infer<typeof inviteUserSchema>;
+
 // Admin-specific types for processed data
 interface ProcessedApplication {
   id: string;
@@ -99,6 +119,11 @@ export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState("all");
   const [viewingApplication, setViewingApplication] = useState<ProcessedApplication | null>(null);
+  
+  // User management state
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -312,6 +337,79 @@ export default function Admin() {
       toast({
         title: "Error",
         description: "Failed to update application. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // User management mutations
+  const updateUser = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: EditUserFormData }) => {
+      const response = await apiRequest("PATCH", `/api/admin/users/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "User Updated!",
+        description: "User information has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setEditingUser(null);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update user. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const inviteUser = useMutation({
+    mutationFn: async (data: InviteUserFormData) => {
+      const response = await apiRequest("POST", "/api/admin/users/invite", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "User Invited!",
+        description: "New user invitation has been sent successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsInviteUserOpen(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      
+      // Handle specific error message from backend
+      const errorMessage = error?.message?.includes("already exists") 
+        ? "A user with this email address already exists."
+        : "Failed to invite user. Please try again.";
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -575,12 +673,300 @@ export default function Admin() {
 
           <div className="flex justify-end">
             <Button 
+              variant="outline" 
               onClick={() => setViewingApplication(null)}
-              data-testid="button-close-view-application"
+              data-testid="button-close-application-view"
             >
               Close
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // User management form handling
+  const editUserForm = useForm<EditUserFormData>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "public_visitor",
+    },
+  });
+
+  const inviteUserForm = useForm<InviteUserFormData>({
+    resolver: zodResolver(inviteUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "public_visitor",
+    },
+  });
+
+  // Reset and populate edit form when editing user changes
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    editUserForm.reset({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      email: user.email || "",
+      role: user.role,
+    });
+  };
+
+  const handleEditUserSubmit = (data: EditUserFormData) => {
+    if (!editingUser) return;
+    updateUser.mutate({ id: editingUser.id, data });
+  };
+
+  const handleInviteUserSubmit = (data: InviteUserFormData) => {
+    inviteUser.mutate(data, {
+      onSuccess: () => {
+        inviteUserForm.reset();
+      }
+    });
+  };
+
+  // Edit User Dialog Component
+  const EditUserDialog = () => {
+    if (!editingUser) return null;
+
+    return (
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              Update user information and role
+            </div>
+          </DialogHeader>
+          
+          <Form {...editUserForm}>
+            <form onSubmit={editUserForm.handleSubmit(handleEditUserSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editUserForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter first name" 
+                          {...field}
+                          data-testid="input-edit-user-first-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editUserForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter last name" 
+                          {...field}
+                          data-testid="input-edit-user-last-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email"
+                        placeholder="Enter email address" 
+                        {...field}
+                        data-testid="input-edit-user-email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-edit-user-role">
+                          <SelectValue placeholder="Select user role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {userRoles.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditingUser(null)}
+                  data-testid="button-cancel-edit-user"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateUser.isPending}
+                  data-testid="button-submit-edit-user"
+                >
+                  {updateUser.isPending ? "Updating..." : "Update User"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Invite User Dialog Component  
+  const InviteUserDialog = () => {
+    return (
+      <Dialog open={isInviteUserOpen} onOpenChange={setIsInviteUserOpen}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invite New User</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              Send an invitation to join the platform
+            </div>
+          </DialogHeader>
+          
+          <Form {...inviteUserForm}>
+            <form onSubmit={inviteUserForm.handleSubmit(handleInviteUserSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={inviteUserForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter first name" 
+                          {...field}
+                          data-testid="input-invite-user-first-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={inviteUserForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter last name" 
+                          {...field}
+                          data-testid="input-invite-user-last-name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={inviteUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email"
+                        placeholder="Enter email address" 
+                        {...field}
+                        data-testid="input-invite-user-email"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={inviteUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-invite-user-role">
+                          <SelectValue placeholder="Select user role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {userRoles.map((role) => (
+                          <SelectItem key={role} value={role}>
+                            {role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsInviteUserOpen(false)}
+                  data-testid="button-cancel-invite-user"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={inviteUser.isPending}
+                  data-testid="button-submit-invite-user"
+                >
+                  {inviteUser.isPending ? "Inviting..." : "Send Invitation"}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     );
@@ -1301,7 +1687,10 @@ export default function Admin() {
                     className="max-w-sm"
                     data-testid="input-search-users"
                   />
-                  <Button data-testid="button-invite-user">
+                  <Button 
+                    onClick={() => setIsInviteUserOpen(true)}
+                    data-testid="button-invite-user"
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Invite User
                   </Button>
@@ -1352,12 +1741,7 @@ export default function Admin() {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  onClick={() => {
-                                    toast({
-                                      title: "Feature Coming Soon",
-                                      description: "User editing functionality will be available in the next update.",
-                                    });
-                                  }}
+                                  onClick={() => handleEditUser(user)}
                                   data-testid={`button-edit-user-${user.id}`}
                                 >
                                   <Edit className="w-3 h-3 mr-1" />
@@ -1460,6 +1844,10 @@ export default function Admin() {
       {viewingApplication && (
         <ApplicationViewDialog application={viewingApplication} />
       )}
+
+      {/* User Management Dialogs */}
+      <EditUserDialog />
+      <InviteUserDialog />
     </AppLayout>
   );
 }
