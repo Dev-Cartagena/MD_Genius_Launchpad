@@ -131,16 +131,35 @@ Readiness Scoring: AI-driven project assessment (0-100 scale)
 Public/Private Visibility: Controlled project sharing
 Milestone Integration: Progress tracking with roadmap system
 👨‍🏫 Comprehensive Mentor Management
+Administrative Mentor Management (IN DEVELOPMENT - December 2025)
+Admin Interface Development: Building dedicated mentor management in admin panel with View and Edit capabilities for mentor profiles
+Profile Management Planning: Designing CRUD operations for mentor bio, expertise areas, industry verticals, and active status control
+Type-Safe Foundation: Establishing TypeScript integration with MentorWithProfile DTO for frontend/backend type consistency
+Update Strategy Design: Planning immediate UI refresh after profile modifications with cache invalidation using TanStack Query v5
+Dialog System Development: Creating ViewMentorDialog and EditMentorDialog components with proper state management and validation
+Security Framework: Implementing admin-only access with authentication checks and role-based authorization for mentor profile modifications
+
 Mentor Profiles & Expertise
 12 Expertise Areas: AI/ML, Product Strategy, Engineering, Data Science, Business Development, Marketing, Fundraising, Legal, UX/UI, Operations, Sales, Leadership
 12 Industry Verticals: Healthcare, Fintech, EdTech, E-commerce, SaaS, Cybersecurity, Climate Tech, Web3, Robotics, IoT, Gaming, Media
-Professional Profiles: Bio, availability preferences, active status
+Professional Profiles: Bio management, availability preferences, active status control with admin oversight
+Administrative Tools: Complete mentor profile editing, bio updates, status management, and profile visibility controls
+
 Advanced Session Booking
 7-Day Availability Windows: Rolling weekly schedule management
 Time Slot Management: Morning (10:00 AM) and afternoon (2:00 PM) slots
 Session Duration Options: 30, 60, 90, 120 minutes
 Session Lifecycle: Title, agenda, timing, notes, attendance tracking
 Meeting Integration: Video conferencing links and calendar integration
+
+Technical Implementation (IN DEVELOPMENT)
+Backend Architecture: Developing enhanced getMentors() storage function with left join of mentor_profiles and users tables for complete data access
+API Design: Planning PATCH /api/admin/mentors/:id route with adminUpdateMentorProfileSchema validation and comprehensive error handling
+Frontend Integration: Designing React Hook Form with Zod validation, proper TypeScript typing, and optimized cache management
+Database Design: Establishing proper foreign key relationships between users and mentor_profiles tables ensuring data integrity
+Cache Strategy: Planning efficient TanStack Query invalidation patterns for real-time UI updates
+Error Handling: Designing error handling with toast notifications, authentication redirects, and comprehensive validation
+Type Safety: Building TypeScript implementation with MentorWithProfile DTO to eliminate unsafe type casts and ensure compile-time safety
 💼 Advanced Investor Management
 Investor Profiles & Preferences
 Investment Focus: Sector preferences (13 sectors including AI/ML), stage focus, geographic coverage

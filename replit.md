@@ -35,7 +35,7 @@ The MD Genius AI Startup Launchpad is a full-stack web application for managing 
 - **Roadmap System**: Template-based (57 structured items), auto-completion, project assignment, admin management.
 - **AI Coach**: GPT-5 powered guidance (Process, Ideation, Technical, Go-to-Market, Pitch modes).
 - **Project Management**: 5-stage lifecycle, team management, artifact storage, readiness scoring.
-- **Mentor Management**: Detailed profiles (expertise, industry), advanced session booking (7-day windows, morning/afternoon slots), session lifecycle.
+- **Mentor Management**: Administrative mentor profile management in development, detailed profiles (expertise, industry), bio management, active status control, advanced session booking (7-day windows, morning/afternoon slots), session lifecycle.
 - **Investor Management**: Comprehensive organization profiles, investment focus, advanced session scheduling (timezone-aware, duration options).
 - **Communication**: Message threading, multi-channel notifications, announcements.
 - **Analytics**: Rubric-based scoring, performance metrics, AI-driven readiness scoring.
@@ -84,6 +84,23 @@ The MD Genius AI Startup Launchpad is a full-stack web application for managing 
 - **Comprehensive CRUD Operations**: All create, read, update, delete, and duplicate operations work seamlessly with real-time UI updates
 - **Professional User Experience**: Enhanced forms with proper validation, loading states, success messaging, and comprehensive error handling
 - **Data Synchronization**: Perfect synchronization between all tabs and views ensuring administrators see changes instantly across the interface
+
+### Mentor Management System Implementation (In Progress - December 2025)
+- **Backend Foundation**: Enhanced storage functions and type definitions for mentor profile management
+- **DTO Architecture**: Implemented `MentorWithProfile` type for proper frontend/backend type alignment
+- **Admin Interface Development**: Working on comprehensive mentor profile management in the admin panel
+- **Dialog System**: Developing View and Edit dialogs for mentor profile management
+- **Cache Strategy Planning**: Designing TanStack Query v5 integration with efficient cache invalidation
+- **Security Framework**: Planning admin-only access with proper authentication and authorization checks
+- **Type Safety Foundation**: Establishing proper TypeScript types and eliminating unsafe casts
+
+#### Technical Progress
+- **Backend Work**: Storage functions and schema updates for mentor data access
+- **Type Definitions**: MentorWithProfile DTO and related schema work
+- **Frontend Planning**: Dialog components and form integration design
+- **API Design**: Route planning for mentor profile updates
+- **Cache Strategy**: TanStack Query integration patterns
+- **Validation Framework**: Zod schema planning for mentor profile forms
 
 ## External Dependencies
 
