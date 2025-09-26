@@ -98,6 +98,7 @@ interface ApplicationStatusDialogProps {
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState("all");
+  const [viewingApplication, setViewingApplication] = useState<ProcessedApplication | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -432,6 +433,159 @@ export default function Admin() {
     );
   };
 
+  // CSV Export utility function
+  const exportApplicationsCSV = () => {
+    try {
+      const csvData = filteredApplications.map((app: ProcessedApplication) => ({
+        "Applicant Name": app.applicant,
+        "Project Name": app.project,
+        "Status": app.status.replace('_', ' '),
+        "Score": `${app.score}%`,
+        "Email": app.email || '',
+        "Submitted Days Ago": app.submittedDays,
+        "Description": (app.description || '').replace(/[",\n\r]/g, ' '), // Clean for CSV
+        "Reviewer Notes": (app.reviewerNotes || []).join('; ').replace(/[",\n\r]/g, ' ')
+      }));
+
+      const headers = Object.keys(csvData[0] || {});
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => 
+          headers.map(header => 
+            `"${String(row[header as keyof typeof row] || '').replace(/"/g, '""')}"`
+          ).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `applications_${selectedApplicationStatus}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export Complete",
+        description: `Exported ${csvData.length} applications to CSV`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export applications. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Application View Dialog Component
+  const ApplicationViewDialog = ({ application }: { application: ProcessedApplication }) => {
+    if (!application) return null;
+
+    return (
+      <Dialog open={!!viewingApplication} onOpenChange={() => setViewingApplication(null)}>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Application Details</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              Application by {application.applicant}
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Applicant Name</label>
+                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-applicant-name">
+                  {application.applicant}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-email">
+                  {application.email || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Project Name</label>
+                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-project-name">
+                  {application.project}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Status</label>
+                <Badge 
+                  variant={
+                    application.status === 'interview' ? 'default' :
+                    application.status === 'shortlisted' ? 'secondary' :
+                    application.status === 'accepted' ? 'default' :
+                    'outline'
+                  }
+                  className="mt-1"
+                  data-testid="view-app-status"
+                >
+                  {application.status.replace('_', ' ')}
+                </Badge>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Score</label>
+                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-score">
+                  {application.score}%
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Submitted</label>
+                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-submitted">
+                  {application.submittedDays} days ago
+                </p>
+              </div>
+            </div>
+
+            {/* Project Description */}
+            {application.description && (
+              <div>
+                <label className="text-sm font-medium">Project Description</label>
+                <div className="mt-1 p-3 bg-muted rounded text-sm whitespace-pre-wrap" data-testid="view-app-description">
+                  {application.description}
+                </div>
+              </div>
+            )}
+
+            {/* Reviewer Notes */}
+            {application.reviewerNotes && application.reviewerNotes.length > 0 && (
+              <div>
+                <label className="text-sm font-medium">Reviewer Notes</label>
+                <div className="mt-1 space-y-2">
+                  {application.reviewerNotes.map((note: string, index: number) => (
+                    <div 
+                      key={index} 
+                      className="p-2 bg-muted rounded text-sm"
+                      data-testid={`view-app-note-${index}`}
+                    >
+                      {note}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <Button 
+              onClick={() => setViewingApplication(null)}
+              data-testid="button-close-view-application"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   return (
     <AppLayout 
       title="Admin Panel" 
@@ -718,6 +872,7 @@ export default function Admin() {
                             <Button 
                               size="sm" 
                               variant="outline"
+                              onClick={() => setViewingApplication(application)}
                               data-testid={`button-view-app-${application.id}`}
                             >
                               <Eye className="w-3 h-3 mr-1" />
@@ -1300,6 +1455,11 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Application View Dialog */}
+      {viewingApplication && (
+        <ApplicationViewDialog application={viewingApplication} />
+      )}
     </AppLayout>
   );
 }
