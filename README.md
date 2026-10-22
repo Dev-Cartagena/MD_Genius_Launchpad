@@ -12,7 +12,7 @@ curriculum, project roadmaps, mentor and investor sessions, and an AI Coach.
 | Database | Postgres: Supabase in production, Docker locally |
 | Files | Supabase Storage, private bucket `uploads`, signed URLs |
 | Email | Resend (optional; links are logged without a key) |
-| AI Coach | OpenAI (optional; the coach answers "not configured" without a key) |
+| AI Coach | Claude via the Anthropic API (optional; the coach answers "not configured" without a key) |
 | Hosting | Vercel: static client plus one serverless function for `/api/*` |
 
 ## Layout
