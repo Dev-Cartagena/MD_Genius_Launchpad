@@ -40,6 +40,16 @@ import {
   Play
 } from "lucide-react";
 
+// Only allow http(s) and mailto links from curriculum markdown
+function isSafeLinkUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.trim(), window.location.origin);
+    return ["http:", "https:", "mailto:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export default function CurriculumView() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -121,7 +131,7 @@ export default function CurriculumView() {
   });
 
   // Fetch roadmap for current project (participants only)
-  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap>({
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap | null>({
     queryKey: ['/api/projects', currentProject?.id, 'roadmap'],
     enabled: !!currentProject?.id && user?.role !== 'administrator',
   });
@@ -150,7 +160,7 @@ export default function CurriculumView() {
 
   // Mutation to update roadmap item status
   const updateRoadmapStatusMutation = useMutation({
-    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: 'pending' | 'in_progress' | 'completed' }) => {
+    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: 'not_started' | 'in_progress' | 'completed' }) => {
       return apiRequest('PATCH', `/api/roadmap/assignments/${assignmentId}/status`, { status });
     },
     onSuccess: () => {
@@ -207,8 +217,9 @@ export default function CurriculumView() {
   const handleRoadmapStatusUpdate = async (assignmentId: string, currentStatus: string) => {
     if (user?.role === 'administrator' || !assignmentId) return;
     
-    let newStatus: 'pending' | 'in_progress' | 'completed';
-    if (currentStatus === 'pending') {
+    // Server statuses: not_started | in_progress | completed | blocked | waived
+    let newStatus: 'not_started' | 'in_progress' | 'completed';
+    if (currentStatus === 'not_started' || currentStatus === 'blocked') {
       newStatus = 'in_progress';
     } else if (currentStatus === 'in_progress') {
       newStatus = 'completed';
@@ -692,8 +703,9 @@ export default function CurriculumView() {
                                                         </em>
                                                       );
                                                     } else if (match[5]) {
-                                                      // Link [text](url)
+                                                      // Link [text](url) - only safe schemes become links
                                                       elements.push(
+                                                        isSafeLinkUrl(match[7]) ? (
                                                         <a
                                                           key={`link-${match.index}`}
                                                           href={match[7]}
@@ -703,6 +715,9 @@ export default function CurriculumView() {
                                                         >
                                                           {match[6]}
                                                         </a>
+                                                        ) : (
+                                                          <span key={`link-${match.index}`}>{match[6]}</span>
+                                                        )
                                                       );
                                                     }
                                                     

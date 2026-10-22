@@ -111,7 +111,7 @@ export default function AdminRoadmapManager() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => window.location.href = "/api/login", 500);
+        setTimeout(() => window.location.href = "/login", 500);
         return;
       }
       toast({
@@ -143,7 +143,7 @@ export default function AdminRoadmapManager() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => window.location.href = "/api/login", 500);
+        setTimeout(() => window.location.href = "/login", 500);
         return;
       }
       toast({
@@ -175,7 +175,7 @@ export default function AdminRoadmapManager() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => window.location.href = "/api/login", 500);
+        setTimeout(() => window.location.href = "/login", 500);
         return;
       }
       toast({
@@ -205,7 +205,7 @@ export default function AdminRoadmapManager() {
           description: "You are logged out. Logging in again...",
           variant: "destructive",
         });
-        setTimeout(() => window.location.href = "/api/login", 500);
+        setTimeout(() => window.location.href = "/login", 500);
         return;
       }
       toast({

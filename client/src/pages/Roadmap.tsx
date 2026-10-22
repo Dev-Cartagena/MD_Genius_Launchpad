@@ -32,7 +32,7 @@ interface RoadmapItemWithAssignment {
   autoCompletionType: string;
   assignment?: {
     id: string;
-    status: 'pending' | 'in_progress' | 'completed';
+    status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'waived';
     dueDate?: string;
     autoCompleted?: boolean;
   };
@@ -86,7 +86,7 @@ export default function Roadmap() {
   const projectId = projects && projects.length > 0 ? projects[0].id : undefined;
 
   // Fetch roadmap for the project
-  const { data: roadmap, isLoading } = useQuery<ProjectRoadmap>({
+  const { data: roadmap, isLoading } = useQuery<ProjectRoadmap | null>({
     queryKey: ['/api/projects', projectId, 'roadmap'],
     enabled: !!projectId
   });
@@ -393,7 +393,7 @@ export default function Roadmap() {
                     >
                       <div className="flex items-center gap-2">
                         {getItemTypeIcon(item.type)}
-                        {getStatusIcon(item.assignment?.status || 'pending')}
+                        {getStatusIcon(item.assignment?.status || 'not_started')}
                       </div>
                       
                       <div className="flex-1">
@@ -436,8 +436,8 @@ export default function Roadmap() {
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        <Badge className={getStatusColor(item.assignment?.status || 'pending')}>
-                          {item.assignment?.status || 'pending'}
+                        <Badge className={getStatusColor(item.assignment?.status || 'not_started')}>
+                          {item.assignment?.status || 'not_started'}
                         </Badge>
                         
                         {/* Learning items: Show curriculum navigation */}

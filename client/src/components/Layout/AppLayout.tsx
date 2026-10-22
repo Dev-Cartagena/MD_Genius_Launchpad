@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "./Sidebar";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
@@ -24,8 +25,14 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
   const { user } = useAuth();
   const [notifications] = useState(3); // Mock notification count
 
-  const handleLogout = () => {
-    window.location.href = '/api/logout';
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+    queryClient.clear();
+    window.location.href = "/";
   };
 
   return (

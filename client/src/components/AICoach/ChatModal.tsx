@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { getApiErrorMessage } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant";
@@ -30,15 +31,18 @@ const chatModes = [
   { id: "pitch", label: "Pitch Coach", icon: Mic, description: "Investor preparation, storytelling" },
 ];
 
+const createWelcomeMessage = (): Message => ({
+  role: "assistant",
+  content: "Hi! I'm your AI Coach for the MD Genius Launchpad. I'm here to help you with your startup journey. What would you like to focus on today?",
+  timestamp: new Date(),
+  sources: []
+});
+
 export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Hi! I'm your AI Coach for the MD Genius Launchpad. I'm here to help you with your startup journey. What would you like to focus on today?",
-      timestamp: new Date(),
-      sources: []
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => [createWelcomeMessage()]);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
+  // Bumped when the chat is reset so late responses from a closed chat are ignored
+  const chatSessionRef = useRef(0);
   const [inputValue, setInputValue] = useState("");
   const [currentMode, setCurrentMode] = useState("process_guide");
   const [isTyping, setIsTyping] = useState(false);
@@ -55,15 +59,21 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
   }, [messages]);
 
   const chatMutation = useMutation({
-    mutationFn: async ({ messages: messageHistory, mode }: { messages: Message[], mode: string }) => {
+    mutationFn: async ({ messages: messageHistory, mode }: { messages: Message[], mode: string; session: number }) => {
       const response = await apiRequest("POST", "/api/ai-coach/chat", {
-        messages: messageHistory,
-        mode
+        // The first message is the local welcome greeting; only send the real exchange
+        messages: messageHistory.slice(1).map(({ role, content }) => ({ role, content })),
+        mode,
+        ...(conversationId ? { conversationId } : {}),
       });
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      if (variables.session !== chatSessionRef.current) return;
       setIsTyping(false);
+      if (data.conversationId) {
+        setConversationId(data.conversationId);
+      }
       const assistantMessage: Message = {
         role: "assistant",
         content: data.message,
@@ -72,7 +82,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
       };
       setMessages(prev => [...prev, assistantMessage]);
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      if (variables.session !== chatSessionRef.current) return;
       setIsTyping(false);
       if (isUnauthorizedError(error)) {
         toast({
@@ -81,13 +92,13 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
       toast({
         title: "Error",
-        description: "Failed to get AI response. Please try again.",
+        description: getApiErrorMessage(error, "Failed to get AI response. Please try again."),
         variant: "destructive",
       });
     }
@@ -109,7 +120,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
 
     chatMutation.mutate({
       messages: updatedMessages,
-      mode: currentMode
+      mode: currentMode,
+      session: chatSessionRef.current,
     });
   };
 
@@ -122,8 +134,18 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
 
   const currentModeInfo = chatModes.find(mode => mode.id === currentMode);
 
+  const handleClose = () => {
+    // Closing the coach ends the conversation; the next chat starts fresh
+    chatSessionRef.current += 1;
+    setMessages([createWelcomeMessage()]);
+    setConversationId(undefined);
+    setInputValue("");
+    setIsTyping(false);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-2xl h-[80vh] p-0 glass-card">
         <DialogHeader className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between">
@@ -144,7 +166,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={onClose}
+              onClick={handleClose}
               data-testid="button-close-chat"
             >
               <X className="w-4 h-4" />

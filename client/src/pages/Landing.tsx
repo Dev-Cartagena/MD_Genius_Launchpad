@@ -243,7 +243,7 @@ export default function Landing() {
             <Button 
               size="lg" 
               className="bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg px-12 py-4 animate-glow"
-              onClick={() => window.location.href = "/api/login"}
+              onClick={() => window.location.href = "/login"}
               data-testid="button-start-application"
             >
               Start Your Application

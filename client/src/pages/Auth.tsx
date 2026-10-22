@@ -7,13 +7,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ExternalLink, Mail, Lock, User } from "lucide-react";
 
 // Validation schemas
 const loginSchema = z.object({
@@ -32,22 +29,14 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
-const resetPasswordSchema = z.object({
-  token: z.string().min(1, "Reset token is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-
 type LoginForm = z.infer<typeof loginSchema>;
 type RegisterForm = z.infer<typeof registerSchema>;
 type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
-type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
 export default function Auth() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("login");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [resetToken, setResetToken] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -65,11 +54,6 @@ export default function Auth() {
   const forgotPasswordForm = useForm<ForgotPasswordForm>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: "" },
-  });
-
-  const resetPasswordForm = useForm<ResetPasswordForm>({
-    resolver: zodResolver(resetPasswordSchema),
-    defaultValues: { token: "", password: "" },
   });
 
   // Mutations
@@ -107,40 +91,12 @@ export default function Auth() {
 
   const forgotPasswordMutation = useMutation({
     mutationFn: (data: ForgotPasswordForm) => apiRequest("POST", "/api/auth/forgot-password", data),
-    onSuccess: (response: any) => {
+    onSuccess: () => {
       toast({
         title: "Password reset requested",
-        description: "Check your email for reset instructions.",
+        description: "If an account exists for that email, you will receive reset instructions shortly.",
       });
-      // Note: Reset tokens are never returned via API for security
-      // In production, users would receive the token via secure email
-      // For development testing, provide a way to access reset form
-      if (import.meta.env.DEV) {
-        toast({
-          title: "Development Mode",
-          description: "Check server console for reset token, then use 'Reset Password' button below.",
-          variant: "default"
-        });
-      }
       setShowForgotPassword(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Password reset failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const resetPasswordMutation = useMutation({
-    mutationFn: (data: ResetPasswordForm) => apiRequest("POST", "/api/auth/reset-password", data),
-    onSuccess: () => {
-      toast({ title: "Password reset successful", description: "You can now login with your new password." });
-      setShowResetPassword(false);
-      setShowForgotPassword(false);
-      setActiveTab("login");
-      resetPasswordForm.reset();
     },
     onError: (error: any) => {
       toast({
@@ -162,89 +118,6 @@ export default function Auth() {
   const onForgotPassword = (data: ForgotPasswordForm) => {
     forgotPasswordMutation.mutate(data);
   };
-
-  const onResetPassword = (data: ResetPasswordForm) => {
-    resetPasswordMutation.mutate(data);
-  };
-
-  if (showResetPassword) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
-            <CardDescription className="text-center">
-              Enter your new password below
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...resetPasswordForm}>
-              <form onSubmit={resetPasswordForm.handleSubmit(onResetPassword)} className="space-y-4">
-                <FormField
-                  control={resetPasswordForm.control}
-                  name="token"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reset Token</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={resetToken}
-                          onChange={(e) => {
-                            setResetToken(e.target.value);
-                            field.onChange(e.target.value);
-                          }}
-                          data-testid="input-reset-token"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={resetPasswordForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>New Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          data-testid="input-new-password"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={resetPasswordMutation.isPending}
-                  data-testid="button-reset-password"
-                >
-                  {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setShowResetPassword(false);
-                    setShowForgotPassword(false);
-                  }}
-                  data-testid="button-back-to-login"
-                >
-                  Back to Login
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   if (showForgotPassword) {
     return (
@@ -307,7 +180,7 @@ export default function Auth() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Welcome to MD Genius</CardTitle>
           <CardDescription className="text-center">
-            Choose your preferred sign-in method below
+            Sign in or create an account with your email
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -319,25 +192,6 @@ export default function Auth() {
 
             <TabsContent value="login" className="space-y-4">
               <div className="space-y-4">
-                <Button 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={() => window.location.href = "/api/login"}
-                  data-testid="button-social-login"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Continue with Replit
-                </Button>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or</span>
-                  </div>
-                </div>
-
                 <Form {...loginForm}>
                   <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                     <FormField
@@ -396,43 +250,12 @@ export default function Auth() {
                   >
                     Forgot your password?
                   </Button>
-                  {import.meta.env.DEV && (
-                    <div>
-                      <Button
-                        variant="link"
-                        className="text-sm text-orange-600"
-                        onClick={() => setShowResetPassword(true)}
-                        data-testid="button-dev-reset-password"
-                      >
-                        [DEV] Reset Password Form
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </div>
             </TabsContent>
 
             <TabsContent value="register" className="space-y-4">
               <div className="space-y-4">
-                <Button 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={() => window.location.href = "/api/login"}
-                  data-testid="button-social-register"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Continue with Replit
-                </Button>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or</span>
-                  </div>
-                </div>
-
                 <Form {...registerForm}>
                   <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
                     <FormField

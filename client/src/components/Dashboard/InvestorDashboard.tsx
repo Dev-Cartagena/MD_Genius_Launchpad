@@ -19,14 +19,15 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Project, InvestorInterest } from "@shared/schema";
 
 export default function InvestorDashboard() {
   // Fetch startup directory and interests
-  const { data: projects = [] } = useQuery<any[]>({
+  const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
   });
 
-  const { data: interests = [] } = useQuery<any[]>({
+  const { data: interests = [] } = useQuery<(InvestorInterest & { projectName?: string })[]>({
     queryKey: ["/api/investor/interests"],
   });
 
@@ -39,25 +40,21 @@ export default function InvestorDashboard() {
   const investorStats = {
     startupsViewed: projects.length, // Real count of available projects
     meetingsScheduled: sessions.length, // Real count of scheduled sessions
-    activeDiligence: 0, // Would need real diligence tracking
+    activeDiligence: interests.filter(i => i.level === "diligence").length,
     portfolioInterest: interests.length, // Real count of interests
     demoAttendance: 0 // Would need real event attendance data
   };
 
   // Use real project data only, no synthetic values
-  const featuredStartups = projects.slice(0, 6).map((project: any) => ({
+  const featuredStartups = projects.slice(0, 6).map((project) => ({
     id: project.id,
-    name: project.title || "Untitled Project",
-    founder: project.ownerName,
-    stage: project.currentStage,
-    sector: project.tags?.[0],
-    description: project.description,
-    traction: project.traction,
-    fundingGoal: project.fundingGoal,
-    teamSize: project.teamSize,
-    location: project.location,
+    name: project.name || "Untitled Project",
+    stage: project.stage || "ideation",
+    sector: project.aiComponents?.[0],
+    description: project.summary,
+    readinessScore: project.readinessScore ?? 0,
     founded: project.createdAt ? new Date(project.createdAt).getFullYear().toString() : null
-  })).filter(startup => startup.name !== "Untitled Project"); // Only show projects with real titles
+  }));
 
   // Only show events if we have real event data - currently none available
   const upcomingEvents: any[] = []; // Empty until real events API is implemented
@@ -200,22 +197,26 @@ export default function InvestorDashboard() {
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={`/placeholder-startup-${startup.id}.jpg`} alt={startup.name} />
                       <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-                        {startup.name.split(' ').map(n => n[0]).join('')}
+                        {startup.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <CardTitle className="text-lg" data-testid={`startup-name-${startup.id}`}>
                         {startup.name}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        by {startup.founder}
-                      </p>
+                      {startup.founded && (
+                        <p className="text-sm text-muted-foreground">
+                          Since {startup.founded}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end space-y-1">
-                    <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
-                      {startup.sector}
-                    </Badge>
+                    {startup.sector && (
+                      <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
+                        {startup.sector}
+                      </Badge>
+                    )}
                     <Badge 
                       className={`${
                         startup.stage === 'pitch_ready' ? 'bg-green-400/20 text-green-400' :
@@ -224,7 +225,7 @@ export default function InvestorDashboard() {
                       }`}
                       data-testid={`startup-stage-${startup.id}`}
                     >
-                      {startup.stage.replace('_', ' ')}
+                      {startup.stage.replace(/_/g, ' ')}
                     </Badge>
                   </div>
                 </div>
@@ -236,20 +237,6 @@ export default function InvestorDashboard() {
                 </p>
                 
                 <div className="space-y-3 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Traction:</span>
-                    <span className="font-medium" data-testid={`startup-traction-${startup.id}`}>
-                      {startup.traction}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Seeking:</span>
-                    <span className="font-medium text-green-400" data-testid={`startup-funding-${startup.id}`}>
-                      {startup.fundingGoal}
-                    </span>
-                  </div>
-                  
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Readiness:</span>
                     <div className="flex items-center space-x-2">
@@ -267,16 +254,7 @@ export default function InvestorDashboard() {
                 </div>
                 
                 <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                    <span className="flex items-center space-x-1">
-                      <Users className="w-3 h-3" />
-                      <span>{startup.teamSize} team</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <Building className="w-3 h-3" />
-                      <span>{startup.location}</span>
-                    </span>
-                  </div>
+                  <div />
                   <div className="flex space-x-2">
                     <Button 
                       size="sm" 

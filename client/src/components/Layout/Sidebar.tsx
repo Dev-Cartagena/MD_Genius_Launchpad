@@ -66,7 +66,7 @@ export default function Sidebar() {
                 {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || "User"}
               </p>
               <p className="text-xs text-muted-foreground truncate capitalize">
-                {user?.role?.replace('_', ' ') || "Participant"} • Cohort 2024-Q1
+                {user?.role?.replace('_', ' ') || "Participant"}
               </p>
               <div className="flex items-center mt-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>

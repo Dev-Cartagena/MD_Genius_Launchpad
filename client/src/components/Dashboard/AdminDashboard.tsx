@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,113 @@ interface AdminDashboardProps {
   systemAlerts: SystemAlert[];
 }
 
+type UpdateStatusMutation = UseMutationResult<unknown, Error, { id: string; status: string; notes?: string }>;
+
+// Application Status Dialog Component (module scope so its state survives parent re-renders)
+function ApplicationStatusDialog({ application, updateStatus }: { application: ProcessedApplication; updateStatus: UpdateStatusMutation }) {
+  const { toast } = useToast();
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [reviewerNotes, setReviewerNotes] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleStatusUpdate = () => {
+    if (!selectedStatus) {
+      toast({
+        title: "Error",
+        description: "Please select a status",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateStatus.mutate(
+      {
+        id: application.id,
+        status: selectedStatus,
+        notes: reviewerNotes.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setIsOpen(false);
+          setSelectedStatus("");
+          setReviewerNotes("");
+        }
+      }
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          size="sm"
+          variant="outline"
+          data-testid={`button-review-${application.id}`}
+        >
+          Review
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Update Application Status</DialogTitle>
+          <div className="text-sm text-muted-foreground">
+            Application by {application.applicant} for {application.project}
+          </div>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Current Status</label>
+            <p className="text-sm text-muted-foreground capitalize">
+              {application.status.replace('_', ' ')}
+            </p>
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">New Status</label>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger data-testid={`select-new-status-${application.id}`}>
+                <SelectValue placeholder="Select new status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="under_review">Under Review</SelectItem>
+                <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                <SelectItem value="interview">Interview</SelectItem>
+                <SelectItem value="offer">Offer</SelectItem>
+                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Reviewer Notes</label>
+            <Textarea 
+              placeholder="Add reviewer notes (optional)..."
+              value={reviewerNotes}
+              onChange={(e) => setReviewerNotes(e.target.value)}
+              data-testid={`textarea-reviewer-notes-${application.id}`}
+            />
+          </div>
+          
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleStatusUpdate}
+              disabled={updateStatus.isPending}
+              data-testid={`button-update-status-${application.id}`}
+            >
+              {updateStatus.isPending ? "Updating..." : "Update Status"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminDashboard({ metrics, recentApplications, cohorts, systemAlerts }: AdminDashboardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -83,6 +190,8 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         description: "Application status has been updated successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
+      // Accepting an application can change the applicant's role
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -92,7 +201,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -103,110 +212,6 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
       });
     }
   });
-
-  // Application Status Dialog Component
-  const ApplicationStatusDialog = ({ application }: { application: ProcessedApplication }) => {
-    const [selectedStatus, setSelectedStatus] = useState("");
-    const [reviewerNotes, setReviewerNotes] = useState("");
-    const [isOpen, setIsOpen] = useState(false);
-
-    const handleStatusUpdate = () => {
-      if (!selectedStatus) {
-        toast({
-          title: "Error",
-          description: "Please select a status",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      updateApplicationStatus.mutate(
-        {
-          id: application.id,
-          status: selectedStatus,
-          notes: reviewerNotes.trim() || undefined,
-        },
-        {
-          onSuccess: () => {
-            setIsOpen(false);
-            setSelectedStatus("");
-            setReviewerNotes("");
-          }
-        }
-      );
-    };
-
-    return (
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button 
-            size="sm"
-            variant="outline"
-            data-testid={`button-review-${application.id}`}
-          >
-            Review
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Application Status</DialogTitle>
-            <div className="text-sm text-muted-foreground">
-              Application by {application.applicant} for {application.project}
-            </div>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Current Status</label>
-              <p className="text-sm text-muted-foreground capitalize">
-                {application.status.replace('_', ' ')}
-              </p>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">New Status</label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger data-testid={`select-new-status-${application.id}`}>
-                  <SelectValue placeholder="Select new status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="under_review">Under Review</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
-                  <SelectItem value="offer">Offer</SelectItem>
-                  <SelectItem value="accepted">Accepted</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Reviewer Notes</label>
-              <Textarea 
-                placeholder="Add reviewer notes (optional)..."
-                value={reviewerNotes}
-                onChange={(e) => setReviewerNotes(e.target.value)}
-                data-testid={`textarea-reviewer-notes-${application.id}`}
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleStatusUpdate}
-                disabled={updateApplicationStatus.isPending}
-                data-testid={`button-update-status-${application.id}`}
-              >
-                {updateApplicationStatus.isPending ? "Updating..." : "Update Status"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
 
   // Calculate cohort performance from real cohort data
   const cohortPerformance = cohorts.map((cohort) => ({
@@ -226,7 +231,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Applications</p>
                 <p className="text-2xl font-bold" data-testid="metric-applications">{metrics.totalApplications}</p>
-                <p className="text-xs text-green-400 mt-1">↑ 23% from last quarter</p>
+                <p className="text-xs text-green-400 mt-1">All time</p>
               </div>
               <FileText className="w-8 h-8 text-primary opacity-80" />
             </div>
@@ -239,7 +244,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Acceptance Rate</p>
                 <p className="text-2xl font-bold" data-testid="metric-acceptance-rate">{metrics.acceptanceRate}%</p>
-                <p className="text-xs text-accent mt-1">Highly selective program</p>
+                <p className="text-xs text-accent mt-1">Of all applications</p>
               </div>
               <UserCheck className="w-8 h-8 text-accent opacity-80" />
             </div>
@@ -265,7 +270,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Funding Disbursed</p>
                 <p className="text-2xl font-bold" data-testid="metric-funding">${(metrics.fundingDisbursed / 1000).toFixed(0)}K</p>
-                <p className="text-xs text-green-400 mt-1">85% utilization rate</p>
+                <p className="text-xs text-green-400 mt-1">Approved disbursements</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-400 opacity-80" />
             </div>
@@ -313,7 +318,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
                           </span>
                         </div>
                       </div>
-                      <ApplicationStatusDialog application={application} />
+                      <ApplicationStatusDialog updateStatus={updateApplicationStatus} application={application} />
                     </div>
                   </CardContent>
                 </Card>
@@ -376,18 +381,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
                 </span>
               </div>
               <Progress value={metrics.mentorUtilization} className="h-2" />
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Platform Uptime</span>
-                <span className="text-sm font-medium text-green-400">99.9%</span>
-              </div>
-              <Progress value={99.9} className="h-2" />
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm">AI Coach Availability</span>
-                <span className="text-sm font-medium text-green-400">100%</span>
-              </div>
-              <Progress value={100} className="h-2" />
+
             </div>
           </CardContent>
         </Card>
