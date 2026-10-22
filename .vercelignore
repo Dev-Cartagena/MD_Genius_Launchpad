@@ -1,0 +1,12 @@
+# Never upload local secrets or tool state to Vercel.
+.env
+.env.*
+!.env.example
+.envrc
+.local
+.playwright-mcp
+supabase/.temp
+dist
+node_modules
+tests
+docs
