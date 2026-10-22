@@ -85,6 +85,8 @@ test fails if any table is missing RLS. New tables created by later migrations n
 
 ## Deployment
 
+Production: https://md-genius-launchpad.vercel.app
+
 Vercel project `md-genius-launchpad` (team `mdgeniusai`) builds the client with
 `npm run build:client` and deploys `api/index.ts` as the API function. Production
 environment variables are set in Vercel; see `.env.example` for the full list.
