@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import ApplicationForm from "@/components/Application/ApplicationForm";
+import type { Application as ApplicationRecord, Cohort } from "@shared/schema";
 import { 
   CheckCircle, 
   Clock, 
@@ -33,12 +34,12 @@ export default function Application() {
   const [, navigate] = useLocation();
 
   // Fetch user's applications
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applications = [], isLoading } = useQuery<ApplicationRecord[]>({
     queryKey: ["/api/applications/my"],
   });
 
   // Fetch available cohorts for new applications
-  const { data: cohorts = [] } = useQuery({
+  const { data: cohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
   });
 
@@ -92,7 +93,7 @@ export default function Application() {
                     {status.label}
                   </Badge>
                   <p className="text-muted-foreground mt-4" data-testid="application-date">
-                    Submitted on {new Date(currentApplication.submittedAt || currentApplication.createdAt).toLocaleDateString()}
+                    Submitted on {new Date(currentApplication.submittedAt ?? currentApplication.createdAt ?? Date.now()).toLocaleDateString()}
                   </p>
                 </div>
 
@@ -174,16 +175,6 @@ export default function Application() {
                     </p>
                   </div>
                 )}
-
-                {currentApplication.status === 'rejected' && (
-                  <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
-                    <h3 className="font-semibold mb-2">Not Selected</h3>
-                    <p className="text-sm text-muted-foreground">
-                      While we were impressed by your application, we're unable to offer you a spot in this cohort. 
-                      You can apply again for future cohorts.
-                    </p>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -202,7 +193,7 @@ export default function Application() {
                   <div>
                     <p className="font-medium text-sm">Application Submitted</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(currentApplication.submittedAt || currentApplication.createdAt).toLocaleDateString()}
+                      {new Date(currentApplication.submittedAt ?? currentApplication.createdAt ?? Date.now()).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -219,7 +210,7 @@ export default function Application() {
                   </div>
                 )}
 
-                {['shortlisted', 'interview', 'offer', 'accepted'].includes(currentApplication.status) && (
+                {['shortlisted', 'interview', 'offer', 'accepted'].includes(currentApplication.status ?? '') && (
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
                       <CheckCircle className="w-4 h-4 text-primary" />
@@ -231,7 +222,7 @@ export default function Application() {
                   </div>
                 )}
 
-                {['offer', 'accepted'].includes(currentApplication.status) && (
+                {['offer', 'accepted'].includes(currentApplication.status ?? '') && (
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-green-400/20 rounded-full flex items-center justify-center">
                       <CheckCircle className="w-4 h-4 text-green-400" />
@@ -279,7 +270,7 @@ export default function Application() {
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 max-w-md mx-auto">
               <p className="text-sm font-medium">Continue Your Draft Application</p>
               <p className="text-xs text-muted-foreground">
-                Started {new Date(currentApplication.createdAt).toLocaleDateString()}
+                Started {new Date(currentApplication.createdAt ?? Date.now()).toLocaleDateString()}
               </p>
             </div>
           )}

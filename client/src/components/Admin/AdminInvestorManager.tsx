@@ -242,7 +242,16 @@ export default function AdminInvestorManager() {
 
   const createSessionMutation = useMutation({
     mutationFn: async (data: SessionFormData) => {
-      const response = await apiRequest("POST", "/api/admin/investor-sessions", data);
+      // Form values are local "YYYY-MM-DDTHH:mm" strings; the API expects ISO timestamps
+      const toIso = (value: string) => {
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? value : date.toISOString();
+      };
+      const response = await apiRequest("POST", "/api/admin/investor-sessions", {
+        ...data,
+        startTime: toIso(data.startTime),
+        endTime: toIso(data.endTime),
+      });
       return response.json();
     },
     onSuccess: () => {

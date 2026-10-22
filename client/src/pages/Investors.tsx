@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { getApiErrorMessage } from "@/lib/utils";
 import {
   TrendingUp,
   Search,
@@ -44,7 +45,6 @@ type ExtendedInvestor = Investor & {
   description?: string;
   portfolioSize?: number;
   notableInvestments?: string[];
-  website?: string;
   isAvailable?: boolean;
   nextAvailable?: string;
 };
@@ -122,10 +122,9 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
         investorId: investor.id,
         title: data.title,
         agenda: data.agenda,
-        startTime: data.startTime,
+        startTime: new Date(data.startTime).toISOString(),
         endTime: endTime,
         sessionType: data.sessionType,
-        participantIds: [], // Will be set by the API
       });
     },
     onSuccess: () => {
@@ -142,7 +141,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     onError: (error) => {
       toast({
         title: "Booking Failed",
-        description: "Failed to book session. Please try again.",
+        description: getApiErrorMessage(error, "Failed to book session. Please try again."),
         variant: "destructive",
       });
     },
@@ -303,6 +302,7 @@ export default function Investors() {
   const [selectedStage, setSelectedStage] = useState("all");
   const [selectedTab, setSelectedTab] = useState("directory");
   const [selectedInvestorForBooking, setSelectedInvestorForBooking] = useState<ExtendedInvestor | null>(null);
+  const [meetingMessages, setMeetingMessages] = useState<Record<string, string>>({});
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -343,6 +343,7 @@ export default function Investors() {
         title: "Meeting Requested!",
         description: "Your meeting request has been sent. The startup will respond soon.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/investor/interests"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -352,7 +353,7 @@ export default function Investors() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -366,8 +367,8 @@ export default function Investors() {
 
   const filteredStartups = displayStartups.filter((startup: any) => {
     const name = startup?.name || "";
-    const sector = startup?.sector || "";
-    const description = startup?.description || "";
+    const sector = startup?.aiComponents?.[0] || "";
+    const description = startup?.summary || "";
     const stage = startup?.stage || "";
     
     const matchesSearch = searchQuery === "" || 
@@ -392,7 +393,10 @@ export default function Investors() {
     return matchesSearch;
   });
 
-  const sectors = ["AI/ML", "HealthTech", "FinTech", "CleanTech", "AgriTech", "EdTech", "Enterprise"];
+  // Projects have no sector field; their primary AI component is used as the sector
+  const sectors = Array.from(
+    new Set(displayStartups.map((startup: any) => startup?.aiComponents?.[0]).filter(Boolean) as string[])
+  ).sort();
   const stages = ["ideation", "validation", "mvp_build", "pilot_traction", "pitch_ready"];
 
   if (projectsLoading || investorsLoading) {
@@ -498,15 +502,14 @@ export default function Investors() {
                             <CardTitle className="text-lg" data-testid={`startup-name-${startup.id}`}>
                               {startup.name}
                             </CardTitle>
-                            <p className="text-sm text-muted-foreground">
-                              by {startup.founder?.firstName || ""} {startup.founder?.lastName || startup.ownerName || "Founder"}
-                            </p>
                           </div>
                         </div>
                         <div className="flex flex-col items-end space-y-1">
-                          <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
-                            {startup.sector}
-                          </Badge>
+                          {startup.aiComponents?.[0] && (
+                            <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
+                              {startup.aiComponents[0]}
+                            </Badge>
+                          )}
                           <Badge 
                             className={`${
                               startup.stage === 'pitch_ready' ? 'bg-green-400/20 text-green-400' :
@@ -515,7 +518,7 @@ export default function Investors() {
                             }`}
                             data-testid={`startup-stage-${startup.id}`}
                           >
-                            {(startup.stage || "ideation").replace('_', ' ')}
+                            {(startup.stage || "ideation").replace(/_/g, ' ')}
                           </Badge>
                         </div>
                       </div>
@@ -523,24 +526,10 @@ export default function Investors() {
                     
                     <CardContent>
                       <p className="text-sm text-muted-foreground mb-4 line-clamp-3" data-testid={`startup-description-${startup.id}`}>
-                        {startup.description}
+                        {startup.summary}
                       </p>
                       
                       <div className="space-y-3 mb-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Traction:</span>
-                          <span className="font-medium text-right" data-testid={`startup-traction-${startup.id}`}>
-                            {startup.traction}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Seeking:</span>
-                          <span className="font-medium text-green-400" data-testid={`startup-funding-${startup.id}`}>
-                            {startup.fundingGoal}
-                          </span>
-                        </div>
-                        
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Readiness:</span>
                           <div className="flex items-center space-x-2">
@@ -558,16 +547,7 @@ export default function Investors() {
                       </div>
                       
                       <div className="flex items-center justify-between pt-4 border-t border-border">
-                        <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                          <span className="flex items-center space-x-1">
-                            <Users className="w-3 h-3" />
-                            <span>{startup.teamSize || "N/A"} team</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <Building className="w-3 h-3" />
-                            <span>{startup.location || "Not specified"}</span>
-                          </span>
-                        </div>
+                        <div />
                         <div className="flex space-x-2">
                           <Button 
                             size="sm" 
@@ -596,13 +576,15 @@ export default function Investors() {
                                 <Textarea 
                                   placeholder="Introduce yourself and explain your interest in this startup..."
                                   className="min-h-[100px]"
+                                  value={meetingMessages[startup.id] ?? ""}
+                                  onChange={(e) => setMeetingMessages(prev => ({ ...prev, [startup.id]: e.target.value }))}
                                   data-testid={`textarea-meeting-request-${startup.id}`}
                                 />
                                 <Button 
                                   className="w-full"
                                   onClick={() => requestMeeting.mutate({ 
                                     startupId: startup.id, 
-                                    message: "Meeting request" 
+                                    message: meetingMessages[startup.id]?.trim() || "Meeting request" 
                                   })}
                                   disabled={requestMeeting.isPending}
                                   data-testid={`button-send-meeting-request-${startup.id}`}
@@ -637,7 +619,7 @@ export default function Investors() {
                         <div>
                           <h4 className="text-sm font-medium mb-2">Investment Focus</h4>
                           <div className="flex flex-wrap gap-1">
-                            {investor.sectors.map((sector: string, index: number) => (
+                            {(investor.sectors || []).map((sector: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
                                 {sector}
                               </Badge>
@@ -671,18 +653,10 @@ export default function Investors() {
                         
                         <div className="flex space-x-2 pt-4 border-t border-border">
                           <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => window.open(investor.website, '_blank')}
-                            data-testid={`button-website-${investor.id}`}
-                          >
-                            <ExternalLink className="w-3 h-3 mr-1" />
-                            Website
-                          </Button>
-                          <Button 
                             size="sm"
                             variant="outline"
-                            onClick={() => window.open(`mailto:${investor.contactEmail}`, '_blank')}
+                            disabled={!investor.contactEmail}
+                            onClick={() => { if (investor.contactEmail) window.location.href = `mailto:${investor.contactEmail}`; }}
                             data-testid={`button-contact-investor-${investor.id}`}
                           >
                             <Mail className="w-3 h-3 mr-1" />

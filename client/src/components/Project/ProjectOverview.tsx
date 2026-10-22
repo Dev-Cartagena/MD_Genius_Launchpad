@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,8 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { ObjectUploader } from "@/components/ObjectUploader";
-import type { Project, Deliverable, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
+import { ObjectUploader, fileUrl, type UploadedFile } from "@/components/ObjectUploader";
+import type { Project, Deliverable, Artifact, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
 
 // Extended types for roadmap milestone tracking
 type RoadmapItemWithAssignment = RoadmapItem & {
@@ -86,7 +86,7 @@ interface ProjectOverviewProps {
 
 export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [uploadedArtifacts, setUploadedArtifacts] = useState<{ type: string; url: string; name: string }[]>([]);
+  const [openUploadDialog, setOpenUploadDialog] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -102,8 +102,14 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     enabled: !!currentProject?.id,
   });
 
-  // Fetch roadmap for current project
-  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap>({
+  // Fetch uploaded artifacts for current project
+  const { data: artifacts = [] } = useQuery<Artifact[]>({
+    queryKey: ["/api/projects", currentProject?.id, "artifacts"],
+    enabled: !!currentProject?.id,
+  });
+
+  // Fetch roadmap for current project (null when no roadmap is assigned yet)
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap | null>({
     queryKey: ['/api/projects', currentProject?.id, 'roadmap'],
     enabled: !!currentProject?.id,
   });
@@ -145,6 +151,23 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     },
   });
 
+  // Default values are computed before the project loads, so reset once it arrives
+  useEffect(() => {
+    if (!currentProject) return;
+    form.reset({
+      name: currentProject.name || "",
+      summary: currentProject.summary || "",
+      problem: currentProject.problem || "",
+      solution: currentProject.solution || "",
+      market: currentProject.market || "",
+      aiComponents: currentProject.aiComponents || [],
+      dataNeeds: currentProject.dataNeeds || "",
+      risks: currentProject.risks || [],
+      ethics: currentProject.ethics || "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.id, currentProject?.updatedAt]);
+
   // Create new project mutation
   const createProject = useMutation({
     mutationFn: async (data: ProjectFormData) => {
@@ -167,7 +190,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -202,7 +225,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -214,67 +237,30 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     }
   });
 
-  const handleFileUpload = async () => {
+  const handleUploadComplete = async (file: UploadedFile, artifactType: string) => {
+    if (!currentProject) return;
     try {
-      const response = await apiRequest("POST", "/api/objects/upload");
-      const data = await response.json();
-      return { method: "PUT" as const, url: data.uploadURL };
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to get upload URL",
-        variant: "destructive",
+      await apiRequest('POST', `/api/projects/${currentProject.id}/artifacts`, {
+        type: artifactType,
+        title: file.fileName,
+        fileRef: file.path,
       });
-      throw error;
-    }
-  };
 
-  const handleUploadComplete = async (result: any, artifactType: string) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      const fileUrl = uploadedFile.uploadURL;
-      const fileName = uploadedFile.name || `${artifactType}_document`;
-      
-      setUploadedArtifacts(prev => [...prev, { 
-        type: artifactType, 
-        url: fileUrl,
-        name: fileName
-      }]);
-      
-      // Persist artifact to database
-      if (currentProject) {
-        try {
-          await apiRequest('POST', `/api/projects/${currentProject.id}/artifacts`, {
-            type: artifactType,
-            title: fileName,
-            fileRef: fileUrl,
-            version: 1,
-            isGated: false
-          });
-          
-          // Invalidate cache to refresh deliverables
-          queryClient.invalidateQueries({ 
-            queryKey: ['/api/projects', currentProject.id, 'deliverables'] 
-          });
-          
-          toast({
-            title: "Artifact uploaded successfully!",
-            description: `${artifactType} has been uploaded and saved to your project.`,
-          });
-        } catch (error) {
-          console.error('Failed to save artifact:', error);
-          toast({
-            title: "Upload successful, but save failed",
-            description: "File was uploaded but couldn't be saved to the project. Please try again.",
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Artifact uploaded successfully!",
-          description: `${artifactType} has been uploaded to your project.`,
-        });
-      }
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject.id, 'artifacts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject.id, 'deliverables'] });
+      setOpenUploadDialog(null);
+
+      toast({
+        title: "Artifact uploaded successfully!",
+        description: `${artifactType} has been uploaded and saved to your project.`,
+      });
+    } catch (error) {
+      console.error('Failed to save artifact:', error);
+      toast({
+        title: "Upload successful, but save failed",
+        description: "File was uploaded but couldn't be saved to the project. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -694,33 +680,50 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   <div key={artifactType} className="flex items-center justify-between">
                     <span className="text-sm font-medium">{artifactType}</span>
                     <div className="flex items-center space-x-2">
-                      {uploadedArtifacts.find(a => a.type === artifactType) ? (
-                        <CheckCircle className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="outline" data-testid={`button-upload-${artifactType.toLowerCase().replace(' ', '-')}`}>
-                              <Upload className="w-3 h-3 mr-1" />
-                              Upload
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Upload {artifactType}</DialogTitle>
-                            </DialogHeader>
-                            <ObjectUploader
-                              maxNumberOfFiles={1}
-                              maxFileSize={50485760} // 50MB
-                              onGetUploadParameters={handleFileUpload}
-                              onComplete={(result) => handleUploadComplete(result, artifactType)}
-                              buttonClassName="w-full bg-primary hover:bg-primary/90"
+                      {(() => {
+                        const latest = artifacts
+                          .filter(a => a.type === artifactType && !!a.fileRef)
+                          .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0];
+                        return latest ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                            <a
+                              href={fileUrl(latest.fileRef!)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline max-w-[10rem] truncate"
+                              data-testid={`link-artifact-${artifactType.toLowerCase().replace(/ /g, '-')}`}
                             >
-                              <Upload className="w-4 h-4 mr-2" />
-                              Select {artifactType}
-                            </ObjectUploader>
-                          </DialogContent>
-                        </Dialog>
-                      )}
+                              {latest.title}
+                            </a>
+                          </>
+                        ) : null;
+                      })()}
+                      <Dialog
+                        open={openUploadDialog === artifactType}
+                        onOpenChange={(open) => setOpenUploadDialog(open ? artifactType : null)}
+                      >
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline" data-testid={`button-upload-${artifactType.toLowerCase().replace(/ /g, '-')}`}>
+                            <Upload className="w-3 h-3 mr-1" />
+                            {artifacts.some(a => a.type === artifactType) ? "Replace" : "Upload"}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Upload {artifactType}</DialogTitle>
+                          </DialogHeader>
+                          <ObjectUploader
+                            maxFileSize={10 * 1024 * 1024}
+                            onUploaded={(file) => handleUploadComplete(file, artifactType)}
+                            buttonClassName="w-full bg-primary hover:bg-primary/90"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Select {artifactType}
+                          </ObjectUploader>
+                          <p className="text-xs text-muted-foreground">Maximum file size: 10MB</p>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                 ))}

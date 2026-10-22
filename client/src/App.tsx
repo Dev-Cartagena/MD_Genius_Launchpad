@@ -19,6 +19,7 @@ import Admin from "@/pages/Admin";
 import MentorProfile from "@/pages/MentorProfile";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
+import ResetPassword from "@/pages/ResetPassword";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -37,6 +38,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/reset-password" component={ResetPassword} />
       {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />

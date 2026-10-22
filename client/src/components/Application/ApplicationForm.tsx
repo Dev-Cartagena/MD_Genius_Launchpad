@@ -17,7 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useAuth } from "@/hooks/useAuth";
-import { ObjectUploader } from "@/components/ObjectUploader";
+import { ObjectUploader, fileUrl, type UploadedFile } from "@/components/ObjectUploader";
 import { 
   User, 
   GraduationCap, 
@@ -85,7 +85,7 @@ interface ApplicationFormProps {
 
 export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [uploadedFiles, setUploadedFiles] = useState<{ type: string; url: string }[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{ type: string; path: string; fileName: string }[]>([]);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const totalSteps = 6;
   const { toast } = useToast();
@@ -140,8 +140,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
   const submitApplication = useMutation({
     mutationFn: async (data: ApplicationFormData) => {
+      // Only cohortId, answers and uploads are sent; status/scores are set by the server
       const response = await apiRequest("POST", "/api/applications/submit", {
-        ...data,
+        cohortId: data.cohortId,
         answers: {
           personalInfo: {
             firstName: data.firstName,
@@ -168,7 +169,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
             linkedin: data.linkedinUrl
           }
         },
-        uploads: uploadedFiles.map(f => f.url)
+        uploads: uploadedFiles.map(f => f.path)
       });
       return response.json();
     },
@@ -189,7 +190,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -201,38 +202,21 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     }
   });
 
-  const handleFileUpload = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/objects/upload");
-      const data = await response.json();
-      return { method: "PUT" as const, url: data.uploadURL };
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to get upload URL",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
+  const handleUploadComplete = (file: UploadedFile, fileType: string) => {
+    // One file per type: a new upload replaces the previous one
+    setUploadedFiles(prev => [
+      ...prev.filter(f => f.type !== fileType),
+      { type: fileType, path: file.path, fileName: file.fileName },
+    ]);
 
-  const handleUploadComplete = (result: any, fileType: string) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      const fileUrl = uploadedFile.uploadURL;
-      
-      setUploadedFiles(prev => [...prev, { type: fileType, url: fileUrl }]);
-      
-      // Update form field based on file type
-      if (fileType === 'resume') {
-        form.setValue('resumeUrl', fileUrl);
-      }
-      
-      toast({
-        title: "File uploaded successfully!",
-        description: `${fileType} has been uploaded and attached to your application.`,
-      });
+    if (fileType === 'resume') {
+      form.setValue('resumeUrl', file.path);
     }
+
+    toast({
+      title: "File uploaded successfully!",
+      description: `${file.fileName} has been uploaded and attached to your application.`,
+    });
   };
 
   const nextStep = () => {
@@ -775,21 +759,28 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       Upload your current resume or CV
                     </p>
                     <ObjectUploader
-                      maxNumberOfFiles={1}
-                      maxFileSize={10485760}
-                      onGetUploadParameters={handleFileUpload}
-                      onComplete={(result) => handleUploadComplete(result, 'resume')}
+                      maxFileSize={10 * 1024 * 1024}
+                      accept=".pdf,.doc,.docx"
+                      onUploaded={(file) => handleUploadComplete(file, 'resume')}
                       buttonClassName="bg-primary hover:bg-primary/90"
                     >
                       <Upload className="w-4 h-4 mr-2" />
                       Upload Resume
                     </ObjectUploader>
-                    {uploadedFiles.find(f => f.type === 'resume') && (
-                      <div className="flex items-center space-x-2 mt-2">
+                    {uploadedFiles.filter(f => f.type === 'resume').map(f => (
+                      <div key={f.path} className="flex items-center space-x-2 mt-2">
                         <CheckCircle className="w-4 h-4 text-green-400" />
-                        <span className="text-sm text-green-400">Resume uploaded successfully</span>
+                        <a
+                          href={fileUrl(f.path)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-green-400 hover:underline"
+                          data-testid="link-uploaded-resume"
+                        >
+                          {f.fileName}
+                        </a>
                       </div>
-                    )}
+                    ))}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

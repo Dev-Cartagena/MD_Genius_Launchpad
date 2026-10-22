@@ -19,14 +19,27 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { MentorSession } from "@shared/schema";
 
+type Mentee = {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  profileImageUrl: string | null;
+  sessionCount: number;
+  lastSessionAt: string | null;
+};
+
 export default function MentorDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
 
   // Fetch mentor-specific data
-  const { data: mentees = [] } = useQuery({
+  const { data: mentees = [] } = useQuery<Mentee[]>({
     queryKey: ["/api/mentors/mentees"],
   });
+  const menteeNames = new Map(
+    mentees.map(m => [m.id, [m.firstName, m.lastName].filter(Boolean).join(" ") || m.email || ""])
+  );
 
   const { data: mentorSessions = [], isLoading: sessionsLoading } = useQuery<MentorSession[]>({
     queryKey: ["/api/mentor/sessions"],
@@ -56,7 +69,7 @@ export default function MentorDashboard() {
       }));
   };
   
-  const formatSessionTime = (startTime: string) => {
+  const formatSessionTime = (startTime: string | Date) => {
     const date = new Date(startTime);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -77,7 +90,7 @@ export default function MentorDashboard() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${timeStr}`;
   };
   
-  const calculateDuration = (startTime: string, endTime: string) => {
+  const calculateDuration = (startTime: string | Date, endTime: string | Date | null) => {
     if (!endTime) return "60 min"; // Default duration
     
     const start = new Date(startTime);
@@ -96,7 +109,7 @@ export default function MentorDashboard() {
   
   // Calculate mentor metrics from real data only
   const mentorStats = {
-    activeMentees: Array.from(new Set(mentorSessions.flatMap(s => s.participantIds || []))).length,
+    activeMentees: mentees.length || Array.from(new Set(mentorSessions.flatMap(s => s.participantIds || []))).length,
     totalSessions: mentorSessions.length,
     upcomingSessions: getUpcomingSessions().length,
     completedSessions: mentorSessions.filter(s => new Date(s.startTime) < new Date()).length
@@ -111,7 +124,7 @@ export default function MentorDashboard() {
     .slice(0, 5) // Get most recent 5 with feedback
     .map(session => ({
       id: session.id,
-      mentee: session.participantIds?.[0] || "Participant", // Real participant ID (to be improved with user lookup)
+      mentee: (session.participantIds?.[0] && menteeNames.get(session.participantIds[0])) || session.participantIds?.[0] || "Participant",
       project: session.title || "Session",
       milestone: session.agenda || "Session Notes",
       status: new Date(session.startTime) > new Date() ? "scheduled" : "completed",
@@ -132,7 +145,7 @@ export default function MentorDashboard() {
     const lastSession = participantSessions[0]; // Most recent
     
     return {
-      name: `Participant ${participantId.slice(0, 8)}`, // Show real ID (shortened)
+      name: menteeNames.get(participantId) || `Participant ${participantId.slice(0, 8)}`,
       project: lastSession?.title || "No Recent Sessions",
       sessionCount, // Show real session count instead of synthetic progress
       lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString() : "No sessions",

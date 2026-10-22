@@ -23,6 +23,7 @@ import type { User, Application, Project, Cohort, MentorWithProfile } from "@sha
 import AdminRoadmapManager from "@/components/Admin/AdminRoadmapManager";
 import AdminCurriculumManager from "@/components/Admin/AdminCurriculumManager";
 import AdminInvestorManager from "@/components/Admin/AdminInvestorManager";
+import { getApplicationTitle, getApplicationDescription } from "@/lib/applicationUtils";
 import {
   Users,
   FileText,
@@ -126,6 +127,119 @@ interface ApplicationStatusDialogProps {
   updateStatus: any; // Keep this as any for now since it's a mutation function
 }
 
+// Application Status Dialog Component (module scope so its state survives parent re-renders)
+function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatusDialogProps) {
+  const { toast } = useToast();
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [reviewerNotes, setReviewerNotes] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleStatusUpdate = () => {
+    if (!selectedStatus) {
+      toast({
+        title: "Error",
+        description: "Please select a status",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateStatus.mutate(
+      {
+        id: application.id,
+        status: selectedStatus,
+        notes: reviewerNotes.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setIsOpen(false);
+          setSelectedStatus("");
+          setReviewerNotes("");
+        }
+      }
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          size="sm"
+          data-testid={`button-update-status-${application.id}`}
+        >
+          Update Status
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Update Application Status</DialogTitle>
+          <div className="text-sm text-muted-foreground">
+            Application by {application.applicant} for {application.project}
+          </div>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Current Status</label>
+            <p className="text-sm text-muted-foreground capitalize">
+              {application.status.replace('_', ' ')}
+            </p>
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">New Status</label>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger data-testid={`select-new-status-${application.id}`}>
+                <SelectValue placeholder="Select new status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="under_review">Under Review</SelectItem>
+                <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                <SelectItem value="interview">Interview</SelectItem>
+                <SelectItem value="offer">Offer</SelectItem>
+                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <label className="text-sm font-medium">Reviewer Notes</label>
+            <Textarea 
+              placeholder="Add reviewer notes (optional)..."
+              value={reviewerNotes}
+              onChange={(e) => setReviewerNotes(e.target.value)}
+              data-testid={`textarea-reviewer-notes-${application.id}`}
+            />
+          </div>
+          
+          {application.reviewerNotes && application.reviewerNotes.length > 0 && (
+            <div>
+              <label className="text-sm font-medium">Previous Notes</label>
+              <div className="space-y-1">
+                {application.reviewerNotes.map((note: string, index: number) => (
+                  <p key={index} className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                    {note}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <Button 
+            className="w-full"
+            onClick={handleStatusUpdate}
+            disabled={updateStatus.isPending || !selectedStatus}
+            data-testid={`button-confirm-status-${application.id}`}
+          >
+            {updateStatus.isPending ? "Updating..." : "Update Status"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState("all");
@@ -143,46 +257,37 @@ export default function Admin() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Check admin access
-  if (user?.role !== "administrator") {
-    return (
-      <AppLayout title="Admin Panel" subtitle="Access denied">
-        <Card className="glass-card">
-          <CardContent className="p-8 text-center">
-            <Shield className="w-12 h-12 mx-auto text-destructive mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Access Denied</h3>
-            <p className="text-muted-foreground">
-              You don't have administrator privileges to access this page.
-            </p>
-          </CardContent>
-        </Card>
-      </AppLayout>
-    );
-  }
+  const isAdmin = user?.role === "administrator";
 
   // Fetch admin data
   const { data: applications = [], isLoading: applicationsLoading } = useQuery<Application[]>({
     queryKey: ["/api/admin/applications"],
+    enabled: isAdmin,
   });
 
   const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
+    enabled: isAdmin,
   });
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
+    enabled: isAdmin,
   });
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ["/api/admin/projects"],
+    enabled: isAdmin,
   });
 
   const { data: mentors = [], isLoading: mentorsLoading } = useQuery<MentorWithProfile[]>({
     queryKey: ["/api/mentors"],
+    enabled: isAdmin,
   });
 
   const { data: recentSessions = [], isLoading: sessionsLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/sessions"],
+    enabled: isAdmin,
   });
 
   // Calculate real admin metrics from API data
@@ -216,12 +321,12 @@ export default function Admin() {
       return {
         id: app.id!,
         applicant: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
-        project: (app.answers as any)?.projectName || 'Unnamed Project',
+        project: getApplicationTitle(app.answers),
         status: app.status || 'draft',
         submittedDays: daysDiff,
         score: (app.scores as any)?.total || 0,
         email: user?.email,
-        description: (app.answers as any)?.projectDescription,
+        description: getApplicationDescription(app.answers),
         reviewerNotes: app.reviewerNotes || []
       };
     }).sort((a: ProcessedApplication, b: ProcessedApplication) => a.submittedDays - b.submittedDays); // Most recent first
@@ -334,7 +439,7 @@ export default function Admin() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -370,7 +475,7 @@ export default function Admin() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -406,7 +511,7 @@ export default function Admin() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -471,6 +576,8 @@ export default function Admin() {
         description: "Application status has been updated successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
+      // Accepting an application can change the applicant's role
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -480,7 +587,7 @@ export default function Admin() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -514,7 +621,7 @@ export default function Admin() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -547,7 +654,7 @@ export default function Admin() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }
@@ -568,118 +675,6 @@ export default function Admin() {
   const filteredApplications = recentApplications.filter((app: ProcessedApplication) => 
     selectedApplicationStatus === "all" || app.status === selectedApplicationStatus
   );
-
-  // Application Status Dialog Component
-  const ApplicationStatusDialog = ({ application, updateStatus }: ApplicationStatusDialogProps) => {
-    const [selectedStatus, setSelectedStatus] = useState("");
-    const [reviewerNotes, setReviewerNotes] = useState("");
-    const [isOpen, setIsOpen] = useState(false);
-
-    const handleStatusUpdate = () => {
-      if (!selectedStatus) {
-        toast({
-          title: "Error",
-          description: "Please select a status",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      updateStatus.mutate(
-        {
-          id: application.id,
-          status: selectedStatus,
-          notes: reviewerNotes.trim() || undefined,
-        },
-        {
-          onSuccess: () => {
-            setIsOpen(false);
-            setSelectedStatus("");
-            setReviewerNotes("");
-          }
-        }
-      );
-    };
-
-    return (
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button 
-            size="sm"
-            data-testid={`button-update-status-${application.id}`}
-          >
-            Update Status
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Application Status</DialogTitle>
-            <div className="text-sm text-muted-foreground">
-              Application by {application.applicant} for {application.project}
-            </div>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Current Status</label>
-              <p className="text-sm text-muted-foreground capitalize">
-                {application.status.replace('_', ' ')}
-              </p>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">New Status</label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger data-testid={`select-new-status-${application.id}`}>
-                  <SelectValue placeholder="Select new status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="under_review">Under Review</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
-                  <SelectItem value="offer">Offer</SelectItem>
-                  <SelectItem value="accepted">Accepted</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Reviewer Notes</label>
-              <Textarea 
-                placeholder="Add reviewer notes (optional)..."
-                value={reviewerNotes}
-                onChange={(e) => setReviewerNotes(e.target.value)}
-                data-testid={`textarea-reviewer-notes-${application.id}`}
-              />
-            </div>
-            
-            {application.reviewerNotes && application.reviewerNotes.length > 0 && (
-              <div>
-                <label className="text-sm font-medium">Previous Notes</label>
-                <div className="space-y-1">
-                  {application.reviewerNotes.map((note: string, index: number) => (
-                    <p key={index} className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      {note}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <Button 
-              className="w-full"
-              onClick={handleStatusUpdate}
-              disabled={updateStatus.isPending || !selectedStatus}
-              data-testid={`button-confirm-status-${application.id}`}
-            >
-              {updateStatus.isPending ? "Updating..." : "Update Status"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
 
   // CSV Export utility function
   const exportApplicationsCSV = () => {
@@ -1293,6 +1288,23 @@ export default function Admin() {
     );
   };
 
+  // Check admin access (after all hooks so hook order stays stable)
+  if (!isAdmin) {
+    return (
+      <AppLayout title="Admin Panel" subtitle="Access denied">
+        <Card className="glass-card">
+          <CardContent className="p-8 text-center">
+            <Shield className="w-12 h-12 mx-auto text-destructive mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Access Denied</h3>
+            <p className="text-muted-foreground">
+              You don't have administrator privileges to access this page.
+            </p>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout 
       title="Admin Panel" 
@@ -1323,7 +1335,7 @@ export default function Admin() {
                       <p className="text-2xl font-bold" data-testid="metric-total-applications">
                         {adminMetrics.totalApplications}
                       </p>
-                      <p className="text-xs text-green-400 mt-1">↑ 23% from last quarter</p>
+                      <p className="text-xs text-green-400 mt-1">All time</p>
                     </div>
                     <FileText className="w-8 h-8 text-primary opacity-80" />
                   </div>
@@ -1338,7 +1350,7 @@ export default function Admin() {
                       <p className="text-2xl font-bold" data-testid="metric-acceptance-rate">
                         {adminMetrics.acceptanceRate}%
                       </p>
-                      <p className="text-xs text-accent mt-1">Highly selective</p>
+                      <p className="text-xs text-accent mt-1">Of all applications</p>
                     </div>
                     <UserCheck className="w-8 h-8 text-accent opacity-80" />
                   </div>
@@ -1368,7 +1380,7 @@ export default function Admin() {
                       <p className="text-2xl font-bold" data-testid="metric-funding-disbursed">
                         ${(adminMetrics.fundingDisbursed / 1000).toFixed(0)}K
                       </p>
-                      <p className="text-xs text-green-400 mt-1">85% utilization</p>
+                      <p className="text-xs text-green-400 mt-1">Approved disbursements</p>
                     </div>
                     <DollarSign className="w-8 h-8 text-green-400 opacity-80" />
                   </div>
@@ -1465,7 +1477,7 @@ export default function Admin() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Mentor Utilization</span>
@@ -1479,25 +1491,7 @@ export default function Admin() {
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Platform Uptime</span>
-                      <span className="font-medium text-green-400">99.9%</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div className="bg-green-400 h-2 rounded-full w-full"></div>
-                    </div>
-                  </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>AI Coach Availability</span>
-                      <span className="font-medium text-green-400">100%</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div className="bg-green-400 h-2 rounded-full w-full"></div>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1872,11 +1866,11 @@ export default function Admin() {
                                       <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                                         <span className="flex items-center">
                                           <Star className="w-3 h-3 mr-1" />
-                                          Experience: {mentor.mentorProfile.yearsOfExperience || 0} years
+                                          Industries: {mentor.mentorProfile.industries?.join(', ') || 'None listed'}
                                         </span>
                                         <span className="flex items-center">
                                           <MessageCircle className="w-3 h-3 mr-1" />
-                                          Sessions: {mentor.mentorProfile.totalSessions || 0}
+                                          {mentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
                                         </span>
                                       </div>
                                     </div>

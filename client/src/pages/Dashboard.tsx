@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import type { User, Application, Project, Cohort } from "@shared/schema";
+import { getApplicationTitle, getApplicationDescription } from "@/lib/applicationUtils";
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -72,12 +73,12 @@ export default function Dashboard() {
       return {
         id: app.id!,
         applicant: appUser ? `${appUser.firstName || ''} ${appUser.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
-        project: (app.answers as any)?.projectName || 'Unnamed Project',
+        project: getApplicationTitle(app.answers),
         status: app.status || 'draft',
         submittedDays: daysDiff,
         score: (app.scores as any)?.total || 0,
         email: appUser?.email,
-        description: (app.answers as any)?.projectDescription,
+        description: getApplicationDescription(app.answers),
         reviewerNotes: app.reviewerNotes || []
       };
     }).sort((a, b) => a.submittedDays - b.submittedDays).slice(0, 5); // Show only recent 5
@@ -117,7 +118,8 @@ export default function Dashboard() {
   }, [applications, cohorts, user?.role]);
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.split('?')[1]);
+    // wouter's location has no query string, so read it from window.location
+    const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.get('submitted') === 'true') {
       setShowSubmissionSuccess(true);
       // Clear the URL parameter after showing the message

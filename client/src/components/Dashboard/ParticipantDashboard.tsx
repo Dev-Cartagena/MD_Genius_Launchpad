@@ -37,7 +37,7 @@ interface RoadmapItem {
   estimatedHours: number;
   assignment?: {
     id: string;
-    status: 'pending' | 'in_progress' | 'completed';
+    status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'waived';
     dueDate?: string;
   };
 }
@@ -80,8 +80,9 @@ export default function ParticipantDashboard() {
   };
 
   // Fetch roadmap for the current project
-  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap>({
-    queryKey: [`/api/projects/${currentProject.id}/roadmap`],
+  // The server returns null when no roadmap has been assigned yet
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery<ProjectRoadmap | null>({
+    queryKey: ['/api/projects', currentProject.id, 'roadmap'],
     enabled: !!currentProject.id && currentProject.id !== ""
   });
 
@@ -91,7 +92,7 @@ export default function ParticipantDashboard() {
       return apiRequest("PATCH", `/api/roadmap/assignments/${assignmentId}/status`, { status });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${currentProject.id}/roadmap`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject.id, 'roadmap'] });
       toast({
         title: "Status Updated",
         description: "Roadmap item status has been updated successfully.",
@@ -279,7 +280,7 @@ export default function ParticipantDashboard() {
     return sessionEvents.slice(0, 3); // Limit to 3 items
   };
   
-  const formatSessionTime = (startTime: string) => {
+  const formatSessionTime = (startTime: string | Date) => {
     const date = new Date(startTime);
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -487,7 +488,7 @@ export default function ParticipantDashboard() {
                       <div className="flex items-start gap-3">
                         <div className="flex items-center gap-2 mt-0.5">
                           {getItemTypeIcon(item.itemType)}
-                          {getStatusIcon(item.assignment?.status || 'pending')}
+                          {getStatusIcon(item.assignment?.status || 'not_started')}
                         </div>
                         
                         <div className="flex-1">
@@ -515,8 +516,8 @@ export default function ParticipantDashboard() {
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(item.assignment?.status || 'pending')}>
-                            {item.assignment?.status || 'pending'}
+                          <Badge className={getStatusColor(item.assignment?.status || 'not_started')}>
+                            {item.assignment?.status || 'not_started'}
                           </Badge>
                           
                           {item.assignment && (
