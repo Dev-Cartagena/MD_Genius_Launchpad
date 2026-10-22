@@ -1,24 +1,38 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
-// The client is created on first use so a missing key disables the AI Coach
-// instead of crashing the whole server at startup.
-let openaiClient: OpenAI | null = null;
+/**
+ * AI Coach on Claude (Anthropic API).
+ *
+ * The client is created on first use so a missing ANTHROPIC_API_KEY disables
+ * the coach (routes answer 503) instead of crashing the server at startup.
+ */
+let anthropicClient: Anthropic | null = null;
 
 export function isAiConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY);
+  return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
-function getOpenAI(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set");
+function getClient(): Anthropic {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY is not set");
   }
-  if (!openaiClient) {
-    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({
+      // Vercel functions stop after 60s; leave room to answer with an error.
+      timeout: 50_000,
+      maxRetries: 1,
+    });
   }
-  return openaiClient;
+  return anthropicClient;
 }
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+
+// Re-runs a request on Anthropic's recommended model when a safety classifier
+// declines it, instead of returning the refusal.
+const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+
+export type CoachMode = "process_guide" | "ideation" | "technical" | "gtm" | "pitch";
 
 export interface AiCoachMessage {
   // Only user and assistant turns come from clients; the system prompt is
@@ -32,6 +46,82 @@ export interface AiCoachResponse {
   sources: string[];
   confidence: number;
   suggestedActions?: string[];
+}
+
+export interface ProjectAnalysis {
+  strengths: string[];
+  improvements: string[];
+  nextSteps: string[];
+  readinessScore: number;
+}
+
+const COACH_REPLY_SCHEMA = {
+  type: "object",
+  properties: {
+    message: { type: "string", description: "The reply to show the participant (Markdown allowed)." },
+    sources: {
+      type: "array",
+      items: { type: "string" },
+      description: "Program templates or resources the reply draws on.",
+    },
+    confidence: { type: "number", description: "0 to 1: how confident you are in the advice." },
+    suggestedActions: {
+      type: "array",
+      items: { type: "string" },
+      description: "Up to 3 short next steps.",
+    },
+  },
+  required: ["message", "sources", "confidence", "suggestedActions"],
+  additionalProperties: false,
+} as const;
+
+const PROJECT_ANALYSIS_SCHEMA = {
+  type: "object",
+  properties: {
+    strengths: { type: "array", items: { type: "string" } },
+    improvements: { type: "array", items: { type: "string" } },
+    nextSteps: { type: "array", items: { type: "string" } },
+    readinessScore: { type: "integer", description: "0 to 100" },
+  },
+  required: ["strengths", "improvements", "nextSteps", "readinessScore"],
+  additionalProperties: false,
+} as const;
+
+/** Thrown when Claude declines a request even after the fallback model. */
+export class AiRefusalError extends Error {
+  constructor() {
+    super("The AI Coach can't help with that request.");
+  }
+}
+
+/** Sends one request and returns the parsed JSON reply. */
+async function askForJson<T>(params: {
+  system: string;
+  messages: Anthropic.Beta.BetaMessageParam[];
+  schema: Record<string, unknown>;
+  effort: "low" | "medium" | "high";
+}): Promise<T> {
+  const response = await getClient().beta.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    betas: [FALLBACK_BETA],
+    fallbacks: "default",
+    system: params.system,
+    messages: params.messages,
+    output_config: {
+      effort: params.effort,
+      format: { type: "json_schema", schema: params.schema },
+    },
+  });
+
+  if (response.stop_reason === "refusal") {
+    throw new AiRefusalError();
+  }
+  const text = response.content
+    .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+  return JSON.parse(text) as T;
 }
 
 export class AiCoachService {
@@ -118,39 +208,34 @@ export class AiCoachService {
 
   async generateResponse(
     messages: AiCoachMessage[],
-    mode: "process_guide" | "ideation" | "technical" | "gtm" | "pitch" = "process_guide",
+    mode: CoachMode = "process_guide",
     userRole: string = "participant",
     locale: string = "en"
   ): Promise<AiCoachResponse> {
+    const contextualKnowledge = this.knowledgeBase[mode];
     try {
-      const systemPrompt = this.buildSystemPrompt(mode, userRole, locale);
-      const contextualKnowledge = this.knowledgeBase[mode];
-      
-      const openaiMessages = [
-        { role: "system" as const, content: systemPrompt },
-        ...messages.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }))
-      ];
-
-      const response = await getOpenAI().chat.completions.create({
-        model: MODEL,
-        messages: openaiMessages,
-        temperature: 0.7,
-        max_tokens: 1500,
-        response_format: { type: "json_object" }
+      const reply = await askForJson<AiCoachResponse>({
+        system: this.buildSystemPrompt(mode, userRole, locale),
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        schema: COACH_REPLY_SCHEMA,
+        // Chat replies don't need deep reasoning; keep them fast and cheap.
+        effort: "low",
       });
-
-      const result = JSON.parse(response.choices[0].message.content || "{}");
-      
       return {
-        message: result.message || "I'm here to help! Could you please rephrase your question?",
-        sources: result.sources || contextualKnowledge.templates.slice(0, 2),
-        confidence: result.confidence || 0.8,
-        suggestedActions: result.suggestedActions || []
+        message: reply.message || "I'm here to help! Could you please rephrase your question?",
+        sources: reply.sources?.length ? reply.sources : contextualKnowledge.templates.slice(0, 2),
+        confidence: typeof reply.confidence === "number" ? reply.confidence : 0.8,
+        suggestedActions: reply.suggestedActions ?? [],
       };
     } catch (error) {
+      if (error instanceof AiRefusalError) {
+        return {
+          message: "I can't help with that one. Please reach out to your mentor.",
+          sources: [],
+          confidence: 0,
+          suggestedActions: ["Contact mentor"],
+        };
+      }
       console.error("AI Coach error:", error);
       return {
         message: "I'm experiencing some technical difficulties. Please try again or contact a human mentor for assistance.",
@@ -161,113 +246,65 @@ export class AiCoachService {
     }
   }
 
-  private buildSystemPrompt(
-    mode: string,
-    userRole: string,
-    locale: string
-  ): string {
-    const basePrompt = `You are an AI Coach for the MD Genius AI Startup Launchpad program. 
-    
-    Your role is to guide ${userRole}s through their startup journey with expertise in AI/ML development, 
-    business strategy, and startup best practices.
-    
-    Current mode: ${mode}
-    User locale: ${locale}
-    
-    Knowledge context: ${this.knowledgeBase[mode as keyof typeof this.knowledgeBase]?.content}
-    
-    Guidelines:
-    1. Provide practical, actionable advice specific to AI startups
-    2. Always cite relevant templates and resources when available
-    3. Include confidence scores for your recommendations
-    4. For technical questions, focus on practical implementation
-    5. For legal/financial advice, always recommend consulting human experts
-    6. Encourage responsible AI development and ethical considerations
-    7. Respond in ${locale === 'es' ? 'Spanish' : 'English'}
-    
-    Response format (JSON):
-    {
-      "message": "Your helpful response here",
-      "sources": ["Relevant template 1", "Resource 2"],
-      "confidence": 0.85,
-      "suggestedActions": ["Action 1", "Action 2"]
-    }`;
-    
-    return basePrompt;
+  private buildSystemPrompt(mode: CoachMode, userRole: string, locale: string): string {
+    return `You are the AI Coach for the MD Genius AI Startup Launchpad, an 8-week accelerator for AI startups.
+You are talking with a program ${userRole}. Give practical, specific advice for building an AI startup, grounded in the program material below.
+
+Current coaching mode: ${mode}
+
+Program material for this mode:
+${this.knowledgeBase[mode].content}
+
+Templates available to participants: ${this.knowledgeBase[mode].templates.join(", ")}.
+
+When advice touches legal, financial or medical decisions, recommend confirming with a qualified human expert. Encourage responsible, ethical AI development.
+Reply in ${locale === "es" ? "Spanish" : "English"}.`;
   }
 
-  async analyzeProject(projectData: any): Promise<{
-    strengths: string[];
-    improvements: string[];
-    nextSteps: string[];
-    readinessScore: number;
-  }> {
+  async analyzeProject(projectData: {
+    name: string | null;
+    stage: string | null;
+    summary: string | null;
+    problem: string | null;
+    solution: string | null;
+    market: string | null;
+    aiComponents: string[] | null;
+    dataNeeds: string | null;
+    risks: string[] | null;
+    ethics: string | null;
+  }): Promise<ProjectAnalysis> {
+    const project = {
+      name: projectData.name,
+      stage: projectData.stage,
+      summary: projectData.summary,
+      problem: projectData.problem,
+      solution: projectData.solution,
+      market: projectData.market,
+      aiComponents: projectData.aiComponents,
+      dataNeeds: projectData.dataNeeds,
+      risks: projectData.risks,
+      ethics: projectData.ethics,
+    };
     try {
-      const prompt = `Analyze this AI startup project and provide structured feedback:
-      
-      Project: ${JSON.stringify({
-        name: projectData.name,
-        stage: projectData.stage,
-        summary: projectData.summary,
-        problem: projectData.problem,
-        solution: projectData.solution,
-        market: projectData.market,
-        aiComponents: projectData.aiComponents,
-        dataNeeds: projectData.dataNeeds,
-        risks: projectData.risks,
-        ethics: projectData.ethics,
-      })}
-      
-      Evaluate on: technical feasibility, market opportunity, team readiness, AI ethics, business model.
-      
-      Respond with JSON format containing strengths, improvements, nextSteps, and readinessScore (0-100).`;
-
-      const response = await getOpenAI().chat.completions.create({
-        model: MODEL,
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
+      return await askForJson<ProjectAnalysis>({
+        system:
+          "You review AI startup projects in the MD Genius 8-week accelerator. Evaluate technical feasibility, market opportunity, team readiness, AI ethics and business model. Be candid and specific.",
+        messages: [
+          {
+            role: "user",
+            content: `Analyze this project and give strengths, improvements, next steps and a readiness score from 0 to 100.\n\n<project>\n${JSON.stringify(project, null, 2)}\n</project>`,
+          },
+        ],
+        schema: PROJECT_ANALYSIS_SCHEMA,
+        effort: "medium",
       });
-
-      return JSON.parse(response.choices[0].message.content || "{}");
     } catch (error) {
       console.error("Project analysis error:", error);
       return {
         strengths: [],
         improvements: ["Unable to analyze project at this time"],
         nextSteps: ["Try again later or consult with a mentor"],
-        readinessScore: 0
-      };
-    }
-  }
-
-  async generatePitchFeedback(pitchContent: string): Promise<{
-    overallScore: number;
-    feedback: { category: string; score: number; comments: string }[];
-    suggestions: string[];
-  }> {
-    try {
-      const prompt = `Analyze this pitch content and provide detailed feedback:
-      
-      Pitch: ${pitchContent}
-      
-      Evaluate on: problem clarity, solution explanation, market opportunity, technical credibility, 
-      business model, AI ethics, competitive advantage, team capability, financial projections.
-      
-      Provide JSON with overallScore (0-100), detailed feedback per category, and improvement suggestions.`;
-
-      const response = await getOpenAI().chat.completions.create({
-        model: MODEL,
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      });
-
-      return JSON.parse(response.choices[0].message.content || "{}");
-    } catch (error) {
-      console.error("Pitch feedback error:", error);
-      return {
-        overallScore: 0,
-        feedback: [],
-        suggestions: ["Unable to analyze pitch content at this time"]
+        readinessScore: 0,
       };
     }
   }
