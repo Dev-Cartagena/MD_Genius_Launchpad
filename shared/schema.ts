@@ -14,7 +14,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table for Replit Auth
+// Session storage table (express-session via connect-pg-simple)
 export const sessions = pgTable(
   "sessions",
   {
@@ -24,6 +24,14 @@ export const sessions = pgTable(
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
+
+// Fixed-window counters for rate limiting auth endpoints. Stored in Postgres so
+// limits hold across serverless instances.
+export const authRateLimits = pgTable("auth_rate_limits", {
+  key: varchar("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  windowStart: timestamp("window_start").notNull().defaultNow(),
+});
 
 // Enums
 export const userRoleEnum = pgEnum("user_role", [
@@ -121,7 +129,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").notNull().default("public_visitor"),
   // Password authentication fields
-  passwordHash: varchar("password_hash"), // nullable - OIDC users won't have passwords
+  passwordHash: varchar("password_hash"), // nullable - invited or legacy Replit users have none until they reset
   emailVerified: boolean("email_verified").default(false),
   passwordResetTokenHash: varchar("password_reset_token_hash"), // nullable
   passwordResetExpires: timestamp("password_reset_expires"), // nullable
@@ -136,7 +144,10 @@ export const users = pgTable("users", {
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  // Emails are compared case-insensitively; this blocks A@x.com next to a@x.com.
+  uniqueIndex("users_email_lower_idx").on(sql`lower(${table.email})`),
+]);
 
 // Agreements and signatures
 export const agreements = pgTable("agreements", {
@@ -640,15 +651,6 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
-export const upsertUserSchema = createInsertSchema(users).pick({
-  id: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  profileImageUrl: true,
-  role: true,
-});
-
 export const adminUpdateUserSchema = createInsertSchema(users).pick({
   email: true,
   firstName: true,
@@ -685,6 +687,7 @@ export const insertDeliverableSchema = createInsertSchema(deliverables).omit({
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   createdAt: true,
+  readAt: true,
 });
 
 export const insertAiConversationSchema = createInsertSchema(aiConversations).omit({
@@ -764,7 +767,11 @@ export const insertMentorProfileSchema = createInsertSchema(mentorProfiles).omit
   createdAt: true,
 });
 
-export const insertMentorSessionSchema = createInsertSchema(mentorSessions).omit({
+export const insertMentorSessionSchema = createInsertSchema(mentorSessions, {
+  // JSON carries dates as ISO strings.
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
+}).omit({
   id: true,
   createdAt: true,
 });
@@ -774,7 +781,10 @@ export const insertInvestorSchema = createInsertSchema(investors).omit({
   createdAt: true,
 });
 
-export const insertInvestorSessionSchema = createInsertSchema(investorSessions).omit({
+export const insertInvestorSessionSchema = createInsertSchema(investorSessions, {
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
+}).omit({
   id: true,
   createdAt: true,
 });
@@ -814,8 +824,10 @@ export type MentorWithProfile = {
 };
 
 // Export types
-export type User = typeof users.$inferSelect;
-export type UpsertUser = z.infer<typeof upsertUserSchema>;
+// Full row, including credentials. Only the login query returns this.
+export type UserWithCredentials = typeof users.$inferSelect;
+// What the API returns: no password hash or reset-token fields.
+export type User = Omit<UserWithCredentials, "passwordHash" | "passwordResetTokenHash" | "passwordResetExpires">;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Application = typeof applications.$inferSelect;
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;

@@ -1,25 +1,30 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// The client is created on first use so a missing key disables the AI Coach
+// instead of crashing the whole server at startup.
+let openaiClient: OpenAI | null = null;
 
-// Validate OpenAI API key at startup - critical security requirement
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR;
-if (!OPENAI_API_KEY) {
-  throw new Error(
-    "CRITICAL: OpenAI API key is required but not found in environment variables. " +
-    "Please set OPENAI_API_KEY or OPENAI_API_KEY_ENV_VAR environment variable."
-  );
+export function isAiConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY);
 }
 
-const openai = new OpenAI({ 
-  apiKey: OPENAI_API_KEY
-});
+function getOpenAI(): OpenAI {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiClient;
+}
+
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 export interface AiCoachMessage {
-  role: "user" | "assistant" | "system";
+  // Only user and assistant turns come from clients; the system prompt is
+  // always built on the server.
+  role: "user" | "assistant";
   content: string;
-  timestamp: Date;
-  sources?: string[];
 }
 
 export interface AiCoachResponse {
@@ -129,8 +134,8 @@ export class AiCoachService {
         }))
       ];
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      const response = await getOpenAI().chat.completions.create({
+        model: MODEL,
         messages: openaiMessages,
         temperature: 0.7,
         max_tokens: 1500,
@@ -200,14 +205,25 @@ export class AiCoachService {
     try {
       const prompt = `Analyze this AI startup project and provide structured feedback:
       
-      Project: ${JSON.stringify(projectData)}
+      Project: ${JSON.stringify({
+        name: projectData.name,
+        stage: projectData.stage,
+        summary: projectData.summary,
+        problem: projectData.problem,
+        solution: projectData.solution,
+        market: projectData.market,
+        aiComponents: projectData.aiComponents,
+        dataNeeds: projectData.dataNeeds,
+        risks: projectData.risks,
+        ethics: projectData.ethics,
+      })}
       
       Evaluate on: technical feasibility, market opportunity, team readiness, AI ethics, business model.
       
       Respond with JSON format containing strengths, improvements, nextSteps, and readinessScore (0-100).`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      const response = await getOpenAI().chat.completions.create({
+        model: MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -239,8 +255,8 @@ export class AiCoachService {
       
       Provide JSON with overallScore (0-100), detailed feedback per category, and improvement suggestions.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+      const response = await getOpenAI().chat.completions.create({
+        model: MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });

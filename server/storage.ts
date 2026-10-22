@@ -26,8 +26,7 @@ import {
   roadmapItems,
   assignedRoadmap,
   type User,
-  type UpsertUser,
-  type InsertUser,
+  type UserWithCredentials,
   type Application,
   type InsertApplication,
   type Project,
@@ -69,23 +68,41 @@ import {
   type InsertInvestorSession,
   type InvestorCohortParticipation,
   type InsertInvestorCohortParticipation,
-} from "@shared/schema";
-import { db } from "./db";
-import { eq, and, desc, asc, ilike, or, gt, isNull, sql } from "drizzle-orm";
+} from "../shared/schema.js";
+import { db } from "./db.js";
+import { eq, and, desc, asc, ilike, or, gt, isNull, sql, getTableColumns, inArray } from "drizzle-orm";
+
+// User columns that are safe to return from the API: everything except the
+// password hash and reset-token fields.
+const {
+  passwordHash: _passwordHash,
+  passwordResetTokenHash: _passwordResetTokenHash,
+  passwordResetExpires: _passwordResetExpires,
+  ...safeUserColumns
+} = getTableColumns(users);
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Escapes LIKE/ILIKE wildcards so user input matches literally. */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
 
 export interface IStorage {
-  // User operations (required for Replit Auth)
+  // User operations. Every method returns users without password or
+  // reset-token fields; only getUserCredentialsByEmail exposes the hash.
   getUser(id: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
-  upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
   
-  // Email/Password authentication operations
+  // Email/Password authentication operations (emails are case-insensitive)
   getUserByEmail(email: string): Promise<User | undefined>;
-  createLocalUser(userData: { email: string; firstName?: string; lastName?: string; role?: string }): Promise<User>;
+  getUserCredentialsByEmail(email: string): Promise<UserWithCredentials | undefined>;
+  createLocalUser(userData: { email: string; firstName?: string | null; lastName?: string | null; role?: string; passwordHash?: string }): Promise<User>;
   setPasswordHash(userId: string, passwordHash: string): Promise<void>;
   setResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
-  consumeResetToken(tokenHash: string): Promise<User | undefined>;
   updatePasswordByResetToken(tokenHash: string, newPasswordHash: string): Promise<boolean>;
   
   // Application operations
@@ -189,15 +206,22 @@ export interface IStorage {
   // AI Coach operations
   createAiConversation(conversation: InsertAiConversation): Promise<AiConversation>;
   getAiConversations(userId: string): Promise<AiConversation[]>;
-  updateAiConversation(id: string, messages: any): Promise<AiConversation>;
+  updateAiConversation(id: string, userId: string, messages: any): Promise<AiConversation | undefined>;
   
   // Message operations
   createMessage(message: InsertMessage): Promise<Message>;
-  getMessagesByThread(threadId: string): Promise<Message[]>;
+  getMessagesByThread(threadId: string, participantId?: string): Promise<Message[]>;
   
   // Search operations
-  searchUsers(query: string, role?: string): Promise<User[]>;
-  searchProjects(query: string): Promise<Project[]>;
+  searchUsers(query: string, role?: string, limit?: number, matchEmail?: boolean): Promise<User[]>;
+  searchProjects(query: string, visibleToUserId?: string): Promise<Project[]>;
+  getVisibleProjects(userId: string): Promise<Project[]>;
+  getArtifactsByProject(projectId: string): Promise<Artifact[]>;
+  isFileAttachedToProjectOwnedBy(fileRef: string, ownerId: string): Promise<boolean>;
+  getAcceptedCohortIds(userId: string): Promise<string[]>;
+  getMenteesForMentor(mentorId: string): Promise<Array<{ id: string; firstName: string | null; lastName: string | null; email: string | null; profileImageUrl: string | null; sessionCount: number; lastSessionAt: Date | null }>>;
+  getInvestorInterestsForInvestor(investorId: string): Promise<Array<InvestorInterest & { projectName: string | null }>>;
+  upsertInvestorInterest(investorId: string, projectId: string, level: InvestorInterest["level"], note?: string): Promise<InvestorInterest>;
   
   // Roadmap operations
   // Template management
@@ -236,47 +260,26 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
-  }
-
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+    const [user] = await db.select(safeUserColumns).from(users).where(eq(users.id, id));
     return user;
   }
 
   async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
-    // First check if user exists
-    const existingUser = await this.getUser(id);
-    if (!existingUser) {
-      return undefined;
+    const { id: _ignoredId, createdAt: _ignoredCreatedAt, ...changes } = data as any;
+    if (typeof changes.email === "string") {
+      changes.email = normalizeEmail(changes.email);
     }
-
     const [updatedUser] = await db
       .update(users)
-      .set({
-        ...data,
-        updatedAt: new Date(),
-      })
+      .set({ ...changes, updatedAt: new Date() })
       .where(eq(users.id, id))
-      .returning();
-    
+      .returning(safeUserColumns);
     return updatedUser;
   }
 
   async getAllUsers(): Promise<User[]> {
     return await db
-      .select()
+      .select(safeUserColumns)
       .from(users)
       .orderBy(asc(users.createdAt));
   }
@@ -284,23 +287,33 @@ export class DatabaseStorage implements IStorage {
   // Email/Password authentication operations
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db
-      .select()
+      .select(safeUserColumns)
       .from(users)
-      .where(eq(users.email, email));
+      .where(sql`lower(${users.email}) = ${normalizeEmail(email)}`);
     return user;
   }
 
-  async createLocalUser(userData: { email: string; firstName?: string; lastName?: string; role?: string }): Promise<User> {
+  /** The only query that returns the password hash. Use it for login only. */
+  async getUserCredentialsByEmail(email: string): Promise<UserWithCredentials | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.email}) = ${normalizeEmail(email)}`);
+    return user;
+  }
+
+  async createLocalUser(userData: { email: string; firstName?: string | null; lastName?: string | null; role?: string; passwordHash?: string }): Promise<User> {
     const [user] = await db
       .insert(users)
       .values({
-        email: userData.email,
+        email: normalizeEmail(userData.email),
         firstName: userData.firstName,
         lastName: userData.lastName,
-        role: userData.role as any || "public_visitor",
+        role: (userData.role as any) || "public_visitor",
+        passwordHash: userData.passwordHash,
         emailVerified: false,
       })
-      .returning();
+      .returning(safeUserColumns);
     return user;
   }
 
@@ -322,19 +335,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId));
   }
 
-  async consumeResetToken(tokenHash: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          eq(users.passwordResetTokenHash, tokenHash),
-          gt(users.passwordResetExpires, new Date())
-        )
-      );
-    return user;
-  }
-
   async updatePasswordByResetToken(tokenHash: string, newPasswordHash: string): Promise<boolean> {
     const result = await db
       .update(users)
@@ -342,6 +342,8 @@ export class DatabaseStorage implements IStorage {
         passwordHash: newPasswordHash,
         passwordResetTokenHash: null,
         passwordResetExpires: null,
+        // Completing a reset or invite link proves the user owns the email.
+        emailVerified: true,
         updatedAt: new Date()
       })
       .where(
@@ -352,7 +354,12 @@ export class DatabaseStorage implements IStorage {
       )
       .returning({ id: users.id });
     
-    return result.length > 0;
+    if (result.length === 0) return false;
+    // Sign the user out everywhere: a stolen session must not survive a reset.
+    await db.execute(
+      sql`DELETE FROM sessions WHERE sess->'passport'->'user'->'claims'->>'sub' = ${result[0].id}`,
+    );
+    return true;
   }
 
   // Application operations
@@ -857,6 +864,67 @@ export class DatabaseStorage implements IStorage {
     return newArtifact;
   }
 
+  async getArtifactsByProject(projectId: string): Promise<Artifact[]> {
+    return await db
+      .select()
+      .from(artifacts)
+      .where(eq(artifacts.projectId, projectId))
+      .orderBy(desc(artifacts.createdAt));
+  }
+
+  /** True if fileRef is attached to an artifact of this project. */
+  async isFileAttachedToProjectOwnedBy(fileRef: string, ownerId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ id: artifacts.id })
+      .from(artifacts)
+      .innerJoin(projects, eq(artifacts.projectId, projects.id))
+      .where(and(eq(artifacts.fileRef, fileRef), eq(projects.ownerId, ownerId)))
+      .limit(1);
+    return Boolean(row);
+  }
+
+  /** Cohort ids where the user has an accepted application. */
+  async getAcceptedCohortIds(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ cohortId: applications.cohortId })
+      .from(applications)
+      .where(and(eq(applications.userId, userId), eq(applications.status, "accepted")));
+    return rows.map((r) => r.cohortId);
+  }
+
+  /** Participants who have booked at least one session with the mentor. */
+  async getMenteesForMentor(mentorId: string): Promise<Array<{
+    id: string; firstName: string | null; lastName: string | null; email: string | null;
+    profileImageUrl: string | null; sessionCount: number; lastSessionAt: Date | null;
+  }>> {
+    const sessions = await db
+      .select({ participantIds: mentorSessions.participantIds, startTime: mentorSessions.startTime })
+      .from(mentorSessions)
+      .where(eq(mentorSessions.mentorId, mentorId));
+    const stats = new Map<string, { count: number; last: Date | null }>();
+    for (const session of sessions) {
+      for (const pid of session.participantIds ?? []) {
+        const entry = stats.get(pid) ?? { count: 0, last: null };
+        entry.count += 1;
+        if (!entry.last || session.startTime > entry.last) entry.last = session.startTime;
+        stats.set(pid, entry);
+      }
+    }
+    if (stats.size === 0) return [];
+    const mentees = await db
+      .select({
+        id: users.id, firstName: users.firstName, lastName: users.lastName,
+        email: users.email, profileImageUrl: users.profileImageUrl,
+      })
+      .from(users)
+      .where(inArray(users.id, Array.from(stats.keys())));
+    return mentees.map((m) => ({
+      ...m,
+      sessionCount: stats.get(m.id)!.count,
+      lastSessionAt: stats.get(m.id)!.last,
+    }));
+  }
+
   // Mentor operations
   async getMentors(): Promise<MentorWithProfile[]> {
     return await db
@@ -1085,6 +1153,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Investor interest management
+  async getInvestorInterestsForInvestor(investorId: string): Promise<Array<InvestorInterest & { projectName: string | null }>> {
+    const rows = await db
+      .select({ interest: investorInterests, projectName: projects.name })
+      .from(investorInterests)
+      .leftJoin(projects, eq(investorInterests.projectId, projects.id))
+      .where(eq(investorInterests.investorId, investorId))
+      .orderBy(desc(investorInterests.updatedAt));
+    return rows.map((r) => ({ ...r.interest, projectName: r.projectName }));
+  }
+
+  /** Creates or updates the interest record for an investor/project pair. */
+  async upsertInvestorInterest(investorId: string, projectId: string, level: InvestorInterest["level"], note?: string): Promise<InvestorInterest> {
+    const [existing] = await db
+      .select()
+      .from(investorInterests)
+      .where(and(eq(investorInterests.investorId, investorId), eq(investorInterests.projectId, projectId)))
+      .limit(1);
+    if (existing) {
+      const notes = note ? [existing.notes, note].filter(Boolean).join("\n\n") : existing.notes;
+      const [updated] = await db
+        .update(investorInterests)
+        .set({ level, notes, updatedAt: new Date() })
+        .where(eq(investorInterests.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db
+      .insert(investorInterests)
+      .values({ investorId, projectId, level, notes: note })
+      .returning();
+    return created;
+  }
+
   async getInvestorInterests(projectId: string): Promise<InvestorInterest[]> {
     return await db
       .select()
@@ -1265,11 +1366,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(aiConversations.updatedAt));
   }
 
-  async updateAiConversation(id: string, messages: any): Promise<AiConversation> {
+  /** Updates a conversation only if it belongs to userId; returns undefined otherwise. */
+  async updateAiConversation(id: string, userId: string, messages: any): Promise<AiConversation | undefined> {
     const [updatedConversation] = await db
       .update(aiConversations)
       .set({ messages, updatedAt: new Date() })
-      .where(eq(aiConversations.id, id))
+      .where(and(eq(aiConversations.id, id), eq(aiConversations.userId, userId)))
       .returning();
     return updatedConversation;
   }
@@ -1283,7 +1385,22 @@ export class DatabaseStorage implements IStorage {
     return newMessage;
   }
 
-  async getMessagesByThread(threadId: string): Promise<Message[]> {
+  /**
+   * Messages in a thread. With participantId, only returns the thread if that
+   * user sent or received at least one message in it.
+   */
+  async getMessagesByThread(threadId: string, participantId?: string): Promise<Message[]> {
+    if (participantId) {
+      const [membership] = await db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(and(
+          eq(messages.threadId, threadId),
+          or(eq(messages.senderId, participantId), eq(messages.receiverId, participantId))
+        ))
+        .limit(1);
+      if (!membership) return [];
+    }
     return await db
       .select()
       .from(messages)
@@ -1292,34 +1409,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Search operations
-  async searchUsers(query: string, role?: string): Promise<User[]> {
+  async searchUsers(query: string, role?: string, limit = 20, matchEmail = false): Promise<User[]> {
+    const pattern = `%${escapeLike(query)}%`;
     const conditions = [
-      ilike(users.firstName, `%${query}%`),
-      ilike(users.lastName, `%${query}%`),
-      ilike(users.email, `%${query}%`)
+      ilike(users.firstName, pattern),
+      ilike(users.lastName, pattern),
+      ...(matchEmail ? [ilike(users.email, pattern)] : []),
     ];
 
-    let whereClause = or(...conditions);
+    let whereClause = and(or(...conditions), eq(users.isActive, true));
     if (role) {
       whereClause = and(whereClause, eq(users.role, role as any));
     }
 
     return await db
-      .select()
+      .select(safeUserColumns)
       .from(users)
       .where(whereClause)
-      .orderBy(asc(users.firstName));
+      .orderBy(asc(users.firstName))
+      .limit(limit);
   }
 
-  async searchProjects(query: string): Promise<Project[]> {
+  /** Searches projects. Pass visibleToUserId to limit results to public projects plus that user's own. */
+  async searchProjects(query: string, visibleToUserId?: string): Promise<Project[]> {
+    const pattern = `%${escapeLike(query)}%`;
+    const matches = or(
+      ilike(projects.name, pattern),
+      ilike(projects.summary, pattern),
+      ilike(projects.problem, pattern)
+    );
+    const where = visibleToUserId
+      ? and(matches, or(eq(projects.isPublic, true), eq(projects.ownerId, visibleToUserId)))
+      : matches;
     return await db
       .select()
       .from(projects)
-      .where(or(
-        ilike(projects.name, `%${query}%`),
-        ilike(projects.summary, `%${query}%`),
-        ilike(projects.problem, `%${query}%`)
-      ))
+      .where(where)
+      .orderBy(desc(projects.createdAt))
+      .limit(50);
+  }
+
+  /** Public projects plus the user's own. */
+  async getVisibleProjects(userId: string): Promise<Project[]> {
+    return await db
+      .select()
+      .from(projects)
+      .where(or(eq(projects.isPublic, true), eq(projects.ownerId, userId)))
       .orderBy(desc(projects.createdAt));
   }
 

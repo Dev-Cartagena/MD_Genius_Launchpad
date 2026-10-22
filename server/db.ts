@@ -1,9 +1,6 @@
-import { Pool as NeonPool, neonConfig } from '@neondatabase/serverless';
-import { drizzle as drizzleNeon, type NeonDatabase } from 'drizzle-orm/neon-serverless';
-import pg from 'pg';
-import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
-import ws from "ws";
-import * as schema from "@shared/schema";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import * as schema from "../shared/schema.js";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,35 +8,44 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-const connectionString = process.env.DATABASE_URL;
+/**
+ * Builds pg pool options from DATABASE_URL.
+ *
+ * DATABASE_SSL controls TLS:
+ *   - unset / "disable": no TLS (local Docker Postgres)
+ *   - "require": TLS without certificate verification (Supabase pooler)
+ *   - "verify": TLS with full certificate verification
+ *
+ * sslmode is stripped from the URL because pg lets it override the ssl
+ * option, and newer pg versions treat sslmode=require as verify-full.
+ */
+function poolConfig(): pg.PoolConfig {
+  const url = new URL(process.env.DATABASE_URL!);
+  url.searchParams.delete("sslmode");
 
-// Neon's serverless driver only talks to Neon over WebSockets. Any other
-// Postgres (local Docker, Supabase) uses the standard node-postgres driver.
-// DB_DRIVER=neon|pg overrides the detection.
-const useNeon =
-  process.env.DB_DRIVER === "neon" ||
-  (process.env.DB_DRIVER !== "pg" && new URL(connectionString).hostname.endsWith(".neon.tech"));
+  const sslSetting = (process.env.DATABASE_SSL ?? "disable").toLowerCase();
+  const ssl =
+    sslSetting === "require"
+      ? { rejectUnauthorized: false }
+      : sslSetting === "verify"
+        ? { rejectUnauthorized: true }
+        : undefined;
 
-const poolOptions = {
-  connectionString,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-};
-
-let pool: NeonPool | pg.Pool;
-let db: NeonDatabase<typeof schema>;
-
-if (useNeon) {
-  neonConfig.webSocketConstructor = ws;
-  const neonPool = new NeonPool(poolOptions);
-  pool = neonPool;
-  db = drizzleNeon({ client: neonPool, schema });
-} else {
-  const pgPool = new pg.Pool(poolOptions);
-  pool = pgPool;
-  // Both drivers expose the same query builder; the cast keeps one type for callers.
-  db = drizzlePg({ client: pgPool, schema }) as unknown as NeonDatabase<typeof schema>;
+  return {
+    connectionString: url.toString(),
+    ssl,
+    // Serverless functions should keep this small (DB_POOL_MAX=3 on Vercel).
+    max: Number(process.env.DB_POOL_MAX ?? 10),
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  };
 }
 
-export { pool, db };
+export const pool = new pg.Pool(poolConfig());
+
+// Without a listener, an idle connection dropped by the pooler emits an
+// unhandled 'error' event and crashes the process.
+pool.on("error", (error) => {
+  console.error("Postgres pool error:", error);
+});
+export const db = drizzle({ client: pool, schema });
