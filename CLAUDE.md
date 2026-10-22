@@ -38,6 +38,23 @@ supabase projects list
 supabase orgs list                  # mdgeniusai must be listed
 ```
 
+## Local development
+
+```bash
+cp .env.example .env        # first time only, then set SESSION_SECRET
+npm install
+npm run db:up               # Postgres 16 in Docker on localhost:5487
+npm run db:push             # create or update tables from shared/schema.ts
+npm run dev:local           # app + API on http://localhost:5055
+npm run db:down             # stop the database (data is kept in a Docker volume)
+```
+
+- Port 5000 is taken by macOS AirPlay Receiver, so local dev uses 5055.
+- Replit login does not work locally. Register with email and password, then promote the account:
+  `docker compose exec -T db psql -U postgres -d launchpad -c "update users set role='administrator' where email='you@example.com'"`
+- `server/db.ts` uses node-postgres for any non-Neon URL (local, Supabase). Set `DB_DRIVER=neon|pg` to override.
+- AI Coach and file uploads need real OpenAI keys and storage, so they fail locally with placeholders.
+
 ## Rules
 
 - Never write tokens, passwords or API keys into this file or any committed file.
