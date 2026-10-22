@@ -1,66 +1,163 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated, createLocalUserSession } from "./replitAuth";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { ObjectPermission } from "./objectAcl";
-import { aiCoachService } from "./aiCoach";
+import type { Express, Request, Response, NextFunction } from "express";
+import { storage, normalizeEmail } from "./storage.js";
+import { isAuthenticated, createLocalUserSession } from "./auth.js";
+import { aiCoachService, isAiConfigured } from "./aiCoach.js";
+import {
+  createSignedUpload,
+  createSignedDownload,
+  isAllowedContentType,
+  ownerOfPath,
+  MAX_UPLOAD_BYTES,
+  StorageNotConfiguredError,
+} from "./fileStorage.js";
+import { sendEmail, passwordResetEmail, inviteEmail, appBaseUrl } from "./email.js";
+import { rateLimit } from "./rateLimit.js";
 import { z } from "zod";
-import { insertApplicationSchema, insertProjectSchema, insertMessageSchema, insertAiConversationSchema, insertUserProgressSchema, insertCohortSchema, insertModuleSchema, insertLessonSchema, insertQuizSchema, insertRoadmapTemplateSchema, insertRoadmapItemSchema, insertAssignedRoadmapSchema, insertMentorProfileSchema, insertMentorSessionSchema, insertInvestorSchema, insertInvestorSessionSchema, insertInvestorCohortParticipationSchema, insertUserSchema, upsertUserSchema, adminUpdateUserSchema, adminUpdateCohortSchema, adminUpdateMentorProfileSchema } from "@shared/schema";
+import {
+  insertApplicationSchema,
+  insertProjectSchema,
+  insertMessageSchema,
+  insertCohortSchema,
+  insertModuleSchema,
+  insertLessonSchema,
+  insertQuizSchema,
+  insertRoadmapTemplateSchema,
+  insertRoadmapItemSchema,
+  insertMentorProfileSchema,
+  insertMentorSessionSchema,
+  insertInvestorSchema,
+  insertInvestorSessionSchema,
+  insertInvestorCohortParticipationSchema,
+  adminUpdateUserSchema,
+  adminUpdateCohortSchema,
+  adminUpdateMentorProfileSchema,
+  applicationStatusEnum,
+  investorInterestLevelEnum,
+  userRoleEnum,
+  type User,
+} from "../shared/schema.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
+const email = z.string().trim().toLowerCase().email("Invalid email address");
+
 // Validation schemas for email/password authentication
 const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
+  email,
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  firstName: z.string().trim().max(100).optional(),
+  lastName: z.string().trim().max(100).optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  email,
+  password: z.string().min(1, "Password is required").max(200),
 });
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address"),
-});
+const forgotPasswordSchema = z.object({ email });
 
 const resetPasswordSchema = z.object({
-  token: z.string().min(1, "Reset token is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  token: z.string().min(1, "Reset token is required").max(200),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const FIFTEEN_MINUTES = 15 * 60 * 1000;
+
+const loginLimit = rateLimit({ name: "login", windowMs: FIFTEEN_MINUTES, maxPerIp: 50, maxPerEmail: 10 });
+const registerLimit = rateLimit({ name: "register", windowMs: 60 * 60 * 1000, maxPerIp: 20 });
+const passwordResetLimit = rateLimit({ name: "reset", windowMs: FIFTEEN_MINUTES, maxPerIp: 20, maxPerEmail: 5 });
 
 // Validation schemas for mentor operations
 const updateMentorProfileSchema = insertMentorProfileSchema.partial().omit({ userId: true });
-const updateMentorSessionSchema = insertMentorSessionSchema.partial().omit({ mentorId: true });
+// Participant lists are set only by booking, so nobody can add arbitrary users to a session.
+const updateMentorSessionSchema = insertMentorSessionSchema.partial().omit({ mentorId: true, participantIds: true });
 
 // Validation schemas for investor operations
 const updateInvestorSchema = insertInvestorSchema.partial().omit({ userId: true });
 const updateInvestorSessionSchema = insertInvestorSessionSchema.partial().omit({ investorId: true });
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+// Fields that only the server or reviewers may set.
+const applicationInputSchema = insertApplicationSchema.omit({
+  userId: true,
+  status: true,
+  scores: true,
+  reviewerNotes: true,
+  submittedAt: true,
+});
+const projectInputSchema = insertProjectSchema.omit({ ownerId: true, readinessScore: true });
 
+const aiChatSchema = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .min(1)
+    .max(40),
+  mode: z.enum(["process_guide", "ideation", "technical", "gtm", "pitch"]).default("process_guide"),
+  conversationId: z.string().max(64).optional(),
+});
+
+const uploadRequestSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  contentType: z.string().min(1).max(200),
+  size: z.number().int().positive(),
+});
+
+/** The active user loaded by isAuthenticated. */
+function currentUser(req: Request): User {
+  return (req as any).currentUser as User;
+}
+
+function hasRole(user: User | undefined, ...roles: User["role"][]): boolean {
+  return Boolean(user && roles.includes(user.role));
+}
+
+/** Middleware: only allow the listed roles. Use after isAuthenticated. */
+function requireRole(...roles: User["role"][]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!hasRole(currentUser(req), ...roles)) {
+      return res.status(403).json({ message: "Insufficient permissions" });
+    }
+    next();
+  };
+}
+
+function zodMessage(error: z.ZodError): string {
+  const issue = error.errors[0];
+  return issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message;
+}
+
+/** Non-admins may only attach a project to a cohort they were accepted into. */
+async function canUseCohort(user: User, cohortId: string | null | undefined): Promise<boolean> {
+  if (!cohortId || user.role === "administrator") return true;
+  const accepted = await storage.getAcceptedCohortIds(user.id);
+  return accepted.includes(cohortId);
+}
+
+export function registerRoutes(app: Express): void {
   // Email/Password Authentication Routes
-  app.post('/api/auth/register', async (req, res) => {
+  app.post('/api/auth/register', registerLimit, async (req, res) => {
     try {
       const { email, password, firstName, lastName } = registerSchema.parse(req.body);
       
-      // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
       
-      // Create user and hash password
-      const user = await storage.createLocalUser({ email, firstName, lastName });
       const passwordHash = await bcrypt.hash(password, 12);
-      await storage.setPasswordHash(user.id, passwordHash);
+      let user;
+      try {
+        user = await storage.createLocalUser({ email, firstName, lastName, passwordHash });
+      } catch (insertError: any) {
+        // Lost a race with a concurrent sign-up for the same email.
+        if (insertError?.code === "23505" || insertError?.cause?.code === "23505") {
+          return res.status(400).json({ message: "User with this email already exists" });
+        }
+        throw insertError;
+      }
       
-      // Create session and regenerate session ID to prevent session fixation
+      // Regenerate the session ID to prevent session fixation
       const userSession = createLocalUserSession(user);
       req.session.regenerate((sessionErr) => {
         if (sessionErr) {
@@ -77,31 +174,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
     } catch (error) {
-      console.error("Registration error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed" });
     }
   });
 
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', loginLimit, async (req, res) => {
     try {
       const { email, password } = loginSchema.parse(req.body);
       
-      // Find user by email
-      const user = await storage.getUserByEmail(email);
-      if (!user || !user.passwordHash) {
+      const user = await storage.getUserCredentialsByEmail(email);
+      // Same message for every failure so the response doesn't reveal which emails exist.
+      if (!user || !user.passwordHash || user.isActive === false) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
-      // Verify password
       const isValidPassword = await bcrypt.compare(password, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
-      // Create session and regenerate session ID to prevent session fixation
+      // Regenerate the session ID to prevent session fixation
       const userSession = createLocalUserSession(user);
       req.session.regenerate((sessionErr) => {
         if (sessionErr) {
@@ -118,63 +214,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
     } catch (error) {
-      console.error("Login error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
     }
   });
 
-  app.post('/api/auth/forgot-password', async (req, res) => {
+  app.post('/api/auth/forgot-password', passwordResetLimit, async (req, res) => {
+    const genericMessage = "If an account exists with this email, you will receive password reset instructions.";
     try {
       const { email } = forgotPasswordSchema.parse(req.body);
       
       const user = await storage.getUserByEmail(email);
-      if (!user) {
-        // Don't reveal whether email exists or not
-        return res.json({ message: "If an account exists with this email, you will receive password reset instructions." });
+      if (!user || user.isActive === false) {
+        // Don't reveal whether the email exists
+        return res.json({ message: genericMessage });
       }
       
-      // Generate reset token (24 hours expiry)
       const resetToken = crypto.randomBytes(32).toString('hex');
-      // Use SHA-256 for deterministic token hashing (not bcrypt which is randomized)
+      // SHA-256 so the stored value can be looked up; the token itself is never stored.
       const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      await storage.setResetToken(user.id, tokenHash, new Date(Date.now() + RESET_TOKEN_TTL_MS));
       
-      await storage.setResetToken(user.id, tokenHash, expiresAt);
-      
-      // SECURITY: Never return plaintext tokens in API responses
-      // In production, this token should be sent via secure email
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[DEV ONLY] Password reset token for ${email}: ${resetToken}`);
-        console.log('SECURITY WARNING: In production, implement secure email delivery for reset tokens');
+      const link = `${appBaseUrl()}/reset-password?token=${resetToken}`;
+      try {
+        await sendEmail(passwordResetEmail(user.email!, link));
+      } catch (emailError) {
+        // Same response either way, so failures don't reveal which emails exist.
+        console.error("Password reset email failed:", emailError);
       }
       
-      res.json({ 
-        message: "Password reset instructions sent to your email."
-        // REMOVED: resetToken - never expose plaintext tokens in API responses
-      });
+      res.json({ message: genericMessage });
     } catch (error) {
-      console.error("Forgot password error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      console.error("Forgot password error:", error);
       res.status(500).json({ message: "Password reset request failed" });
     }
   });
 
-  app.post('/api/auth/reset-password', async (req, res) => {
+  app.post('/api/auth/reset-password', passwordResetLimit, async (req, res) => {
     try {
       const { token, password } = resetPasswordSchema.parse(req.body);
       
-      // Hash the new password
       const newPasswordHash = await bcrypt.hash(password, 12);
-      
-      // Hash the provided token to match against stored hash
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      
-      // Update password using reset token hash
       const success = await storage.updatePasswordByResetToken(tokenHash, newPasswordHash);
       
       if (!success) {
@@ -183,40 +270,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ message: "Password reset successful" });
     } catch (error) {
-      console.error("Reset password error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      console.error("Reset password error:", error);
       res.status(500).json({ message: "Password reset failed" });
     }
   });
 
   // Existing Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
+  app.get('/api/auth/user', isAuthenticated, (req, res) => {
+    res.json(currentUser(req));
   });
 
   // Application routes
   app.post('/api/applications', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const applicationData = insertApplicationSchema.parse({
-        ...req.body,
-        userId
+      const applicationData = applicationInputSchema.parse(req.body);
+      const application = await storage.createApplication({
+        ...applicationData,
+        userId: currentUser(req).id,
+        status: "draft",
       });
-      
-      const application = await storage.createApplication(applicationData);
-      res.json(application);
+      res.status(201).json(application);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error creating application:", error);
-      res.status(400).json({ message: "Failed to create application" });
+      res.status(500).json({ message: "Failed to create application" });
     }
   });
 
@@ -233,108 +315,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/applications/submit', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const user = currentUser(req);
+      const applicationData = applicationInputSchema.parse(req.body);
       
-      // Parse application data, excluding fields that should be set server-side
-      const applicationData = insertApplicationSchema.omit({ 
-        status: true, 
-        submittedAt: true, 
-        userId: true 
-      }).parse(req.body);
-      
-      // Set server-controlled fields
-      const submissionData = {
+      const application = await storage.createApplication({
         ...applicationData,
-        userId,
-        status: "submitted" as const,
-        submittedAt: new Date()
-      };
+        userId: user.id,
+        status: "submitted",
+        submittedAt: new Date(),
+      });
       
-      const application = await storage.createApplication(submissionData);
-      
-      // Update user role to applicant after successful submission
-      try {
-        const user = await storage.getUser(userId);
-        if (user && user.role === 'public_visitor') {
-          console.log(`Updating user role from ${user.role} to applicant for user ${userId}`);
-          await storage.upsertUser({
-            ...user,
-            role: 'applicant'
-          });
-          console.log(`Successfully updated user role to applicant for user ${userId}`);
-        } else {
-          console.log(`User role update skipped - current role: ${user?.role || 'undefined'} for user ${userId}`);
+      // Visitors become applicants once they submit.
+      if (user.role === 'public_visitor') {
+        try {
+          await storage.updateUser(user.id, { role: 'applicant' });
+        } catch (roleUpdateError) {
+          console.error(`Failed to update role after application submission for user ${user.id}:`, roleUpdateError);
         }
-      } catch (roleUpdateError) {
-        console.error(`Failed to update user role after application submission for user ${userId}:`, roleUpdateError);
-        // Don't fail the entire request if role update fails
       }
       
-      res.json(application);
+      res.status(201).json(application);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error submitting application:", error);
-      res.status(400).json({ message: "Failed to submit application" });
+      res.status(500).json({ message: "Failed to submit application" });
     }
   });
 
-  app.put('/api/applications/:id/status', isAuthenticated, async (req: any, res) => {
+  const applicationStatusSchema = z.object({
+    status: z.enum(applicationStatusEnum.enumValues),
+    reviewerNotes: z.string().max(5000).optional(),
+  });
+
+  app.put('/api/applications/:id/status', isAuthenticated, requireRole('administrator', 'mentor'), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { status, reviewerNotes } = req.body;
+      const { status, reviewerNotes } = applicationStatusSchema.parse(req.body);
       
-      // Check if user has admin/mentor role for status updates
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || !['administrator', 'mentor'].includes(user.role)) {
-        return res.status(403).json({ message: "Insufficient permissions" });
+      const existing = await storage.getApplication(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Application not found" });
       }
       
       const application = await storage.updateApplicationStatus(id, status, reviewerNotes);
       
-      // Handle automatic role progression when application is accepted
+      // Accepted applicants become participants.
       if (status === 'accepted') {
         try {
           const applicantUser = await storage.getUser(application.userId);
-          if (applicantUser && applicantUser.role === 'applicant') {
-            await storage.upsertUser({
-              ...applicantUser,
-              role: 'participant'
-            });
-            console.log(`User role upgraded from applicant to participant for user ${application.userId} after application acceptance`);
+          if (applicantUser && ['applicant', 'public_visitor'].includes(applicantUser.role)) {
+            await storage.updateUser(applicantUser.id, { role: 'participant' });
           }
         } catch (roleUpdateError) {
-          // Log the error but don't fail the entire request
           console.error(`Failed to update user role for accepted application ${id}:`, roleUpdateError);
         }
       }
       
       res.json(application);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating application status:", error);
       res.status(500).json({ message: "Failed to update application status" });
     }
   });
 
   // Project routes
-  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects', isAuthenticated, requireRole('participant', 'administrator'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      // Check role authorization
-      if (!user || !['participant', 'administrator'].includes(user.role)) {
-        return res.status(403).json({ message: "Only participants and administrators can create projects" });
+      const user = currentUser(req);
+      const projectData = projectInputSchema.parse(req.body);
+      if (!(await canUseCohort(user, projectData.cohortId))) {
+        return res.status(403).json({ message: "You can only add a project to a cohort you were accepted into" });
       }
       
-      const projectData = insertProjectSchema.parse({
-        ...req.body,
-        ownerId: userId
-      });
-      
-      const project = await storage.createProject(projectData);
-      res.json(project);
+      const project = await storage.createProject({ ...projectData, ownerId: user.id });
+      res.status(201).json(project);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error creating project:", error);
-      res.status(400).json({ message: "Failed to create project" });
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  // Project directory: staff and investors see all projects, everyone else
+  // sees public projects plus their own.
+  app.get('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = currentUser(req);
+      const projects = hasRole(user, 'administrator', 'mentor', 'investor')
+        ? await storage.getAllProjects()
+        : await storage.getVisibleProjects(user.id);
+      res.json(projects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
     }
   });
 
@@ -358,20 +438,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      // Check ownership or admin permissions
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (project.ownerId !== userId && user?.role !== 'administrator') {
+      const user = currentUser(req);
+      const isAdmin = user.role === 'administrator';
+      if (project.ownerId !== user.id && !isAdmin) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
-      // Validate update data with schema (excluding auto-managed fields)
-      const updateSchema = insertProjectSchema.omit({ ownerId: true }).partial();
+      // Admins may also set the readiness score; owners may not score themselves.
+      const updateSchema = isAdmin
+        ? insertProjectSchema.omit({ ownerId: true }).partial()
+        : projectInputSchema.partial();
       const validatedData = updateSchema.parse(req.body);
+      if ('cohortId' in validatedData && validatedData.cohortId !== project.cohortId &&
+          !(await canUseCohort(user, validatedData.cohortId))) {
+        return res.status(403).json({ message: "You can only add a project to a cohort you were accepted into" });
+      }
       
       const updatedProject = await storage.updateProject(id, validatedData);
       res.json(updatedProject);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating project:", error);
       res.status(500).json({ message: "Failed to update project" });
     }
@@ -380,6 +468,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/projects/cohort/:cohortId', isAuthenticated, async (req: any, res) => {
     try {
       const { cohortId } = req.params;
+      const user = currentUser(req);
+      const isStaff = hasRole(user, 'administrator', 'mentor', 'investor');
+      if (!isStaff) {
+        const accepted = await storage.getAcceptedCohortIds(user.id);
+        if (!accepted.includes(cohortId)) {
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+      }
       const projects = await storage.getProjectsByCohort(cohortId);
       res.json(projects);
     } catch (error) {
@@ -394,21 +490,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/projects/:projectId/roadmap', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.params;
-      const userId = req.user.claims.sub;
+      const user = currentUser(req);
       
-      // Verify project access
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      const user = await storage.getUser(userId);
-      if (project.ownerId !== userId && user?.role !== 'administrator' && user?.role !== 'mentor') {
+      if (project.ownerId !== user.id && !hasRole(user, 'administrator', 'mentor')) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
       const roadmap = await storage.getProjectRoadmap(projectId);
-      res.json(roadmap);
+      // null (not an empty body) when no roadmap is assigned yet
+      res.json(roadmap ?? null);
     } catch (error) {
       console.error("Error fetching project roadmap:", error);
       res.status(500).json({ message: "Failed to fetch project roadmap" });
@@ -455,18 +550,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Participant roadmap convenience routes
   app.get('/api/roadmap', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      // Find the user's active project
-      const projects = await storage.getProjectsByUser(userId);
-      const activeProject = projects.find((p: any) => p.stage !== 'completed') || projects[0];
+      const projects = await storage.getProjectsByUser(currentUser(req).id);
+      const activeProject = projects[0];
       
       if (!activeProject) {
-        return res.status(404).json({ message: "No project found for user" });
+        return res.json(null);
       }
       
       const roadmap = await storage.getProjectRoadmap(activeProject.id);
-      res.json(roadmap);
+      res.json(roadmap ?? null);
     } catch (error) {
       console.error("Error fetching user roadmap:", error);
       res.status(500).json({ message: "Failed to fetch roadmap" });
@@ -475,18 +567,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/roadmap/current-week', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      
-      // Find the user's active project
-      const projects = await storage.getProjectsByUser(userId);
-      const activeProject = projects.find((p: any) => p.stage !== 'completed') || projects[0];
+      const projects = await storage.getProjectsByUser(currentUser(req).id);
+      const activeProject = projects[0];
       
       if (!activeProject) {
-        return res.status(404).json({ message: "No project found for user" });
+        return res.json([]);
       }
       
-      // Get current week (you may want to make this configurable)
-      const currentWeek = 1; // For now, default to week 1
+      // Program week from the project's cohort start date (week 1..8).
+      let currentWeek = 1;
+      if (activeProject.cohortId) {
+        const cohort = await storage.getCohort(activeProject.cohortId);
+        if (cohort?.startDate) {
+          const elapsedWeeks = Math.floor((Date.now() - new Date(cohort.startDate).getTime()) / (7 * 24 * 60 * 60 * 1000));
+          currentWeek = Math.min(Math.max(elapsedWeeks + 1, 1), 8);
+        }
+      }
       const currentWeekItems = await storage.getParticipantRoadmapByWeek(activeProject.id, currentWeek);
       res.json(currentWeekItems);
     } catch (error) {
@@ -734,7 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Curriculum routes
-  app.get('/api/cohorts/:cohortId/modules', isAuthenticated, async (req: any, res) => {
+  app.get('/api/cohorts/:cohortId/modules', isAuthenticated, requireRole('participant', 'mentor', 'administrator'), async (req: any, res) => {
     try {
       const { cohortId } = req.params;
       const modules = await storage.getModulesByCohort(cohortId);
@@ -745,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/modules/:moduleId/lessons', isAuthenticated, async (req: any, res) => {
+  app.get('/api/modules/:moduleId/lessons', isAuthenticated, requireRole('participant', 'mentor', 'administrator'), async (req: any, res) => {
     try {
       const { moduleId } = req.params;
       const lessons = await storage.getLessonsByModule(moduleId);
@@ -756,7 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/cohorts/:cohortId/milestones', isAuthenticated, async (req: any, res) => {
+  app.get('/api/cohorts/:cohortId/milestones', isAuthenticated, requireRole('participant', 'mentor', 'administrator'), async (req: any, res) => {
     try {
       const { cohortId } = req.params;
       const milestones = await storage.getMilestonesByCohort(cohortId);
@@ -768,18 +864,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Lesson routes
-  app.get('/api/modules/:moduleId/lessons', isAuthenticated, async (req: any, res) => {
-    try {
-      const { moduleId } = req.params;
-      const lessons = await storage.getLessonsByModule(moduleId);
-      res.json(lessons);
-    } catch (error) {
-      console.error("Error fetching lessons:", error);
-      res.status(500).json({ message: "Failed to fetch lessons" });
-    }
-  });
 
-  app.get('/api/lessons/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/lessons/:id', isAuthenticated, requireRole('participant', 'mentor', 'administrator'), async (req: any, res) => {
     try {
       const { id } = req.params;
       const lesson = await storage.getLesson(id);
@@ -854,20 +940,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/modules/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/modules/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const updateData = insertModuleSchema.partial().parse(req.body);
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
       }
-      
-      const updateData = req.body;
-      const module = await storage.updateModule(id, updateData);
-      res.json(module);
+      const updated = await storage.updateModule(id, updateData);
+      if (!updated) {
+        return res.status(404).json({ message: "Module not found" });
+      }
+      res.json(updated);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating module:", error);
       res.status(500).json({ message: "Failed to update module" });
     }
@@ -891,20 +979,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/modules/:id/duplicate', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/modules/:id/duplicate', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { newCohortId } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const { newCohortId } = z.object({ newCohortId: z.string().min(1) }).parse(req.body);
+      if (!(await storage.getCohort(newCohortId))) {
+        return res.status(404).json({ message: "Cohort not found" });
       }
-      
       const duplicatedModule = await storage.duplicateModule(id, newCohortId);
       res.status(201).json(duplicatedModule);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error duplicating module:", error);
       res.status(500).json({ message: "Failed to duplicate module" });
     }
@@ -954,20 +1041,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/lessons/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/lessons/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const updateData = insertLessonSchema.partial().parse(req.body);
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
       }
-      
-      const updateData = req.body;
-      const lesson = await storage.updateLesson(id, updateData);
-      res.json(lesson);
+      const updated = await storage.updateLesson(id, updateData);
+      if (!updated) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+      res.json(updated);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating lesson:", error);
       res.status(500).json({ message: "Failed to update lesson" });
     }
@@ -1030,20 +1119,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/quizzes/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/quizzes/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const updateData = insertQuizSchema.partial().parse(req.body);
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
       }
-      
-      const updateData = req.body;
-      const quiz = await storage.updateQuiz(id, updateData);
-      res.json(quiz);
+      const updated = await storage.updateQuiz(id, updateData);
+      if (!updated) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+      res.json(updated);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating quiz:", error);
       res.status(500).json({ message: "Failed to update quiz" });
     }
@@ -1092,22 +1183,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/progress/lesson/:lessonId/complete', isAuthenticated, async (req: any, res) => {
+  app.post('/api/progress/lesson/:lessonId/complete', isAuthenticated, requireRole('participant', 'administrator'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
       const { lessonId } = req.params;
-      
-      // Validate input data
       const progressSchema = z.object({
         score: z.number().int().min(0).max(100).optional(),
         timeSpent: z.number().int().min(0).optional(),
       });
+      const { score, timeSpent } = progressSchema.parse(req.body ?? {});
       
-      const { score, timeSpent } = progressSchema.parse(req.body);
-      
-      const progress = await storage.markLessonComplete(userId, lessonId, score, timeSpent);
+      if (!(await storage.getLesson(lessonId))) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+      const progress = await storage.markLessonComplete(currentUser(req).id, lessonId, score, timeSpent);
       res.json(progress);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error marking lesson complete:", error);
       res.status(500).json({ message: "Failed to mark lesson complete" });
     }
@@ -1129,6 +1222,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/projects/:projectId/deliverables', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.params;
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      const user = currentUser(req);
+      if (project.ownerId !== user.id && !hasRole(user, 'administrator', 'mentor')) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       const deliverables = await storage.getDeliverablesByProject(projectId);
       res.json(deliverables);
     } catch (error) {
@@ -1137,41 +1238,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/projects/:projectId/artifacts', isAuthenticated, async (req: any, res) => {
+    try {
+      const { projectId } = req.params;
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      const user = currentUser(req);
+      if (project.ownerId !== user.id && !hasRole(user, 'administrator', 'mentor')) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      res.json(await storage.getArtifactsByProject(projectId));
+    } catch (error) {
+      console.error("Error fetching artifacts:", error);
+      res.status(500).json({ message: "Failed to fetch artifacts" });
+    }
+  });
+
   app.post('/api/projects/:projectId/artifacts', isAuthenticated, async (req: any, res) => {
     try {
       const { projectId } = req.params;
-      const userId = req.user.claims.sub;
+      const user = currentUser(req);
       
-      // Check project ownership
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      const user = await storage.getUser(userId);
-      if (project.ownerId !== userId && user?.role !== 'administrator') {
+      const isAdmin = user.role === 'administrator';
+      if (project.ownerId !== user.id && !isAdmin) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
-      // Validate artifact data
       const artifactSchema = z.object({
-        type: z.string().min(1),
-        title: z.string().min(1),
-        fileRef: z.string().min(1),
+        type: z.string().min(1).max(100),
+        title: z.string().min(1).max(255),
+        fileRef: z.string().min(1).max(500),
         version: z.number().int().positive().optional().default(1),
         isGated: z.boolean().optional().default(false),
       });
       
       const artifactData = artifactSchema.parse(req.body);
-      const artifact = await storage.createArtifact({
-        ...artifactData,
-        projectId
-      });
+      // Only files the caller uploaded can be attached.
+      if (!isAdmin && ownerOfPath(artifactData.fileRef) !== user.id) {
+        return res.status(400).json({ message: "fileRef must be a file you uploaded" });
+      }
+      const artifact = await storage.createArtifact({ ...artifactData, projectId });
       
-      res.json(artifact);
+      res.status(201).json(artifact);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error creating artifact:", error);
-      res.status(400).json({ message: "Failed to create artifact" });
+      res.status(500).json({ message: "Failed to create artifact" });
     }
   });
 
@@ -1239,73 +1360,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/users/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/admin/users/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
       const { id } = req.params;
-      
-      // Validate update data using restricted schema (ignores any id in body)
       const updateData = adminUpdateUserSchema.partial().parse(req.body);
       
-      // Check if email is being changed and if it's already taken
+      // Admins can't lock themselves out.
+      if (id === currentUser(req).id &&
+          ((updateData.role && updateData.role !== 'administrator') || updateData.isActive === false)) {
+        return res.status(400).json({ message: "You can't remove your own administrator access" });
+      }
+      
       if (updateData.email) {
+        updateData.email = normalizeEmail(updateData.email);
         const existingUser = await storage.getUserByEmail(updateData.email);
         if (existingUser && existingUser.id !== id) {
           return res.status(400).json({ message: "Email address is already in use" });
         }
       }
       
-      // Update user (returns undefined if user doesn't exist)
       const updatedUser = await storage.updateUser(id, updateData);
-      
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
       
       res.json(updatedUser);
     } catch (error) {
-      console.error("Error updating user:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+        return res.status(400).json({ message: zodMessage(error) });
       }
+      console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
     }
   });
 
-  app.post('/api/admin/users/invite', isAuthenticated, async (req: any, res) => {
+  const inviteSchema = z.object({
+    email,
+    firstName: z.string().trim().max(100).optional(),
+    lastName: z.string().trim().max(100).optional(),
+    role: z.enum(userRoleEnum.enumValues).default("public_visitor"),
+  });
+
+  // Creates the account and emails a link to set a password.
+  app.post('/api/admin/users/invite', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
+      const userData = inviteSchema.parse(req.body);
       
-      const userData = insertUserSchema.parse(req.body);
-      
-      // Check if user with email already exists
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
       
-      const newUser = await storage.createLocalUser({
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        role: userData.role || "public_visitor"
-      });
+      const newUser = await storage.createLocalUser(userData);
       
-      res.status(201).json(newUser);
-    } catch (error) {
-      console.error("Error inviting user:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+      const inviteToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(inviteToken).digest('hex');
+      await storage.setResetToken(newUser.id, tokenHash, new Date(Date.now() + INVITE_TOKEN_TTL_MS));
+      
+      const admin = currentUser(req);
+      const inviterName = [admin.firstName, admin.lastName].filter(Boolean).join(" ");
+      try {
+        await sendEmail(inviteEmail(newUser.email!, `${appBaseUrl()}/reset-password?token=${inviteToken}`, inviterName));
+      } catch (emailError) {
+        console.error("Invite email failed:", emailError);
+        return res.status(201).json({ ...newUser, inviteEmailSent: false });
       }
+      
+      res.status(201).json({ ...newUser, inviteEmailSent: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error inviting user:", error);
       res.status(500).json({ message: "Failed to invite user" });
     }
   });
@@ -1411,7 +1537,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/mentors', isAuthenticated, async (req: any, res) => {
     try {
       const mentors = await storage.getMentors();
-      res.json(mentors);
+      const isAdmin = currentUser(req).role === 'administrator';
+      res.json(isAdmin ? mentors : mentors.map(({ email: _email, ...mentor }) => mentor));
     } catch (error) {
       console.error("Error fetching mentors:", error);
       res.status(500).json({ message: "Failed to fetch mentors" });
@@ -1419,6 +1546,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mentor Profile Management Routes
+  // Participants who have booked sessions with the logged-in mentor.
+  app.get('/api/mentors/mentees', isAuthenticated, requireRole('mentor'), async (req: any, res) => {
+    try {
+      res.json(await storage.getMenteesForMentor(currentUser(req).id));
+    } catch (error) {
+      console.error("Error fetching mentees:", error);
+      res.status(500).json({ message: "Failed to fetch mentees" });
+    }
+  });
+
   app.get('/api/mentor/profile', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1518,7 +1655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/mentor/sessions', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const sessionData = insertMentorSessionSchema.parse({ ...req.body, mentorId: userId });
+      const sessionData = insertMentorSessionSchema.omit({ participantIds: true }).parse({ ...req.body, mentorId: userId });
       
       // Verify user is a mentor
       const user = await storage.getUser(userId);
@@ -1608,59 +1745,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Session Booking Route (for participants)
-  app.post('/api/sessions/book', isAuthenticated, async (req: any, res) => {
+  const bookingSchema = z.object({
+    title: z.string().trim().min(1).max(255),
+    startTime: z.coerce.date(),
+    endTime: z.coerce.date(),
+    agenda: z.string().max(5000).optional(),
+  }).refine((v) => v.endTime > v.startTime, { message: "endTime must be after startTime", path: ["endTime"] });
+
+  function overlaps(a: { startTime: Date; endTime: Date }, b: { startTime: Date; endTime: Date }) {
+    return a.startTime < b.endTime && b.startTime < a.endTime;
+  }
+
+  // Participants book a mentor. The server sets the participant list so a
+  // booking can't add other people.
+  app.post('/api/sessions/book', isAuthenticated, requireRole('participant'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const sessionData = insertMentorSessionSchema.parse(req.body);
+      const user = currentUser(req);
+      const { mentorId } = z.object({ mentorId: z.string().min(1) }).parse(req.body);
+      const booking = bookingSchema.parse(req.body);
       
-      // Verify user is a participant
-      const user = await storage.getUser(userId);
-      if (!user || user.role !== 'participant') {
-        return res.status(403).json({ message: "Access denied. Only participants can book sessions." });
+      const mentor = await storage.getUser(mentorId);
+      if (!mentor || mentor.role !== 'mentor' || mentor.isActive === false) {
+        return res.status(404).json({ message: "Mentor not found" });
+      }
+      const profile = await storage.getMentorProfile(mentorId);
+      if (profile && profile.isActive === false) {
+        return res.status(409).json({ message: "This mentor is not taking bookings" });
       }
       
-      // Add user to participantIds (ensure idempotency - no duplicates)
-      sessionData.participantIds = sessionData.participantIds || [];
-      if (!sessionData.participantIds.includes(userId)) {
-        sessionData.participantIds.push(userId);
+      const existing = await storage.getMentorSessions(mentorId);
+      if (existing.some((s) => overlaps(s, booking))) {
+        return res.status(409).json({ message: "The mentor already has a session at that time" });
       }
       
-      const session = await storage.createMentorSession(sessionData);
+      const session = await storage.createMentorSession({
+        ...booking,
+        mentorId,
+        participantIds: [user.id],
+      });
       res.status(201).json(session);
     } catch (error) {
-      console.error("Error booking session:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+        return res.status(400).json({ message: zodMessage(error) });
       }
+      console.error("Error booking session:", error);
       res.status(500).json({ message: "Failed to book session" });
     }
   });
 
   // Investor Session Booking Route (for participants)
-  app.post('/api/investor-sessions/book', isAuthenticated, async (req: any, res) => {
+  app.post('/api/investor-sessions/book', isAuthenticated, requireRole('participant'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const sessionData = insertInvestorSessionSchema.parse(req.body);
+      const user = currentUser(req);
+      const { investorId, sessionType } = z.object({
+        investorId: z.string().min(1),
+        sessionType: z.string().max(50).optional(),
+      }).parse(req.body);
+      const booking = bookingSchema.parse(req.body);
       
-      // Verify user is a participant
-      const user = await storage.getUser(userId);
-      if (!user || user.role !== 'participant') {
-        return res.status(403).json({ message: "Access denied. Only participants can book sessions." });
+      const investor = await storage.getInvestor(investorId);
+      if (!investor || investor.isActive === false) {
+        return res.status(404).json({ message: "Investor not found" });
       }
       
-      // Add user to participantIds (ensure idempotency - no duplicates)
-      sessionData.participantIds = sessionData.participantIds || [];
-      if (!sessionData.participantIds.includes(userId)) {
-        sessionData.participantIds.push(userId);
+      const existing = await storage.getInvestorSessions(investorId);
+      if (existing.some((s) => overlaps(s, booking))) {
+        return res.status(409).json({ message: "The investor already has a session at that time" });
       }
       
-      const session = await storage.createInvestorSession(sessionData);
+      const session = await storage.createInvestorSession({
+        ...booking,
+        investorId,
+        sessionType,
+        participantIds: [user.id],
+      });
       res.status(201).json(session);
     } catch (error) {
-      console.error("Error booking investor session:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+        return res.status(400).json({ message: zodMessage(error) });
       }
+      console.error("Error booking investor session:", error);
       res.status(500).json({ message: "Failed to book investor session" });
     }
   });
@@ -1710,7 +1874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/investor/sessions', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const sessionData = insertInvestorSessionSchema.parse(req.body);
+      const sessionData = insertInvestorSessionSchema.omit({ investorId: true, participantIds: true }).parse(req.body);
       
       // Verify user is an investor and get their investor profile
       const user = await storage.getUser(userId);
@@ -1739,6 +1903,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Investor routes
+  // Investor asks a startup for a meeting; recorded as investor interest.
+  app.post('/api/investor/meetings', isAuthenticated, requireRole('investor'), async (req: any, res) => {
+    try {
+      const { startupId, message } = z.object({
+        startupId: z.string().min(1),
+        message: z.string().trim().max(2000).optional(),
+      }).parse(req.body);
+      
+      const [investor] = await storage.getInvestorsByUser(currentUser(req).id);
+      if (!investor) {
+        return res.status(404).json({ message: "Investor profile not found" });
+      }
+      if (!(await storage.getProject(startupId))) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      const interest = await storage.upsertInvestorInterest(investor.id, startupId, "requested_info", message);
+      res.status(201).json(interest);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error requesting meeting:", error);
+      res.status(500).json({ message: "Failed to request meeting" });
+    }
+  });
+
+  app.get('/api/investor/interests', isAuthenticated, requireRole('investor'), async (req: any, res) => {
+    try {
+      const [investor] = await storage.getInvestorsByUser(currentUser(req).id);
+      if (!investor) {
+        return res.json([]);
+      }
+      res.json(await storage.getInvestorInterestsForInvestor(investor.id));
+    } catch (error) {
+      console.error("Error fetching investor interests:", error);
+      res.status(500).json({ message: "Failed to fetch investor interests" });
+    }
+  });
+
   app.get('/api/investors', isAuthenticated, async (req: any, res) => {
     try {
       // Check if user has appropriate permissions
@@ -2085,23 +2289,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/investor-interests/:id', isAuthenticated, async (req: any, res) => {
+  const investorInterestUpdateSchema = z.object({
+    level: z.enum(investorInterestLevelEnum.enumValues).optional(),
+    questions: z.array(z.string().max(2000)).max(100).optional(),
+    meetings: z.any().optional(),
+    notes: z.string().max(10000).nullable().optional(),
+  }).strict();
+
+  app.put('/api/admin/investor-interests/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
       const { id } = req.params;
-      const updateData = req.body;
+      const updateData = investorInterestUpdateSchema.parse(req.body);
       
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ message: "At least one field must be provided for update" });
       }
       
-      const interest = await storage.updateInvestorInterest(id, updateData);
+      const interest = await storage.updateInvestorInterest(id, updateData as any);
+      if (!interest) {
+        return res.status(404).json({ message: "Investor interest not found" });
+      }
       res.json(interest);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating investor interest:", error);
       res.status(500).json({ message: "Failed to update investor interest" });
     }
@@ -2110,31 +2322,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Coach routes
   app.post('/api/ai-coach/chat', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { messages, mode = "process_guide", conversationId } = req.body;
+      const user = currentUser(req);
+      const { messages, mode, conversationId } = aiChatSchema.parse(req.body);
       
-      const user = await storage.getUser(userId);
-      const response = await aiCoachService.generateResponse(
-        messages, 
-        mode, 
-        user?.role || "participant",
-        user?.locale || "en"
-      );
-      
-      // Update or create conversation
-      if (conversationId) {
-        await storage.updateAiConversation(conversationId, messages);
-      } else {
-        await storage.createAiConversation({
-          userId,
-          title: messages[0]?.content?.substring(0, 50) || "New conversation",
-          mode,
-          messages
-        });
+      if (!isAiConfigured()) {
+        return res.status(503).json({ message: "The AI Coach is not configured yet. Please contact a mentor." });
       }
       
-      res.json(response);
+      const response = await aiCoachService.generateResponse(messages, mode, user.role, user.locale || "en");
+      const history = [...messages, { role: "assistant" as const, content: response.message }];
+      
+      let savedId = conversationId;
+      if (conversationId) {
+        const updated = await storage.updateAiConversation(conversationId, user.id, history);
+        if (!updated) {
+          return res.status(404).json({ message: "Conversation not found" });
+        }
+      } else {
+        const created = await storage.createAiConversation({
+          userId: user.id,
+          title: messages[0].content.substring(0, 50) || "New conversation",
+          mode,
+          messages: history,
+        });
+        savedId = created.id;
+      }
+      
+      res.json({ ...response, conversationId: savedId });
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error in AI Coach chat:", error);
       res.status(500).json({ message: "Failed to process AI Coach request" });
     }
@@ -2153,103 +2371,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/ai-coach/analyze-project', isAuthenticated, async (req: any, res) => {
     try {
-      const { projectId } = req.body;
+      const { projectId } = z.object({ projectId: z.string().min(1) }).parse(req.body);
       const project = await storage.getProject(projectId);
       
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
       
-      // Check permissions
-      const userId = req.user.claims.sub;
-      if (project.ownerId !== userId) {
-        const user = await storage.getUser(userId);
-        if (!user || !['administrator', 'mentor'].includes(user.role)) {
-          return res.status(403).json({ message: "Insufficient permissions" });
-        }
+      const user = currentUser(req);
+      if (project.ownerId !== user.id && !hasRole(user, 'administrator', 'mentor')) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
+      if (!isAiConfigured()) {
+        return res.status(503).json({ message: "The AI Coach is not configured yet." });
       }
       
       const analysis = await aiCoachService.analyzeProject(project);
       res.json(analysis);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error analyzing project:", error);
       res.status(500).json({ message: "Failed to analyze project" });
     }
   });
 
   // Object storage routes for file uploads
-  app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
-    const objectStorageService = new ObjectStorageService();
+  // File uploads go straight to Supabase Storage with a signed URL under the
+  // caller's own folder; the API never handles file bytes.
+  app.post("/api/uploads", isAuthenticated, async (req: any, res) => {
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      const canAccess = await objectStorageService.canAccessObjectEntity({
-        objectFile,
-        userId: userId,
-        requestedPermission: ObjectPermission.READ,
-      });
-      if (!canAccess) {
-        return res.sendStatus(401);
+      const { fileName, contentType, size } = uploadRequestSchema.parse(req.body);
+      if (size > MAX_UPLOAD_BYTES) {
+        return res.status(400).json({ message: "Files can be at most 10 MB" });
       }
-      objectStorageService.downloadObject(objectFile, res);
-    } catch (error) {
-      console.error("Error checking object access:", error);
-      if (error instanceof ObjectNotFoundError) {
-        return res.sendStatus(404);
+      if (!isAllowedContentType(contentType)) {
+        return res.status(400).json({ message: "This file type is not allowed" });
       }
-      return res.sendStatus(500);
-    }
-  });
-
-  app.post("/api/objects/upload", isAuthenticated, async (req: any, res) => {
-    try {
-      const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
+      const upload = await createSignedUpload(currentUser(req).id, fileName);
+      res.json(upload);
     } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ error: "Failed to get upload URL" });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      if (error instanceof StorageNotConfiguredError) {
+        return res.status(503).json({ message: error.message });
+      }
+      console.error("Error creating upload URL:", error);
+      res.status(500).json({ message: "Failed to create upload URL" });
     }
   });
 
-  app.put("/api/documents", isAuthenticated, async (req: any, res) => {
-    if (!req.body.documentURL) {
-      return res.status(400).json({ error: "documentURL is required" });
-    }
-
-    const userId = req.user?.claims?.sub;
-
+  // Owners, mentors and admins can open a file. Redirects to a signed URL
+  // that expires after a minute.
+  app.get("/api/files/*", isAuthenticated, async (req: any, res) => {
     try {
-      const objectStorageService = new ObjectStorageService();
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
-        req.body.documentURL,
-        {
-          owner: userId,
-          visibility: "private", // Documents are private by default
-        },
-      );
-
-      res.status(200).json({
-        objectPath: objectPath,
-      });
+      const path = req.params[0] as string;
+      const owner = ownerOfPath(path);
+      if (!owner) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      const user = currentUser(req);
+      if (owner !== user.id && !hasRole(user, 'administrator', 'mentor')) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      res.redirect(302, await createSignedDownload(path));
     } catch (error) {
-      console.error("Error setting document ACL:", error);
-      res.status(500).json({ error: "Internal server error" });
+      if (error instanceof StorageNotConfiguredError) {
+        return res.status(503).json({ message: error.message });
+      }
+      console.error("Error creating download URL:", error);
+      res.status(404).json({ message: "File not found" });
     }
   });
+
+
 
   // Search routes
-  app.get('/api/search/users', isAuthenticated, async (req: any, res) => {
+  const searchUsersSchema = z.object({
+    q: z.string().trim().min(2, "Search needs at least 2 characters").max(100),
+    role: z.enum(userRoleEnum.enumValues).optional(),
+  });
+
+  // Visitors and applicants can't browse the member directory. Only admins
+  // see email addresses.
+  app.get('/api/search/users', isAuthenticated, requireRole('administrator', 'mentor', 'participant', 'investor'), async (req: any, res) => {
     try {
-      const { q: query, role } = req.query;
-      
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({ message: "Query parameter required" });
-      }
-      
-      const users = await storage.searchUsers(query, role);
-      res.json(users);
+      const { q, role } = searchUsersSchema.parse(req.query);
+      const isAdmin = currentUser(req).role === 'administrator';
+      // Non-admins can't see emails, so they can't search by them either.
+      const users = await storage.searchUsers(q, role, 20, isAdmin);
+      res.json(users.map((u) => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        role: u.role,
+        profileImageUrl: u.profileImageUrl,
+        ...(isAdmin ? { email: u.email } : {}),
+      })));
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error searching users:", error);
       res.status(500).json({ message: "Failed to search users" });
     }
@@ -2257,15 +2482,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/search/projects', isAuthenticated, async (req: any, res) => {
     try {
-      const { q: query } = req.query;
-      
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({ message: "Query parameter required" });
-      }
-      
-      const projects = await storage.searchProjects(query);
+      const { q } = z.object({ q: z.string().trim().min(2).max(100) }).parse(req.query);
+      const user = currentUser(req);
+      const projects = hasRole(user, 'administrator', 'mentor', 'investor')
+        ? await storage.searchProjects(q)
+        : await storage.searchProjects(q, user.id);
       res.json(projects);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error searching projects:", error);
       res.status(500).json({ message: "Failed to search projects" });
     }
@@ -2274,24 +2500,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Message routes
   app.post('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const messageData = insertMessageSchema.parse({
-        ...req.body,
-        senderId: userId
-      });
+      const user = currentUser(req);
+      const messageData = insertMessageSchema.omit({ senderId: true }).parse(req.body);
       
-      const message = await storage.createMessage(messageData);
-      res.json(message);
+      if (messageData.receiverId && !(await storage.getUser(messageData.receiverId))) {
+        return res.status(404).json({ message: "Recipient not found" });
+      }
+      // Replying to an existing thread requires being part of it.
+      if (messageData.threadId) {
+        const thread = await storage.getMessagesByThread(messageData.threadId);
+        if (thread.length > 0 && user.role !== 'administrator' &&
+            !thread.some((m) => m.senderId === user.id || m.receiverId === user.id)) {
+          return res.status(403).json({ message: "You are not part of this conversation" });
+        }
+      }
+      
+      const message = await storage.createMessage({ ...messageData, senderId: user.id });
+      res.status(201).json(message);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error creating message:", error);
-      res.status(400).json({ message: "Failed to create message" });
+      res.status(500).json({ message: "Failed to create message" });
     }
   });
 
   app.get('/api/messages/thread/:threadId', isAuthenticated, async (req: any, res) => {
     try {
       const { threadId } = req.params;
-      const messages = await storage.getMessagesByThread(threadId);
+      const user = currentUser(req);
+      const messages = user.role === 'administrator'
+        ? await storage.getMessagesByThread(threadId)
+        : await storage.getMessagesByThread(threadId, user.id);
       res.json(messages);
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -2299,6 +2540,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
 }
