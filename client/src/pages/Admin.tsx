@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
-import { cohortStatusMessage } from "@/lib/cohorts";
+import { cohortStatusMessage, isCohortRunning } from "@/lib/cohorts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -257,6 +257,7 @@ export default function Admin() {
   // User management state
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
+  const [isCreateCohortOpen, setIsCreateCohortOpen] = useState(false);
   
   // Mentor management state
   const [viewingMentor, setViewingMentor] = useState<MentorWithProfile | null>(null);
@@ -311,7 +312,8 @@ export default function Admin() {
     const totalApplications = applications.length;
     const acceptedApps = applications.filter((app: Application) => app.status === 'accepted').length;
     const acceptanceRate = totalApplications > 0 ? Math.round((acceptedApps / totalApplications) * 100) : 0;
-    const activeCohorts = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
+    // Running = active and today within its dates (not merely flagged active).
+    const activeCohorts = cohorts.filter((cohort: Cohort) => isCohortRunning(cohort)).length;
     const totalProjects = projects.length;
     
     return {
@@ -482,6 +484,7 @@ export default function Admin() {
         title: "Cohort Created!",
         description: "New cohort has been created successfully.",
       });
+      setIsCreateCohortOpen(false);
       invalidateCohorts();
       cohortForm.reset();
     },
@@ -1515,7 +1518,7 @@ export default function Admin() {
                       <p className="text-2xl font-bold" data-testid="metric-active-projects">
                         {adminMetrics.totalProjects}
                       </p>
-                      <p className="text-xs text-primary mt-1">Across {adminMetrics.activeCohorts} active cohort{adminMetrics.activeCohorts === 1 ? '' : 's'}</p>
+                      <p className="text-xs text-primary mt-1">Across {adminMetrics.activeCohorts} running cohort{adminMetrics.activeCohorts === 1 ? '' : 's'}</p>
                     </div>
                     <GraduationCap className="w-8 h-8 text-primary opacity-80" />
                   </div>
@@ -1737,7 +1740,7 @@ export default function Admin() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Cohort Management</CardTitle>
-                  <Dialog>
+                  <Dialog open={isCreateCohortOpen} onOpenChange={setIsCreateCohortOpen}>
                     <DialogTrigger asChild>
                       <Button data-testid="button-create-cohort">
                         <Plus className="w-4 h-4 mr-2" />

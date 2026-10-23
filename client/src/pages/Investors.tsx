@@ -295,6 +295,8 @@ export default function Investors() {
   const [selectedTab, setSelectedTab] = useState("directory");
   const [selectedInvestorForBooking, setSelectedInvestorForBooking] = useState<ExtendedInvestor | null>(null);
   const [meetingMessages, setMeetingMessages] = useState<Record<string, string>>({});
+  // Which startup's meeting dialog is open (null = none).
+  const [meetingDialogFor, setMeetingDialogFor] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -329,6 +331,7 @@ export default function Investors() {
       return response.json();
     },
     onSuccess: () => {
+      setMeetingDialogFor(null);
       toast({
         title: "Meeting Requested!",
         description: "Your meeting request has been sent. The startup will respond soon.",
@@ -539,7 +542,10 @@ export default function Investors() {
                       <div className="flex items-center justify-between pt-4 border-t border-border">
                         <div />
                         <div className="flex space-x-2">
-                          <Dialog>
+                          <Dialog
+                            open={meetingDialogFor === startup.id}
+                            onOpenChange={(open) => setMeetingDialogFor(open ? startup.id : null)}
+                          >
                             <DialogTrigger asChild>
                               <Button 
                                 size="sm"
