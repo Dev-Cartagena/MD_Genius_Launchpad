@@ -131,7 +131,8 @@ test fails if any table is missing RLS. New tables created by later migrations n
 
 ## Deployment
 
-Production: https://md-genius-launchpad.vercel.app
+Production: https://launchpad.mdgeniusai.com (DNS: CNAME `launchpad` at GoDaddy → Vercel;
+`md-genius-launchpad.vercel.app` redirects here)
 
 Vercel project `md-genius-launchpad` (team `mdgeniusai`) builds the client with
 `npm run build:client` and deploys `api/index.ts` as the API function. Production
