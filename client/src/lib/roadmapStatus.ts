@@ -22,18 +22,19 @@ export function isAssignmentDone(status?: string | null): boolean {
   return status === "completed" || status === "waived";
 }
 
+/** Brand status chips: not started = dashed, in progress = Steel, done = Navy. */
 export function assignmentStatusClass(status?: string | null): string {
   switch (status) {
     case "completed":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-primary text-primary-foreground border-primary";
     case "in_progress":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-accent text-accent-foreground border-accent";
     case "blocked":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-destructive/10 text-destructive border-destructive/30";
     case "waived":
-      return "bg-purple-100 text-purple-800 border-purple-200";
+      return "bg-secondary text-secondary-foreground border-border";
     default:
-      return "bg-gray-100 text-gray-600 border-gray-200";
+      return "bg-transparent text-muted-foreground border-dashed border-steel/60";
   }
 }
 
