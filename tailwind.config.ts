@@ -6,6 +6,8 @@ export default {
   theme: {
     extend: {
       borderRadius: {
+        "3xl": "1.75rem",
+        "2xl": "1rem",
         xl: "var(--radius)",
         lg: "calc(var(--radius) - 2px)",
         md: "calc(var(--radius) - 4px)",
@@ -72,6 +74,7 @@ export default {
         mono: ["var(--font-mono)"],
       },
       boxShadow: {
+        card: "var(--shadow-card)",
         sm: "0 1px 2px hsl(var(--navy) / 0.06)",
         DEFAULT: "0 1px 2px hsl(var(--navy) / 0.06)",
         md: "0 2px 8px hsl(var(--navy) / 0.08)",

@@ -54,6 +54,9 @@
 
   --gradient-brand: linear-gradient(135deg, hsl(var(--steel)), hsl(var(--navy)));
   --gradient-mist: linear-gradient(90deg, #ffffff, hsl(var(--mist)));
+  /* Connector gradient: Mist → Steel → Navy */
+  --gradient-connector: linear-gradient(90deg, hsl(var(--mist)), hsl(var(--steel)) 55%, hsl(var(--navy)));
+  --shadow-card: 0 1px 2px hsl(var(--navy) / 0.04), 0 8px 24px -12px hsl(var(--navy) / 0.14);
 }
 
 .dark {
@@ -111,7 +114,29 @@
 @layer components {
   /* Brand surfaces */
   .panel {
-    @apply bg-card text-card-foreground border border-border rounded-xl;
+    @apply bg-card text-card-foreground border border-primary/[0.08] rounded-2xl;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Button fills from the guideline's button samples */
+  .btn-brand {
+    background-image: linear-gradient(180deg, hsl(var(--steel)), hsl(var(--navy)));
+  }
+
+  .btn-mist {
+    background-image: linear-gradient(90deg, #ffffff 15%, hsl(var(--mist) / 0.75));
+  }
+
+  .bg-brand-gradient-h {
+    background-image: var(--gradient-connector);
+  }
+
+  /* Deep hero surface: brand gradient with a soft light source and the guideline's hairline grid */
+  .hero-surface {
+    background-color: hsl(var(--navy));
+    background-image:
+      radial-gradient(120% 90% at 85% 0%, hsl(var(--mist) / 0.28), transparent 55%),
+      var(--gradient-brand);
   }
 
   .bg-brand-gradient {
@@ -120,7 +145,7 @@
 
   /* "Gradient panel" from the guideline: at most one per page */
   .mist-panel {
-    @apply text-foreground border border-border rounded-xl;
+    @apply text-foreground border border-primary/[0.08] rounded-2xl;
     background-image: var(--gradient-mist);
   }
 
@@ -139,6 +164,15 @@
   }
 }
 
+@keyframes block-fill {
+  from { opacity: 0; transform: translateY(6px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-block-fill {
+  animation: block-fill 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
 @keyframes block-step {
   0%, 100% { opacity: 0.25; }
   40% { opacity: 1; }
@@ -149,7 +183,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-block-step {
+  .animate-block-step,
+  .animate-block-fill {
     animation: none;
   }
 }
