@@ -1,7 +1,10 @@
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 /** Loading indicator built from the Launchpad symbol's modular blocks. */
-export function BlockLoader({ label = "Loading", className }: { label?: string; className?: string }) {
+export function BlockLoader({ label, className }: { label?: string; className?: string }) {
+  const { t } = useTranslation();
+  label ??= t("status.loading");
   return (
     <div role="status" className={cn("flex flex-col items-center justify-center gap-3", className)}>
       <div className="grid grid-cols-2 gap-1" aria-hidden="true">

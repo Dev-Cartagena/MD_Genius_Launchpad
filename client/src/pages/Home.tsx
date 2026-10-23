@@ -1,6 +1,8 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocalized } from "@/lib/localized";
 import { Link, useLocation } from "wouter";
 import AppLayout from "@/components/Layout/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -37,16 +39,7 @@ interface Fact {
   label: string;
 }
 
-const ROLE_LABELS: Record<Role, string> = {
-  public_visitor: "Visitor",
-  applicant: "Applicant",
-  participant: "Participant",
-  mentor: "Mentor",
-  investor: "Investor",
-  administrator: "Administrator",
-};
-
-const APPLICATION_STEPS = ["Start", "Submit", "Review", "Decision"];
+const APPLICATION_STEPS = ["start", "submit", "review", "decision"] as const;
 
 function applicationStep(status?: string | null): number {
   switch (status) {
@@ -66,11 +59,17 @@ function applicationStep(status?: string | null): number {
   }
 }
 
-function greeting(now = new Date()): string {
+const ACTION_KEYS = {
+  reviewApplications: 1, manageCohorts: 1, programSetup: 1, weekRoadmap: 1, curriculum: 1, project: 1,
+  bookMentor: 1, sessions: 1, mentorProfile: 1, mentorDirectory: 1, browseStartups: 1, meetings: 1,
+  apply: 1, continueApplication: 1,
+} as const;
+
+function partOfDay(now = new Date()): "morning" | "afternoon" | "evening" {
   const h = now.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "morning";
+  if (h < 18) return "afternoon";
+  return "evening";
 }
 
 function isUpcoming(session: { startTime?: string | Date | null }) {
@@ -79,6 +78,8 @@ function isUpcoming(session: { startTime?: string | Date | null }) {
 
 export default function Home() {
   const { user } = useAuth();
+  const { t } = useTranslation(["home", "common"]);
+  const localized = useLocalized();
   const [, navigate] = useLocation();
   const role = (user?.role ?? "public_visitor") as Role;
   const is = (...roles: Role[]) => roles.includes(role);
@@ -171,113 +172,112 @@ export default function Home() {
     !applicationsLoading &&
     (applications.length === 0 || ["draft", "rejected"].includes(currentApplication?.status));
 
-  const leads: Record<Role, string> = {
-    public_visitor: "Launchpad is an eight-week program from MDGeniusAI for founders building AI for healthcare.",
-    applicant: "Your application is in progress. Finish it when you are ready, and we will review it carefully.",
-    participant: "Here is where your startup stands in the program this week.",
-    mentor: "Your mentees and upcoming sessions, in one place.",
-    investor: "The startups in the current cohort and your upcoming meetings.",
-    administrator: "The state of the program today, and what needs your attention.",
-  };
-
   const pendingReview = adminApplications.filter((a) =>
     ["submitted", "under_review", "shortlisted", "interview"].includes(a.status),
   ).length;
 
   const facts: Fact[] = (() => {
     switch (role) {
-      case "administrator":
+      case "administrator": {
+        const participants = adminUsers.filter((u) => u.role === "participant").length;
+        const mentors = adminUsers.filter((u) => u.role === "mentor").length;
         return [
-          { value: pendingReview, label: pendingReview === 1 ? "application to review" : "applications to review" },
-          { value: adminUsers.filter((u) => u.role === "participant").length, label: "participants" },
-          { value: adminUsers.filter((u) => u.role === "mentor").length, label: "mentors" },
+          { value: pendingReview, label: t("facts.applicationsToReview", { count: pendingReview }) },
+          { value: participants, label: t("facts.participants", { count: participants }) },
+          { value: mentors, label: t("facts.mentors", { count: mentors }) },
         ];
+      }
       case "participant": {
         const done = weekItems.filter((i) => ["completed", "waived"].includes(i.assignment?.status ?? i.status)).length;
         return [
-          { value: `${done}/${weekItems.length}`, label: "roadmap items done this week" },
-          { value: myProject?.readinessScore ?? 0, label: "readiness score" },
+          { value: `${done}/${weekItems.length}`, label: t("facts.weekItemsDone") },
+          { value: myProject?.readinessScore ?? 0, label: t("facts.readiness") },
         ];
       }
-      case "mentor":
+      case "mentor": {
+        const upcoming = mentorSessions.filter(isUpcoming).length;
         return [
-          { value: mentees.length, label: mentees.length === 1 ? "mentee" : "mentees" },
-          { value: mentorSessions.filter(isUpcoming).length, label: "upcoming sessions" },
+          { value: mentees.length, label: t("facts.mentees", { count: mentees.length }) },
+          { value: upcoming, label: t("facts.upcomingSessions", { count: upcoming }) },
         ];
-      case "investor":
+      }
+      case "investor": {
+        const meetings = investorSessions.filter(isUpcoming).length;
         return [
-          { value: directory.length, label: "startups in the directory" },
-          { value: interests.length, label: "startups of interest" },
-          { value: investorSessions.filter(isUpcoming).length, label: "upcoming meetings" },
+          { value: directory.length, label: t("facts.directory", { count: directory.length }) },
+          { value: interests.length, label: t("facts.interests", { count: interests.length }) },
+          { value: meetings, label: t("facts.upcomingMeetings", { count: meetings }) },
         ];
+      }
       default:
         return [];
     }
   })();
 
+  const action = (key: Parameters<typeof actionText>[0], icon: LucideIcon, href: string): Action => ({
+    icon,
+    href,
+    ...actionText(key),
+  });
+  function actionText(key: keyof typeof ACTION_KEYS) {
+    return { title: t(`actions.${key}.title`), description: t(`actions.${key}.description`) };
+  }
+
   const actions: Action[] = (() => {
     switch (role) {
       case "administrator":
         return [
-          { icon: ClipboardList, title: "Review applications", description: "Read submissions and update their status.", href: "/admin" },
-          { icon: Calendar, title: "Manage cohorts", description: "Create a cohort and set its dates.", href: "/admin" },
-          { icon: Settings, title: "Program setup", description: "Curriculum, roadmap templates and investors.", href: "/admin" },
+          action("reviewApplications", ClipboardList, "/admin"),
+          action("manageCohorts", Calendar, "/admin"),
+          action("programSetup", Settings, "/admin"),
         ];
       case "participant":
         return [
-          { icon: Map, title: "This week's roadmap", description: "The tasks and lessons planned for this week.", href: "/roadmap" },
-          { icon: BookOpen, title: "Curriculum", description: "Lessons, quizzes and resources by week.", href: "/curriculum" },
-          { icon: Lightbulb, title: "My project", description: "Your startup profile, files and stage.", href: "/project" },
-          { icon: Users, title: "Book a mentor", description: "Find a mentor and schedule a session.", href: "/mentors" },
+          action("weekRoadmap", Map, "/roadmap"),
+          action("curriculum", BookOpen, "/curriculum"),
+          action("project", Lightbulb, "/project"),
+          action("bookMentor", Users, "/mentors"),
         ];
       case "mentor":
         return [
-          { icon: Calendar, title: "Sessions", description: "Your upcoming and past mentoring sessions.", href: "/dashboard" },
-          { icon: UserCircle, title: "Mentor profile", description: "Your expertise, industries and availability.", href: "/mentor-profile" },
-          { icon: Users, title: "Mentor directory", description: "See who else is mentoring this cohort.", href: "/mentors" },
+          action("sessions", Calendar, "/dashboard"),
+          action("mentorProfile", UserCircle, "/mentor-profile"),
+          action("mentorDirectory", Users, "/mentors"),
         ];
       case "investor":
-        return [
-          { icon: Search, title: "Browse startups", description: "Filter the cohort by sector and stage.", href: "/investors" },
-          { icon: Calendar, title: "Meetings", description: "Sessions and demo days you are invited to.", href: "/dashboard" },
-        ];
+        return [action("browseStartups", Search, "/investors"), action("meetings", Calendar, "/dashboard")];
       default:
         return canContinueApplication
-          ? [
-              {
-                icon: FileText,
-                title: applications.length === 0 ? "Apply to the program" : "Continue your application",
-                description:
-                  applications.length === 0
-                    ? "Tell us about your team, your idea and the problem you are solving."
-                    : "Pick up where you left off. Your answers are saved.",
-                href: "/apply",
-              },
-            ]
+          ? [action(applications.length === 0 ? "apply" : "continueApplication", FileText, "/apply")]
           : [];
     }
   })();
 
   const primary = actions[0];
-  const trackLabel = (() => {
-    if (showsApplication) return "Your application";
-    if (!trackedCohort) return "Program";
-    return trackedCohort.name;
-  })();
+  const longDate = (value: string | Date | null | undefined) => formatCohortDate(value, { month: "long", day: "numeric" });
+  const trackLabel = showsApplication
+    ? t("track.application")
+    : trackedCohort
+      ? localized.text(trackedCohort, "name")
+      : t("track.program");
 
   const trackCaption = (() => {
     if (showsApplication) {
       const step = applicationStep(currentApplication?.status);
-      return `Step ${step} of ${APPLICATION_STEPS.length}: ${APPLICATION_STEPS[step - 1].toLowerCase()}`;
+      return t("track.applicationStep", {
+        step,
+        total: APPLICATION_STEPS.length,
+        name: t(`appSteps.${APPLICATION_STEPS[step - 1]}`),
+      });
     }
     if (!trackedCohort || !timing) {
-      return role === "administrator" ? "No cohort is scheduled yet." : "The next cohort has not been announced yet.";
+      return role === "administrator" ? t("track.noCohortAdmin") : t("track.noCohort");
     }
     if (timing.state === "upcoming") {
-      return `Starts ${formatCohortDate(trackedCohort.startDate, { month: "long", day: "numeric" })}, in ${timing.daysUntilStart} ${timing.daysUntilStart === 1 ? "day" : "days"}`;
+      return t("track.startsIn", { date: longDate(trackedCohort.startDate), count: timing.daysUntilStart });
     }
-    if (timing.state === "finished") return `Finished ${formatCohortDate(trackedCohort.endDate, { month: "long", day: "numeric" })}`;
-    return `Week ${timing.week} of ${PROGRAM_WEEKS}, ends ${formatCohortDate(trackedCohort.endDate, { month: "long", day: "numeric" })}`;
+    if (timing.state === "finished") return t("track.finished", { date: longDate(trackedCohort.endDate) });
+    return t("track.running", { week: timing.week, total: PROGRAM_WEEKS, date: longDate(trackedCohort.endDate) });
   })();
 
   const trackCurrent = showsApplication
@@ -301,13 +301,14 @@ export default function Home() {
                 className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 font-display text-xs text-white/85 ring-1 ring-inset ring-white/15"
                 data-testid="user-role-badge"
               >
-                {ROLE_LABELS[role] ?? "Visitor"}
+                {t(`common:roles.${role}`)}
               </span>
               <h1 className="mt-5 max-w-[16ch] text-[34px] font-medium leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl lg:text-[56px]">
-                {greeting()}
-                {user?.firstName ? `, ${user.firstName}` : ""}
+                {user?.firstName
+                  ? t(`greeting.${partOfDay()}Name`, { name: user.firstName })
+                  : t(`greeting.${partOfDay()}`)}
               </h1>
-              <p className="mt-4 max-w-[46ch] font-display text-base text-white/80 sm:text-lg">{leads[role]}</p>
+              <p className="mt-4 max-w-[46ch] font-display text-base text-white/80 sm:text-lg">{t(`lead.${role}`)}</p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {primary && (
@@ -325,7 +326,7 @@ export default function Home() {
                     size="lg"
                     className="text-white hover:bg-white/10 hover:text-white"
                   >
-                    <Link href="/dashboard">Open dashboard</Link>
+                    <Link href="/dashboard">{t("openDashboard")}</Link>
                   </Button>
                 )}
               </div>
@@ -373,7 +374,7 @@ export default function Home() {
         {actions.length > 0 && (
           <section aria-labelledby="home-actions">
             <h2 id="home-actions" className="text-2xl font-medium">
-              Where to go next
+              {t("actions.heading")}
             </h2>
             <div
               className={cn(
@@ -396,7 +397,7 @@ export default function Home() {
                     {action.description}
                   </p>
                   <span className="mt-6 inline-flex items-center gap-2 font-display text-sm font-medium text-accent">
-                    Open
+                    {t("actions.open")}
                     <span
                       aria-hidden="true"
                       className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-accent/30 transition-colors duration-150 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground"
@@ -414,14 +415,14 @@ export default function Home() {
         {(showsApplication || cohorts.length > 0) && (
           <section aria-labelledby="home-cohorts">
             <h2 id="home-cohorts" className="text-2xl font-medium">
-              Cohorts
+              {t("cohorts.heading")}
             </h2>
             {cohortsLoading ? (
-              <p className="mt-4 text-sm text-muted-foreground">Loading cohorts…</p>
+              <p className="mt-4 text-sm text-muted-foreground">{t("cohorts.loading")}</p>
             ) : cohorts.length === 0 ? (
               <div className="dashed-zone mt-5 bg-card/60 p-8 text-center" data-testid="text-no-cohorts">
-                <p className="font-display text-base text-foreground">No cohorts are open right now.</p>
-                <p className="mt-1 text-sm text-muted-foreground">New cohorts are announced here first.</p>
+                <p className="font-display text-base text-foreground">{t("cohorts.emptyTitle")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("cohorts.emptyBody")}</p>
               </div>
             ) : (
               <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -431,29 +432,34 @@ export default function Home() {
                     return rank(a) - rank(b) || new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
                   })
                   .map((cohort) => {
-                  const t = cohortTiming(cohort);
+                  const ct = cohortTiming(cohort);
                   return (
                     <div key={cohort.id} className="panel p-6">
                       <div className="flex items-start justify-between gap-3">
                         <h3 className="text-lg font-medium" data-testid={`cohort-title-${cohort.id}`}>
-                          {cohort.name}
+                          {localized.text(cohort, "name")}
                         </h3>
-                        {t && (
+                        {ct && (
                           <span
                             className={cn(
                               "shrink-0 rounded-full px-2.5 py-0.5 font-display text-xs",
-                              t.state === "running" ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground",
+                              ct.state === "running" ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground",
                             )}
                           >
-                            {t.state === "running" ? `Week ${t.week} of ${PROGRAM_WEEKS}` : t.state === "upcoming" ? "Upcoming" : "Finished"}
+                            {t(`common:cohortState.${ct.state}`, { week: ct.week, total: PROGRAM_WEEKS })}
                           </span>
                         )}
                       </div>
-                      {cohort.description && <p className="mt-2 text-sm text-muted-foreground">{cohort.description}</p>}
+                      {cohort.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">{localized.text(cohort, "description")}</p>
+                      )}
                       <p className="mt-4 flex items-center gap-2 font-display text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                         <span data-testid={`cohort-dates-${cohort.id}`}>
-                          {formatCohortDate(cohort.startDate)} to {formatCohortDate(cohort.endDate)}
+                          {t("common:dateRange", {
+                            start: formatCohortDate(cohort.startDate),
+                            end: formatCohortDate(cohort.endDate),
+                          })}
                         </span>
                       </p>
                     </div>

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 type LogoLayout = "full" | "compact" | "vertical" | "symbol";
 type LogoTone = "color" | "reversed" | "navy" | "white";
@@ -22,10 +23,11 @@ interface LogoProps {
  * Size it with a height class; the width follows the artwork.
  */
 export function Logo({ layout = "compact", tone = "color", className }: LogoProps) {
+  const { t } = useTranslation();
   return (
     <img
       src={`/brand/${FILES[layout]}-${tone}.svg`}
-      alt="MD Genius Launchpad"
+      alt={t("brand.name")}
       className={cn("h-8 w-auto select-none", className)}
       draggable={false}
     />

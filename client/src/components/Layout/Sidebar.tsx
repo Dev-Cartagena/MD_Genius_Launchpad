@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: SidebarProps) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [location] = useLocation();
   const [showAiChat, setShowAiChat] = useState(false);
 
@@ -38,15 +40,16 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
   const closeMobile = () => onMobileOpenChange?.(false);
 
   const navigationItems = [
-    { href: "/", icon: Home, label: "Home", roles: ["participant", "mentor", "investor", "administrator", "applicant", "public_visitor"] },
-    { href: "/dashboard", icon: LayoutGrid, label: "Dashboard", roles: ["participant", "mentor", "investor", "administrator"] },
-    { href: "/curriculum", icon: BookOpen, label: "Curriculum", roles: ["participant"] },
-    { href: "/roadmap", icon: Map, label: "Roadmap", roles: ["participant"] },
-    { href: "/project", icon: Lightbulb, label: "My Project", roles: ["participant"] },
-    { href: "/mentors", icon: Users, label: "Mentors", roles: ["participant", "mentor"] },
-    { href: "/mentor-profile", icon: UserCircle, label: "My Mentor Profile", roles: ["mentor"] },
-    { href: "/investors", icon: TrendingUp, label: "Investors", roles: ["participant", "investor"] },
-    { href: "/admin", icon: Settings, label: "Admin Panel", roles: ["administrator"] },
+    // `id` keeps data-testids stable whatever the interface language.
+    { href: "/", icon: Home, id: "home", label: t("nav.home"), roles: ["participant", "mentor", "investor", "administrator", "applicant", "public_visitor"] },
+    { href: "/dashboard", icon: LayoutGrid, id: "dashboard", label: t("nav.dashboard"), roles: ["participant", "mentor", "investor", "administrator"] },
+    { href: "/curriculum", icon: BookOpen, id: "curriculum", label: t("nav.curriculum"), roles: ["participant"] },
+    { href: "/roadmap", icon: Map, id: "roadmap", label: t("nav.roadmap"), roles: ["participant"] },
+    { href: "/project", icon: Lightbulb, id: "my-project", label: t("nav.project"), roles: ["participant"] },
+    { href: "/mentors", icon: Users, id: "mentors", label: t("nav.mentors"), roles: ["participant", "mentor"] },
+    { href: "/mentor-profile", icon: UserCircle, id: "my-mentor-profile", label: t("nav.mentorProfile"), roles: ["mentor"] },
+    { href: "/investors", icon: TrendingUp, id: "investors", label: t("nav.investors"), roles: ["participant", "investor"] },
+    { href: "/admin", icon: Settings, id: "admin-panel", label: t("nav.admin"), roles: ["administrator"] },
   ];
 
   const visibleItems = navigationItems.filter(item => 
@@ -60,7 +63,7 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
     <>
         {/* Logo Section */}
         <div className="px-6 pt-6 pb-5">
-          <Link href="/" aria-label="MD Genius Launchpad home" data-testid="app-title">
+          <Link href="/" aria-label={t("nav.homeLink")} data-testid="app-title">
             <Logo layout="compact" className="h-7" />
           </Link>
         </div>
@@ -72,16 +75,16 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-sm font-medium" data-testid="text-user-name">
-              {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || "User"}
+              {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || t("account.user")}
             </p>
             <p className="truncate text-xs capitalize text-muted-foreground">
-              {user?.role?.replace('_', ' ') || "Participant"}
+              {t(`roles.${user?.role ?? "participant"}`)}
             </p>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-0.5 px-4 py-3" aria-label="Main">
+        <nav className="flex-1 space-y-0.5 px-4 py-3" aria-label={t("nav.main")}>
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
@@ -96,7 +99,7 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
                     : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
                 }`}
                 onClick={isMobile ? closeMobile : undefined}
-                data-testid={`${isMobile ? 'mobile-' : ''}link-${item.label.toLowerCase().replace(/ /g, '-')}`}
+                data-testid={`${isMobile ? 'mobile-' : ''}link-${item.id}`}
               >
                 <Icon className="h-[18px] w-[18px]" />
                 <span>{item.label}</span>
@@ -116,7 +119,7 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
             data-testid={isMobile ? "button-ai-coach-mobile" : "button-ai-coach"}
           >
             <Bot className="h-4 w-4" />
-            <span>AI Coach</span>
+            <span>{t("nav.aiCoach")}</span>
           </Button>
         </div>
     </>
@@ -130,8 +133,8 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
 
       <Sheet open={mobileOpen} onOpenChange={(open) => onMobileOpenChange?.(open)}>
         <SheetContent side="left" className="w-72 max-w-[85vw] p-0 flex flex-col overflow-y-auto bg-background">
-          <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SheetDescription className="sr-only">Main navigation menu</SheetDescription>
+          <SheetTitle className="sr-only">{t("nav.navigation")}</SheetTitle>
+          <SheetDescription className="sr-only">{t("nav.navigationDescription")}</SheetDescription>
           {renderContent(true)}
         </SheetContent>
       </Sheet>
