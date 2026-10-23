@@ -293,6 +293,30 @@ describe("people management", () => {
   });
 });
 
+describe("first-load empty states", () => {
+  it("answers 200 with empty data for new mentors and unlinked investors", async () => {
+    const mentor = await signUp("m@test.local", "mentor");
+    const inv = await signUp("inv@test.local", "investor");
+    const profile = await mentor.agent.get("/api/mentor/profile");
+    expect(profile.status).toBe(200);
+    expect(profile.body).toBeNull();
+    const sessions = await inv.agent.get("/api/investor/sessions");
+    expect(sessions.status).toBe(200);
+    expect(sessions.body).toEqual([]);
+  });
+
+  it("lists only bookable mentors for non-admins", async () => {
+    const admin = await signUp("admin@test.local", "administrator");
+    const withProfile = await signUp("m1@test.local", "mentor");
+    await signUp("m2@test.local", "mentor");
+    await admin.agent.post("/api/admin/mentors").send({ userId: withProfile.id });
+    const p = await signUp("p@test.local", "participant");
+    const list = await p.agent.get("/api/mentors");
+    expect(list.body.map((m: any) => m.id)).toEqual([withProfile.id]);
+    expect((await admin.agent.get("/api/mentors")).body.length).toBe(2);
+  });
+});
+
 describe("AI Coach history", () => {
   it("accepts long assistant replies in the history", async () => {
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";

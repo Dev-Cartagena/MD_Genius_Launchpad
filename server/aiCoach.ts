@@ -210,12 +210,13 @@ export class AiCoachService {
     messages: AiCoachMessage[],
     mode: CoachMode = "process_guide",
     userRole: string = "participant",
-    locale: string = "en"
+    locale: string = "en",
+    programWeek: number | null = null
   ): Promise<AiCoachResponse> {
     const contextualKnowledge = this.knowledgeBase[mode];
     try {
       const reply = await askForJson<AiCoachResponse>({
-        system: this.buildSystemPrompt(mode, userRole, locale),
+        system: this.buildSystemPrompt(mode, userRole, locale, programWeek),
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         schema: COACH_REPLY_SCHEMA,
         // Chat replies don't need deep reasoning; keep them fast and cheap.
@@ -246,9 +247,10 @@ export class AiCoachService {
     }
   }
 
-  private buildSystemPrompt(mode: CoachMode, userRole: string, locale: string): string {
+  private buildSystemPrompt(mode: CoachMode, userRole: string, locale: string, programWeek: number | null = null): string {
+    const weekLine = programWeek ? ` They are in week ${programWeek} of 8 of the program.` : "";
     return `You are the AI Coach for the MD Genius AI Startup Launchpad, an 8-week accelerator for AI startups.
-You are talking with a program ${userRole}. Give practical, specific advice for building an AI startup, grounded in the program material below.
+You are talking with a program ${userRole}.${weekLine} Give practical, specific advice for building an AI startup, grounded in the program material below.
 
 Current coaching mode: ${mode}
 

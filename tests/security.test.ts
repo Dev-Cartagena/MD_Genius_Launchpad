@@ -237,7 +237,9 @@ describe("participant lists and curriculum access", () => {
   });
 
   it("hides mentor emails from non-admins", async () => {
-    await signUp("mentor@test.local", "mentor");
+    const admin = await signUp("admin@test.local", "administrator");
+    const mentor = await signUp("mentor@test.local", "mentor");
+    await admin.agent.post("/api/admin/mentors").send({ userId: mentor.id });
     const visitor = await signUp("visitor@test.local");
     const res = await visitor.agent.get("/api/mentors");
     expect(res.status).toBe(200);
