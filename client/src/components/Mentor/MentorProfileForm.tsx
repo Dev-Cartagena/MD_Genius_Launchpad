@@ -83,7 +83,7 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
   const [customIndustry, setCustomIndustry] = useState("");
 
   // Fetch existing mentor profile if editing
-  const { data: existingProfile, isLoading: profileLoading } = useQuery<MentorProfile>({
+  const { data: existingProfile, isLoading: profileLoading } = useQuery<MentorProfile | null>({
     queryKey: ['/api/mentor/profile'],
     enabled: isEditing && !!user,
   });
@@ -121,8 +121,8 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
         title: "Profile Created!",
         description: "Your mentor profile has been successfully created.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/mentor/profile'] });
       onComplete?.();
+      queryClient.invalidateQueries({ queryKey: ['/api/mentor/profile'] });
     },
     onError: (error: any) => {
       toast({
@@ -142,9 +142,9 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
         title: "Profile Updated!",
         description: "Your mentor profile has been successfully updated.",
       });
+      onComplete?.();
       queryClient.invalidateQueries({ queryKey: ['/api/mentor/profile'] });
       queryClient.invalidateQueries({ queryKey: ['/api/mentors'] });
-      onComplete?.();
     },
     onError: (error: any) => {
       toast({
@@ -307,6 +307,8 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
                   type="button"
                   variant="outline"
                   onClick={addCustomExpertise}
+                  aria-label="Add expertise"
+                  title="Add expertise"
                   data-testid="button-add-expertise"
                 >
                   <Plus className="w-4 h-4" />
@@ -317,10 +319,15 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
                 {form.watch("expertise").map((expertise) => (
                   <Badge key={expertise} variant="secondary" className="flex items-center space-x-1">
                     <span>{expertise}</span>
-                    <X 
-                      className="w-3 h-3 cursor-pointer hover:text-destructive" 
+                    <button
+                      type="button"
                       onClick={() => removeExpertise(expertise)}
-                    />
+                      className="rounded-sm hover:text-destructive focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      aria-label={`Remove expertise ${expertise}`}
+                      title="Remove"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </Badge>
                 ))}
               </div>
@@ -373,6 +380,8 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
                   type="button"
                   variant="outline"
                   onClick={addCustomIndustry}
+                  aria-label="Add industry"
+                  title="Add industry"
                   data-testid="button-add-industry"
                 >
                   <Plus className="w-4 h-4" />
@@ -383,10 +392,15 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
                 {form.watch("industries").map((industry) => (
                   <Badge key={industry} variant="secondary" className="flex items-center space-x-1">
                     <span>{industry}</span>
-                    <X 
-                      className="w-3 h-3 cursor-pointer hover:text-destructive" 
+                    <button
+                      type="button"
                       onClick={() => removeIndustry(industry)}
-                    />
+                      className="rounded-sm hover:text-destructive focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      aria-label={`Remove industry ${industry}`}
+                      title="Remove"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </Badge>
                 ))}
               </div>

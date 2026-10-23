@@ -139,13 +139,21 @@ export default function MentorDashboard() {
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()); // Sort by recency
     
     const sessionCount = participantSessions.length;
-    const lastSession = participantSessions[0]; // Most recent
+    const nowMs = Date.now();
+    const sessionEnd = (s: MentorSession) => new Date(s.endTime ?? s.startTime).getTime();
+    // Last session: the most recent one that has already ended
+    const lastSession = participantSessions.find(s => sessionEnd(s) < nowMs);
+    // Next session: the nearest one that starts in the future
+    const nextSession = participantSessions
+      .filter(s => new Date(s.startTime).getTime() > nowMs)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
     
     return {
       name: menteeNames.get(participantId) || `Participant ${participantId.slice(0, 8)}`,
-      project: lastSession?.title || "No Recent Sessions",
+      project: (lastSession ?? nextSession)?.title || "No Recent Sessions",
       sessionCount, // Show real session count instead of synthetic progress
-      lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString() : "No sessions",
+      lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString() : "None yet",
+      nextSessionDate: nextSession ? new Date(nextSession.startTime).toLocaleDateString() : "None scheduled",
       hasNotes: Boolean(lastSession?.notes?.trim())
     };
   });
@@ -367,8 +375,8 @@ export default function MentorDashboard() {
                       <Avatar className="w-10 h-10">
                         <AvatarFallback>{mentee.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
                           <p className="font-medium text-sm" data-testid={`mentee-name-${index}`}>
                             {mentee.name}
                           </p>
@@ -385,6 +393,13 @@ export default function MentorDashboard() {
                             <span>Last Session</span>
                             <span className="font-medium" data-testid={`mentee-last-session-${index}`}>
                               {mentee.lastSessionDate}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between text-xs">
+                            <span>Next Session</span>
+                            <span className="font-medium" data-testid={`mentee-next-session-${index}`}>
+                              {mentee.nextSessionDate}
                             </span>
                           </div>
                           

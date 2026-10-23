@@ -124,10 +124,10 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
         title: "Session Booked!",
         description: `Your session with ${investor.organization} has been scheduled successfully.`,
       });
+      form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/participant/sessions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/investor/sessions"] });
-      form.reset();
       onClose();
     },
     onError: (error) => {

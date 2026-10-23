@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import ConfirmDialog, { type ConfirmRequest } from "@/components/ConfirmDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCohortDate } from "@/lib/dates";
 import type { Module, Lesson, Quiz, Cohort } from "@shared/schema";
@@ -125,7 +126,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
           </FormItem>
         )}
       />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="passThreshold"
@@ -316,12 +317,26 @@ interface ModuleWithLessons extends Module {
   cohortName?: string;
 }
 
-export default function AdminCurriculumManager() {
+interface AdminCurriculumManagerProps {
+  /** Optional lifted cohort selection, so it survives the parent switching tabs. */
+  selectedCohort?: string | null;
+  onSelectedCohortChange?: (cohortId: string | null) => void;
+}
+
+export default function AdminCurriculumManager({
+  selectedCohort: controlledCohort,
+  onSelectedCohortChange,
+}: AdminCurriculumManagerProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   // State
-  const [selectedCohort, setSelectedCohort] = useState<string | null>(null);
+  const [localCohort, setLocalCohort] = useState<string | null>(null);
+  const selectedCohort = controlledCohort !== undefined ? controlledCohort : localCohort;
+  const setSelectedCohort = (cohortId: string | null) => {
+    if (onSelectedCohortChange) onSelectedCohortChange(cohortId);
+    else setLocalCohort(cohortId);
+  };
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>("modules");
@@ -335,6 +350,7 @@ export default function AdminCurriculumManager() {
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [duplicatingModule, setDuplicatingModule] = useState<Module | null>(null);
   const [duplicateTargetCohort, setDuplicateTargetCohort] = useState<string>("");
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
 
   // Forms
   const moduleForm = useForm<ModuleFormData>({
@@ -503,6 +519,8 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
+      setIsCreateModuleOpen(false);
+      moduleForm.reset();
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
@@ -522,8 +540,6 @@ export default function AdminCurriculumManager() {
           exact: true 
         });
       }
-      setIsCreateModuleOpen(false);
-      moduleForm.reset();
       toast({ title: "Module created successfully" });
     },
     onError: (error: any) => {
@@ -541,6 +557,7 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
+      setEditingModule(null);
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
@@ -553,7 +570,6 @@ export default function AdminCurriculumManager() {
           exact: true 
         });
       }
-      setEditingModule(null);
       toast({ title: "Module updated successfully" });
     },
     onError: (error: any) => {
@@ -600,6 +616,8 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
+      setDuplicatingModule(null);
+      setDuplicateTargetCohort("");
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
@@ -612,8 +630,6 @@ export default function AdminCurriculumManager() {
           exact: true 
         });
       }
-      setDuplicatingModule(null);
-      setDuplicateTargetCohort("");
       toast({ title: "Module duplicated successfully" });
     },
     onError: (error: any) => {
@@ -631,6 +647,8 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
+      setIsCreateLessonOpen(false);
+      lessonForm.reset();
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
@@ -650,8 +668,6 @@ export default function AdminCurriculumManager() {
           exact: true 
         });
       }
-      setIsCreateLessonOpen(false);
-      lessonForm.reset();
       toast({ title: "Lesson created successfully" });
     },
     onError: (error: any) => {
@@ -669,6 +685,7 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
+      setEditingLesson(null);
       queryClient.invalidateQueries({ 
         predicate: (query) => 
           Array.isArray(query.queryKey) && 
@@ -695,7 +712,6 @@ export default function AdminCurriculumManager() {
           exact: true 
         });
       }
-      setEditingLesson(null);
       toast({ title: "Lesson updated successfully" });
     },
     onError: (error: any) => {
@@ -748,9 +764,9 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
       setIsCreateQuizOpen(false);
       quizForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
       toast({ title: "Quiz created successfully" });
     },
     onError: (error: any) => {
@@ -768,8 +784,8 @@ export default function AdminCurriculumManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
       setEditingQuiz(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
       toast({ title: "Quiz updated successfully" });
     },
     onError: (error: any) => {
@@ -908,7 +924,7 @@ export default function AdminCurriculumManager() {
 
       {selectedCohort && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden h-auto sm:grid sm:grid-cols-3">
             <TabsTrigger value="modules" data-testid="tab-modules">
               <BookOpen className="h-4 w-4 mr-2" />
               Modules
@@ -927,7 +943,22 @@ export default function AdminCurriculumManager() {
           <TabsContent value="modules" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Curriculum Modules</h3>
-              <Dialog open={isCreateModuleOpen} onOpenChange={setIsCreateModuleOpen}>
+              <Dialog
+                open={isCreateModuleOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    // Pre-select the cohort currently being viewed
+                    moduleForm.reset({
+                      title: "",
+                      description: "",
+                      cohortId: selectedCohort || "",
+                      week: 1,
+                      orderIndex: 0,
+                    });
+                  }
+                  setIsCreateModuleOpen(open);
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-module">
                     <Plus className="h-4 w-4 mr-2" />
@@ -974,7 +1005,7 @@ export default function AdminCurriculumManager() {
                           </FormItem>
                         )}
                       />
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={moduleForm.control}
                           name="week"
@@ -1117,6 +1148,7 @@ export default function AdminCurriculumManager() {
                               setDuplicateTargetCohort("");
                               setDuplicatingModule(module);
                             }}
+                            aria-label={`Duplicate module ${module.title} to another cohort`}
                             title="Duplicate to another cohort"
                             data-testid={`button-duplicate-module-${module.id}`}
                           >
@@ -1126,6 +1158,8 @@ export default function AdminCurriculumManager() {
                             size="sm"
                             variant="outline"
                             onClick={() => setEditingModule(module)}
+                            aria-label={`Edit module ${module.title}`}
+                            title="Edit module"
                             data-testid={`button-edit-module-${module.id}`}
                           >
                             <Edit className="h-4 w-4" />
@@ -1133,7 +1167,13 @@ export default function AdminCurriculumManager() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => deleteModuleMutation.mutate(module.id)}
+                            onClick={() => setConfirmRequest({
+                              title: `Delete module "${module.title}"?`,
+                              description: "This deletes the module and its lessons. This cannot be undone.",
+                              onConfirm: () => deleteModuleMutation.mutate(module.id),
+                            })}
+                            aria-label={`Delete module ${module.title}`}
+                            title="Delete module"
                             data-testid={`button-delete-module-${module.id}`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1184,6 +1224,8 @@ export default function AdminCurriculumManager() {
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => setEditingLesson(lesson)}
+                                        aria-label={`Edit lesson ${lesson.title}`}
+                                        title="Edit lesson"
                                         data-testid={`button-edit-lesson-${lesson.id}`}
                                       >
                                         <Edit className="h-4 w-4" />
@@ -1191,7 +1233,13 @@ export default function AdminCurriculumManager() {
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() => deleteLessonMutation.mutate(lesson.id)}
+                                        onClick={() => setConfirmRequest({
+                                          title: `Delete lesson "${lesson.title}"?`,
+                                          description: "This cannot be undone.",
+                                          onConfirm: () => deleteLessonMutation.mutate(lesson.id),
+                                        })}
+                                        aria-label={`Delete lesson ${lesson.title}`}
+                                        title="Delete lesson"
                                         data-testid={`button-delete-lesson-${lesson.id}`}
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -1346,6 +1394,8 @@ export default function AdminCurriculumManager() {
                                           const newResources = field.value.filter((_: string, i: number) => i !== index);
                                           field.onChange(newResources);
                                         }}
+                                        aria-label="Remove resource"
+                                        title="Remove resource"
                                         data-testid={`button-remove-resource-${index}`}
                                       >
                                         <X className="h-4 w-4" />
@@ -1382,7 +1432,7 @@ export default function AdminCurriculumManager() {
                         )}
                       />
                       
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <LessonQuizField form={lessonForm} quizzes={allQuizzes} />
                         <FormField
                           control={lessonForm.control}
@@ -1505,6 +1555,8 @@ export default function AdminCurriculumManager() {
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => setEditingLesson(lesson)}
+                                    aria-label={`Edit lesson ${lesson.title}`}
+                                    title="Edit lesson"
                                     data-testid={`button-edit-lesson-overview-${lesson.id}`}
                                   >
                                     <Edit className="h-4 w-4" />
@@ -1512,7 +1564,13 @@ export default function AdminCurriculumManager() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => deleteLessonMutation.mutate(lesson.id)}
+                                    onClick={() => setConfirmRequest({
+                                      title: `Delete lesson "${lesson.title}"?`,
+                                      description: "This cannot be undone.",
+                                      onConfirm: () => deleteLessonMutation.mutate(lesson.id),
+                                    })}
+                                    aria-label={`Delete lesson ${lesson.title}`}
+                                    title="Delete lesson"
                                     data-testid={`button-delete-lesson-overview-${lesson.id}`}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1632,6 +1690,8 @@ export default function AdminCurriculumManager() {
                             size="sm"
                             variant="outline"
                             onClick={() => setEditingQuiz(quiz)}
+                            aria-label={`Edit quiz ${quiz.title}`}
+                            title="Edit quiz"
                             data-testid={`button-edit-quiz-${quiz.id}`}
                           >
                             <Edit className="h-4 w-4" />
@@ -1639,7 +1699,13 @@ export default function AdminCurriculumManager() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => deleteQuizMutation.mutate(quiz.id)}
+                            onClick={() => setConfirmRequest({
+                              title: `Delete quiz "${quiz.title}"?`,
+                              description: "Lessons using this quiz will no longer have a quiz. This cannot be undone.",
+                              onConfirm: () => deleteQuizMutation.mutate(quiz.id),
+                            })}
+                            aria-label={`Delete quiz ${quiz.title}`}
+                            title="Delete quiz"
                             data-testid={`button-delete-quiz-${quiz.id}`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1765,7 +1831,7 @@ export default function AdminCurriculumManager() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={moduleForm.control}
                     name="week"
@@ -1977,6 +2043,8 @@ export default function AdminCurriculumManager() {
                                     const newResources = field.value.filter((_: string, i: number) => i !== index);
                                     field.onChange(newResources);
                                   }}
+                                  aria-label="Remove resource"
+                                  title="Remove resource"
                                   data-testid={`button-remove-edit-resource-${index}`}
                                 >
                                   <X className="h-4 w-4" />
@@ -2013,7 +2081,7 @@ export default function AdminCurriculumManager() {
                   )}
                 />
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <LessonQuizField form={lessonForm} quizzes={allQuizzes} />
                   <FormField
                     control={lessonForm.control}
@@ -2089,6 +2157,11 @@ export default function AdminCurriculumManager() {
           </DialogContent>
         </Dialog>
       )}
+
+      <ConfirmDialog
+        request={confirmRequest}
+        onOpenChange={(open) => { if (!open) setConfirmRequest(null); }}
+      />
     </div>
   );
 }

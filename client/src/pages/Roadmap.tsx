@@ -10,6 +10,23 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  assignmentStatusClass,
+  assignmentStatusLabel,
+  countAssignmentStatuses,
+  isAssignmentDone,
+} from "@/lib/roadmapStatus";
+import {
+  MoreVertical,
+  Ban,
+  SkipForward,
+  RotateCcw,
   CheckCircle2,
   Clock,
   Play,
@@ -122,21 +139,16 @@ export default function Roadmap() {
         return <CheckCircle2 className="w-4 h-4 text-green-600" />;
       case 'in_progress':
         return <Play className="w-4 h-4 text-blue-600" />;
+      case 'blocked':
+        return <Ban className="w-4 h-4 text-red-600" />;
+      case 'waived':
+        return <SkipForward className="w-4 h-4 text-purple-600" />;
       default:
         return <Clock className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
-  };
+  const getStatusColor = assignmentStatusClass;
 
   const getItemTypeIcon = (itemType: string) => {
     switch (itemType) {
@@ -195,7 +207,7 @@ export default function Roadmap() {
   if (!user || user.role !== 'participant') {
     return (
       <AppLayout title="Roadmap">
-        <div className="p-6">
+        <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">Roadmap access is only available for participants.</p>
@@ -209,7 +221,7 @@ export default function Roadmap() {
   if (projectsLoading) {
     return (
       <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
-        <div className="p-6 space-y-6">
+        <div className="md:p-6 space-y-6">
           <Card>
             <CardHeader>
               <Skeleton className="h-6 w-1/3" />
@@ -228,7 +240,7 @@ export default function Roadmap() {
   if (!projectId) {
     return (
       <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
-        <div className="p-6">
+        <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">You don't have a project yet. Create a project to access your roadmap.</p>
@@ -242,7 +254,7 @@ export default function Roadmap() {
   if (isLoading) {
     return (
       <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
-        <div className="p-6 space-y-6">
+        <div className="md:p-6 space-y-6">
           <Card>
             <CardHeader>
               <Skeleton className="h-6 w-1/3" />
@@ -272,7 +284,7 @@ export default function Roadmap() {
   if (!roadmap || !roadmap.items.length) {
     return (
       <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
-        <div className="p-6">
+        <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
               <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -296,16 +308,16 @@ export default function Roadmap() {
   }, {} as Record<number, RoadmapItemWithAssignment[]>);
 
   // Calculate progress statistics
-  const totalItems = roadmap.items.length;
-  const completedItems = roadmap.items.filter(item => item.assignment?.status === 'completed').length;
-  const inProgressItems = roadmap.items.filter(item => item.assignment?.status === 'in_progress').length;
-  const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  const counts = countAssignmentStatuses(roadmap.items.map(item => item.assignment?.status));
+  const totalItems = counts.total;
+  const doneItems = counts.done;
+  const progressPercentage = totalItems > 0 ? (doneItems / totalItems) * 100 : 0;
 
   const weeks = Object.keys(itemsByWeek).map(Number).sort((a, b) => a - b);
 
   return (
     <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
-      <div className="p-6 space-y-6">
+      <div className="md:p-6 space-y-6">
         {/* Progress Overview */}
         <Card className="glass-card">
           <CardHeader>
@@ -320,22 +332,30 @@ export default function Roadmap() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span>Overall Progress</span>
-                  <span>{completedItems}/{totalItems} completed</span>
+                  <span>{doneItems}/{totalItems} done</span>
                 </div>
                 <Progress value={progressPercentage} className="h-2" />
               </div>
               
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{completedItems}</div>
+                  <div className="text-2xl font-bold text-green-600">{counts.completed}</div>
                   <div className="text-sm text-green-600">Completed</div>
                 </div>
+                <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">{counts.waived}</div>
+                  <div className="text-sm text-purple-600">Waived</div>
+                </div>
                 <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{inProgressItems}</div>
-                  <div className="text-sm text-blue-600">In Progress</div>
+                  <div className="text-2xl font-bold text-blue-600">{counts.inProgress}</div>
+                  <div className="text-sm text-blue-600">In progress</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{counts.blocked}</div>
+                  <div className="text-sm text-red-600">Blocked</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 dark:bg-gray-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-600">{totalItems - completedItems - inProgressItems}</div>
+                  <div className="text-2xl font-bold text-gray-600">{counts.pending}</div>
                   <div className="text-sm text-gray-600">Pending</div>
                 </div>
               </div>
@@ -377,8 +397,8 @@ export default function Roadmap() {
                   <Calendar className="w-5 h-5" />
                   Week {week}
                   <Badge variant="outline" className="ml-auto">
-                    {(itemsByWeek[week] || []).filter(item => item.assignment?.status === 'completed').length}/
-                    {(itemsByWeek[week] || []).length} completed
+                    {(itemsByWeek[week] || []).filter(item => isAssignmentDone(item.assignment?.status)).length}/
+                    {(itemsByWeek[week] || []).length} done
                   </Badge>
                 </CardTitle>
               </CardHeader>
@@ -389,14 +409,14 @@ export default function Roadmap() {
                     .map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         {getItemTypeIcon(item.type)}
                         {getStatusIcon(item.assignment?.status || 'not_started')}
                       </div>
                       
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <h4 className="font-medium">{item.title}</h4>
                         <p className="text-sm text-muted-foreground">{item.description}</p>
                         
@@ -413,9 +433,9 @@ export default function Roadmap() {
                           </div>
                         )}
                         
-                        <div className="flex items-center gap-4 mt-2">
-                          <Badge variant="outline" className="text-xs">
-                            {item.type}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {item.type.replace(/_/g, ' ')}
                           </Badge>
                           {item.assignment?.autoCompleted && (
                             <Badge variant="outline" className="text-xs bg-green-50 text-green-600 border-green-200">
@@ -435,9 +455,9 @@ export default function Roadmap() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge className={getStatusColor(item.assignment?.status || 'not_started')}>
-                          {item.assignment?.status || 'not_started'}
+                          {assignmentStatusLabel(item.assignment?.status)}
                         </Badge>
                         
                         {/* Learning items: Show curriculum navigation */}
@@ -457,7 +477,7 @@ export default function Roadmap() {
                           /* Non-learning items: Show manual controls */
                           item.assignment && (
                             <div className="flex gap-1">
-                              {item.assignment.status !== 'completed' && (
+                              {!isAssignmentDone(item.assignment.status) && (
                                 <>
                                   {item.assignment.status !== 'in_progress' && (
                                     <Button
@@ -484,6 +504,51 @@ export default function Roadmap() {
                               )}
                             </div>
                           )
+                        )}
+
+                        {item.assignment && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                aria-label={`More actions for ${item.title}`}
+                                title="More actions"
+                                disabled={updateStatusMutation.isPending}
+                                data-testid={`button-actions-${item.id}`}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                disabled={item.assignment.status === 'blocked'}
+                                onSelect={() => handleStatusUpdate(item.assignment!.id, 'blocked')}
+                                data-testid={`menu-block-${item.id}`}
+                              >
+                                <Ban className="w-4 h-4 mr-2" />
+                                Mark blocked
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={item.assignment.status === 'waived'}
+                                onSelect={() => handleStatusUpdate(item.assignment!.id, 'waived')}
+                                data-testid={`menu-waive-${item.id}`}
+                              >
+                                <SkipForward className="w-4 h-4 mr-2" />
+                                Waive
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={item.assignment.status === 'not_started'}
+                                onSelect={() => handleStatusUpdate(item.assignment!.id, 'not_started')}
+                                data-testid={`menu-reset-${item.id}`}
+                              >
+                                <RotateCcw className="w-4 h-4 mr-2" />
+                                Reset to not started
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </div>
                     </div>

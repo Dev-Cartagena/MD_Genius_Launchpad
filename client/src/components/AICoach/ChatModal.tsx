@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getApiErrorMessage } from "@/lib/utils";
+import SimpleMarkdown from "./SimpleMarkdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -180,6 +181,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               variant="ghost"
               size="icon"
               onClick={handleClose}
+              aria-label="Close AI Coach"
+              title="Close AI Coach"
               data-testid="button-close-chat"
             >
               <X className="w-4 h-4" />
@@ -225,7 +228,11 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                       : "bg-secondary text-secondary-foreground"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  {message.role === "assistant" ? (
+                    <SimpleMarkdown content={message.content} className="text-sm" />
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                  )}
                   {message.sources && message.sources.length > 0 && (
                     <div className="mt-2 space-y-1">
                       <p className="text-xs opacity-70">Sources:</p>
@@ -277,6 +284,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isTyping}
               className="px-4"
+              aria-label="Send message"
+              title="Send message"
               data-testid="button-send-message"
             >
               <Send className="w-4 h-4" />

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
+import { cohortStatusMessage } from "@/lib/cohorts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,6 +249,8 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
 
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("overview");
+  // Lifted so the curriculum cohort selection survives switching admin tabs
+  const [curriculumCohort, setCurriculumCohort] = useState<string | null>(null);
   const [selectedApplicationStatus, setSelectedApplicationStatus] = useState("all");
   const [viewingApplication, setViewingApplication] = useState<ProcessedApplication | null>(null);
   
@@ -358,13 +361,13 @@ export default function Admin() {
     }
     
     // Check for active cohorts
-    const activeCohortCount = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
-    if (activeCohortCount > 0) {
+    const cohortMessage = cohortStatusMessage(cohorts);
+    if (cohortMessage) {
       alerts.push({
         id: "active-cohorts",
         type: "info",
         title: "Active Cohorts",
-        message: `${activeCohortCount} cohort${activeCohortCount > 1 ? 's' : ''} currently running`,
+        message: cohortMessage,
         priority: "low"
       });
     }
@@ -556,9 +559,9 @@ export default function Admin() {
         title: "Mentor Profile Created!",
         description: "The mentor now appears to participants.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
       setEditingMentor(null);
       editMentorForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
     },
     onError: (error) => handleMutationError(error, "Failed to create mentor profile. Please try again."),
   });
@@ -574,10 +577,10 @@ export default function Admin() {
         title: "Mentor Profile Updated!",
         description: "Mentor profile has been updated successfully.",
       });
-      // Invalidate mentor queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
       setEditingMentor(null);
       editMentorForm.reset();
+      // Invalidate mentor queries to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -689,8 +692,8 @@ export default function Admin() {
         title: "User Updated!",
         description: "User information has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -729,8 +732,8 @@ export default function Admin() {
           description: "User created. Email is not configured, so no invite was sent.",
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setIsInviteUserOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -789,7 +792,7 @@ export default function Admin() {
       const csvData = filteredApplications.map((app: ProcessedApplication) => ({
         "Applicant Name": app.applicant,
         "Project Name": app.project,
-        "Status": app.status.replace('_', ' '),
+        "Status": app.status.replace(/_/g, ' '),
         "Score": `${app.score}%`,
         "Email": app.email || '',
         "Submitted Days Ago": app.submittedDays,
@@ -802,7 +805,7 @@ export default function Admin() {
         headers.join(','),
         ...csvData.map(row => 
           headers.map(header => 
-            `"${String(row[header as keyof typeof row] || '').replace(/"/g, '""')}"`
+            `"${String(row[header as keyof typeof row] ?? '').replace(/"/g, '""')}"`
           ).join(',')
         )
       ].join('\n');
@@ -1460,15 +1463,15 @@ export default function Admin() {
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
-            <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohorts</TabsTrigger>
-            <TabsTrigger value="roadmap" data-testid="tab-roadmap">Roadmap</TabsTrigger>
-            <TabsTrigger value="curriculum" data-testid="tab-curriculum">Curriculum</TabsTrigger>
-            <TabsTrigger value="mentors" data-testid="tab-mentors">Mentors</TabsTrigger>
-            <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
-            <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
+          <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden flex-nowrap h-auto lg:grid lg:grid-cols-8">
+            <TabsTrigger value="overview" className="shrink-0" data-testid="tab-overview">Overview</TabsTrigger>
+            <TabsTrigger value="applications" className="shrink-0" data-testid="tab-applications">Applications</TabsTrigger>
+            <TabsTrigger value="cohorts" className="shrink-0" data-testid="tab-cohorts">Cohorts</TabsTrigger>
+            <TabsTrigger value="roadmap" className="shrink-0" data-testid="tab-roadmap">Roadmap</TabsTrigger>
+            <TabsTrigger value="curriculum" className="shrink-0" data-testid="tab-curriculum">Curriculum</TabsTrigger>
+            <TabsTrigger value="mentors" className="shrink-0" data-testid="tab-mentors">Mentors</TabsTrigger>
+            <TabsTrigger value="investors" className="shrink-0" data-testid="tab-investors">Investors</TabsTrigger>
+            <TabsTrigger value="users" className="shrink-0" data-testid="tab-users">Users</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -1512,7 +1515,7 @@ export default function Admin() {
                       <p className="text-2xl font-bold" data-testid="metric-active-projects">
                         {adminMetrics.totalProjects}
                       </p>
-                      <p className="text-xs text-primary mt-1">Across {adminMetrics.activeCohorts} cohorts</p>
+                      <p className="text-xs text-primary mt-1">Across {adminMetrics.activeCohorts} active cohort{adminMetrics.activeCohorts === 1 ? '' : 's'}</p>
                     </div>
                     <GraduationCap className="w-8 h-8 text-primary opacity-80" />
                   </div>
@@ -1783,7 +1786,7 @@ export default function Admin() {
                             )}
                           />
                           
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <FormField
                               control={cohortForm.control}
                               name="startDate"
@@ -1935,7 +1938,10 @@ export default function Admin() {
                 </p>
               </CardHeader>
               <CardContent>
-                <AdminCurriculumManager />
+                <AdminCurriculumManager
+                  selectedCohort={curriculumCohort}
+                  onSelectedCohortChange={setCurriculumCohort}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -2036,6 +2042,8 @@ export default function Admin() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleViewMentor(mentor)}
+                                  aria-label="View mentor"
+                                  title="View mentor"
                                   data-testid={`button-view-mentor-${mentor.id}`}
                                 >
                                   <Eye className="w-4 h-4" />
@@ -2045,6 +2053,8 @@ export default function Admin() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleEditMentor(mentor)}
+                                    aria-label="Edit mentor"
+                                    title="Edit mentor"
                                     data-testid={`button-edit-mentor-${mentor.id}`}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -2307,7 +2317,7 @@ export default function Admin() {
                 )}
               />
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={editCohortForm.control}
                   name="startDate"

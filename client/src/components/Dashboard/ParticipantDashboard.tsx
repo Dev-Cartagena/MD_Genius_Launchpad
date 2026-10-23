@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { assignmentStatusClass, assignmentStatusLabel, isAssignmentDone } from "@/lib/roadmapStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +121,12 @@ export default function ParticipantDashboard() {
   // The project's cohort, else the cohort of the participant's accepted application
   const acceptedCohortId = myApplications.find((app) => app.status === "accepted")?.cohortId;
   const userCohortId = currentProject.cohortId || acceptedCohortId;
-  const userCohort = cohorts.find((c: Cohort) => c.id === userCohortId);
+  // Load the participant's own cohort by id: the public list only has active cohorts.
+  const { data: ownCohort } = useQuery<Cohort>({
+    queryKey: [`/api/cohorts/${userCohortId}`],
+    enabled: Boolean(userCohortId),
+  });
+  const userCohort = ownCohort ?? cohorts.find((c: Cohort) => c.id === userCohortId);
   
   const { data: milestones = [], isLoading: milestonesLoading } = useQuery<Milestone[]>({
     queryKey: [`/api/cohorts/${userCohort?.id}/milestones`],
@@ -198,6 +204,10 @@ export default function ParticipantDashboard() {
     switch (status) {
       case 'completed':
         return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+      case 'waived':
+        return <CheckCircle2 className="w-4 h-4 text-purple-600" />;
+      case 'blocked':
+        return <AlertCircle className="w-4 h-4 text-red-600" />;
       case 'in_progress':
         return <Play className="w-4 h-4 text-blue-600" />;
       default:
@@ -205,16 +215,7 @@ export default function ParticipantDashboard() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
-  };
+  const getStatusColor = assignmentStatusClass;
 
   const getItemTypeIcon = (itemType: string) => {
     switch (itemType) {
@@ -469,7 +470,7 @@ export default function ParticipantDashboard() {
                           {getStatusIcon(item.assignment?.status || 'not_started')}
                         </div>
                         
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
                             {item.title}
                           </h4>
@@ -477,8 +478,8 @@ export default function ParticipantDashboard() {
                             {item.description}
                           </p>
                           <div className="flex items-center gap-4">
-                            <Badge variant="outline" className="text-xs">
-                              {item.type}
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {item.type.replace(/_/g, ' ')}
                             </Badge>
                             {(item.estimatedHours ?? 0) > 0 && (
                               <span className="text-xs text-muted-foreground">
@@ -488,14 +489,14 @@ export default function ParticipantDashboard() {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <Badge className={getStatusColor(item.assignment?.status || 'not_started')}>
-                            {(item.assignment?.status || 'not_started').replace('_', ' ')}
+                            {assignmentStatusLabel(item.assignment?.status)}
                           </Badge>
                           
                           {item.assignment && (
                             <div className="flex gap-1">
-                              {item.assignment.status !== 'completed' && (
+                              {!isAssignmentDone(item.assignment.status) && (
                                 <>
                                   {item.assignment.status !== 'in_progress' && (
                                     <Button
@@ -503,6 +504,8 @@ export default function ParticipantDashboard() {
                                       variant="outline"
                                       onClick={() => handleStatusUpdate(item.assignment!.id, 'in_progress')}
                                       disabled={updateStatusMutation.isPending}
+                                      aria-label={`Start ${item.title}`}
+                                      title="Start"
                                       data-testid={`button-start-${item.id}`}
                                     >
                                       <Play className="w-3 h-3" />
@@ -512,6 +515,8 @@ export default function ParticipantDashboard() {
                                     size="sm"
                                     onClick={() => handleStatusUpdate(item.assignment!.id, 'completed')}
                                     disabled={updateStatusMutation.isPending}
+                                    aria-label={`Mark ${item.title} complete`}
+                                    title="Mark complete"
                                     data-testid={`button-complete-${item.id}`}
                                   >
                                     <CheckCircle2 className="w-3 h-3" />

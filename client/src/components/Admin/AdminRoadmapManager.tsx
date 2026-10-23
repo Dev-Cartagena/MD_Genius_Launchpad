@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import ConfirmDialog, { type ConfirmRequest } from "@/components/ConfirmDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { getApiErrorMessage } from "@/lib/utils";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -222,6 +223,7 @@ export default function AdminRoadmapManager() {
 
   // State
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<RoadmapTemplate | null>(null);
   const [assigningTemplate, setAssigningTemplate] = useState<RoadmapTemplate | null>(null);
@@ -469,9 +471,12 @@ export default function AdminRoadmapManager() {
   };
 
   const handleDeactivateTemplate = (template: RoadmapTemplate) => {
-    if (confirm(`Deactivate "${template.name}"? Existing project roadmaps are kept.`)) {
-      deactivateTemplateMutation.mutate(template.id);
-    }
+    setConfirmRequest({
+      title: `Deactivate "${template.name}"?`,
+      description: "Existing project roadmaps are kept.",
+      confirmLabel: "Deactivate",
+      onConfirm: () => deactivateTemplateMutation.mutate(template.id),
+    });
   };
 
   const handleCreateItem = (data: ItemFormData) => {
@@ -504,10 +509,12 @@ export default function AdminRoadmapManager() {
     });
   };
 
-  const handleDeleteItem = (itemId: string) => {
-    if (confirm("Are you sure you want to delete this roadmap item?")) {
-      deleteItemMutation.mutate(itemId);
-    }
+  const handleDeleteItem = (itemId: string, itemTitle?: string) => {
+    setConfirmRequest({
+      title: itemTitle ? `Delete roadmap item "${itemTitle}"?` : "Delete this roadmap item?",
+      description: "This cannot be undone.",
+      onConfirm: () => deleteItemMutation.mutate(itemId),
+    });
   };
 
   const getTypeIcon = (type: string) => {
@@ -789,6 +796,8 @@ export default function AdminRoadmapManager() {
                             handleDeactivateTemplate(template);
                           }}
                           disabled={deactivateTemplateMutation.isPending}
+                          aria-label="Deactivate template"
+                          title="Deactivate template"
                           data-testid={`button-deactivate-template-${template.id}`}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -877,7 +886,7 @@ export default function AdminRoadmapManager() {
                         )}
                       />
 
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <FormField
                           control={itemForm.control}
                           name="type"
@@ -946,7 +955,7 @@ export default function AdminRoadmapManager() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={itemForm.control}
                           name="moduleId"
@@ -1010,7 +1019,7 @@ export default function AdminRoadmapManager() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={itemForm.control}
                           name="autoCompletionType"
@@ -1173,6 +1182,8 @@ export default function AdminRoadmapManager() {
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => handleEditItem(item)}
+                                      aria-label={`Edit roadmap item ${item.title}`}
+                                      title="Edit roadmap item"
                                       data-testid={`button-edit-item-${item.id}`}
                                     >
                                       <Edit className="w-3 h-3" />
@@ -1180,8 +1191,10 @@ export default function AdminRoadmapManager() {
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      onClick={() => handleDeleteItem(item.id)}
+                                      onClick={() => handleDeleteItem(item.id, item.title)}
                                       disabled={deleteItemMutation.isPending}
+                                      aria-label={`Delete roadmap item ${item.title}`}
+                                      title="Delete roadmap item"
                                       data-testid={`button-delete-item-${item.id}`}
                                     >
                                       <Trash2 className="w-3 h-3" />
@@ -1200,6 +1213,11 @@ export default function AdminRoadmapManager() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        request={confirmRequest}
+        onOpenChange={(open) => { if (!open) setConfirmRequest(null); }}
+      />
     </div>
   );
 }

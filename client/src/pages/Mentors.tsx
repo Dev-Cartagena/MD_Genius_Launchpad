@@ -126,9 +126,9 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
         title: "Session Booked!",
         description: `Your session with ${mentor.firstName} has been scheduled successfully.`,
       });
+      form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/participant/sessions"] });
-      form.reset();
       onClose();
     },
     onError: (error) => {
