@@ -29,6 +29,7 @@ import type { User, Application, Project, Cohort, MentorWithProfile } from "@sha
 // Admin Components
 import AdminRoadmapManager from "@/components/Admin/AdminRoadmapManager";
 import AdminCurriculumManager from "@/components/Admin/AdminCurriculumManager";
+import ProgramSetupChecklist from "@/components/Admin/ProgramSetupChecklist";
 import AdminInvestorManager from "@/components/Admin/AdminInvestorManager";
 import { getApplicationTitle, getApplicationDescription } from "@/lib/applicationUtils";
 import {
@@ -1521,6 +1522,19 @@ export default function Admin() {
           </div>
 
           <TabsContent value="overview" className="space-y-6">
+            <ProgramSetupChecklist
+              cohortCount={cohorts.length}
+              mentorCount={users.filter((u) => u.role === "mentor").length}
+              onGo={(target) => {
+                if (target === "cohort") {
+                  setSelectedTab("cohorts");
+                  setIsCreateCohortOpen(true);
+                } else {
+                  setSelectedTab(target);
+                }
+              }}
+            />
+
             {/* Key Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
@@ -1982,6 +1996,10 @@ export default function Admin() {
                 <AdminCurriculumManager
                   selectedCohort={curriculumCohort}
                   onSelectedCohortChange={setCurriculumCohort}
+                  onRequestCreateCohort={() => {
+                    setSelectedTab("cohorts");
+                    setIsCreateCohortOpen(true);
+                  }}
                 />
               </CardContent>
             </Card>
