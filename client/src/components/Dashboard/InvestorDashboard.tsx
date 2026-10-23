@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
+import { intlLocale } from "@/i18n";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,17 +20,23 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { investorInterestLevelEnum, projectStageEnum } from "@shared/schema";
 import type { Project, InvestorInterest } from "@shared/schema";
 
-const STAGE_LABELS: Record<string, string> = {
-  ideation: "Ideation",
-  validation: "Validation",
-  mvp_build: "MVP build",
-  pilot_traction: "Pilot and traction",
-  pitch_ready: "Pitch ready",
-};
+type ProjectStage = (typeof projectStageEnum.enumValues)[number];
+type InterestLevel = (typeof investorInterestLevelEnum.enumValues)[number];
+const SESSION_TYPES = ["pitch", "feedback", "due_diligence", "demo_day"] as const;
+type SessionType = (typeof SESSION_TYPES)[number];
+
+const isStage = (v: string): v is ProjectStage => (projectStageEnum.enumValues as readonly string[]).includes(v);
+const isLevel = (v: string): v is InterestLevel => (investorInterestLevelEnum.enumValues as readonly string[]).includes(v);
+const isSessionType = (v: string): v is SessionType => (SESSION_TYPES as readonly string[]).includes(v);
 
 export default function InvestorDashboard() {
+  const { t } = useTranslation(["dashboard", "common"]);
+  const stageLabel = (stage: string) => (isStage(stage) ? t(`common:projectStage.${stage}`) : stage.replace(/_/g, " "));
+  const sessionTypeLabel = (type: string) =>
+    isSessionType(type) ? t(`investor.sessionType.${type}`) : type.replace(/_/g, " ");
   // Fetch startup directory and interests
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -88,7 +96,7 @@ export default function InvestorDashboard() {
   // Use real project data only, no synthetic values
   const featuredStartups = filteredProjects.slice(0, 6).map((project) => ({
     id: project.id,
-    name: project.name || "Untitled project",
+    name: project.name || t("investor.featured.untitled"),
     stage: project.stage || "ideation",
     sector: project.aiComponents?.[0],
     description: project.summary,
@@ -96,8 +104,12 @@ export default function InvestorDashboard() {
     founded: project.createdAt ? new Date(project.createdAt).getFullYear().toString() : null
   }));
 
-  const formatLevel = (level: string | null | undefined) =>
-    (level || "viewed").replace(/_/g, " ").replace(/^\w/, (l) => l.toUpperCase());
+  const formatLevel = (level: string | null | undefined) => {
+    const value = level || "viewed";
+    return isLevel(value)
+      ? t(`common:interestLevel.${value}`)
+      : value.replace(/_/g, " ").replace(/^\w/, (l) => l.toUpperCase());
+  };
 
   // Recent activity comes from this investor's recorded interests
   const recentActivity = [...interests]
@@ -108,17 +120,17 @@ export default function InvestorDashboard() {
     <div className="space-y-6">
       {/* Investor Stats Overview */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Startups in directory" value={investorStats.startupsViewed} icon={Building} testId="metric-viewed" />
-        <KpiCard label="Meetings scheduled" value={investorStats.meetingsScheduled} icon={Calendar} testId="metric-meetings" />
-        <KpiCard label="Due diligence" value={investorStats.activeDiligence} icon={FileText} testId="metric-diligence" />
-        <KpiCard label="Startups of interest" value={investorStats.portfolioInterest} icon={Star} testId="metric-portfolio" />
+        <KpiCard label={t("investor.kpi.directory")} value={investorStats.startupsViewed} icon={Building} testId="metric-viewed" />
+        <KpiCard label={t("investor.kpi.meetings")} value={investorStats.meetingsScheduled} icon={Calendar} testId="metric-meetings" />
+        <KpiCard label={t("investor.kpi.diligence")} value={investorStats.activeDiligence} icon={FileText} testId="metric-diligence" />
+        <KpiCard label={t("investor.kpi.interest")} value={investorStats.portfolioInterest} icon={Star} testId="metric-portfolio" />
       </section>
 
       {/* Scheduled Sessions (next step) */}
       <MistPanel>
         <div className="mb-5">
-          <p className="font-display text-sm text-foreground/80">Your next meetings</p>
-          <h2 className="font-display text-xl font-medium">Scheduled sessions</h2>
+          <p className="font-display text-sm text-foreground/80">{t("investor.sessions.eyebrow")}</p>
+          <h2 className="font-display text-xl font-medium">{t("investor.sessions.title")}</h2>
         </div>
 
         {sessions.length > 0 ? (
@@ -134,10 +146,10 @@ export default function InvestorDashboard() {
                       <div className="mt-1 flex flex-wrap items-center gap-2 font-display text-sm text-muted-foreground">
                         {session.sessionType && (
                           <Badge variant="outline" className="capitalize">
-                            {session.sessionType.replace(/_/g, ' ')}
+                            {sessionTypeLabel(session.sessionType)}
                           </Badge>
                         )}
-                        {new Date(session.startTime).toLocaleDateString('en-US', {
+                        {new Date(session.startTime).toLocaleDateString(intlLocale(), {
                           weekday: 'long',
                           month: 'short',
                           day: 'numeric',
@@ -147,7 +159,7 @@ export default function InvestorDashboard() {
                       </div>
                     </div>
                     <Badge variant={new Date(session.startTime) > new Date() ? 'secondary' : 'outline'}>
-                      {new Date(session.startTime) > new Date() ? 'Upcoming' : 'Past'}
+                      {new Date(session.startTime) > new Date() ? t("sessions.upcoming") : t("sessions.past")}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -155,13 +167,13 @@ export default function InvestorDashboard() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="text-sm">
-                      <span className="font-display text-muted-foreground">Participants</span>
-                      <p className="font-medium">{session.participantIds?.length || 0} {(session.participantIds?.length || 0) === 1 ? 'participant' : 'participants'}</p>
+                      <span className="font-display text-muted-foreground">{t("investor.sessions.participantsLabel")}</span>
+                      <p className="font-medium">{t("investor.sessions.participants", { count: session.participantIds?.length || 0 })}</p>
                     </div>
 
                     {session.agenda && (
                       <div className="text-sm">
-                        <span className="font-display text-muted-foreground">Agenda</span>
+                        <span className="font-display text-muted-foreground">{t("investor.sessions.agenda")}</span>
                         <p className="line-clamp-2" data-testid={`session-agenda-${session.id}`}>
                           {session.agenda}
                         </p>
@@ -170,7 +182,9 @@ export default function InvestorDashboard() {
 
                     <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
                       <div className="font-display text-xs text-muted-foreground">
-                        {Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / (1000 * 60))} minutes
+                        {t("investor.sessions.minutes", {
+                          count: Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / (1000 * 60)),
+                        })}
                       </div>
                       <div className="flex gap-2">
                         {new Date(session.startTime) > new Date() && session.meetingLink && (
@@ -181,7 +195,7 @@ export default function InvestorDashboard() {
                             data-testid={`button-join-${session.id}`}
                           >
                             <Video className="w-3 h-3 mr-1" />
-                            Join
+                            {t("sessions.join")}
                           </Button>
                         )}
                       </div>
@@ -193,7 +207,7 @@ export default function InvestorDashboard() {
           </div>
         ) : (
           <DropZone className="bg-card/60 py-8">
-            <p className="text-sm">Sessions will appear here when participants request time with you.</p>
+            <p className="text-sm">{t("investor.sessions.empty")}</p>
           </DropZone>
         )}
       </MistPanel>
@@ -207,7 +221,7 @@ export default function InvestorDashboard() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search startups by name, sector or technology"
+                    placeholder={t("investor.filters.search")}
                     className="pl-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -218,10 +232,10 @@ export default function InvestorDashboard() {
               <div className="grid grid-cols-2 gap-2 md:flex">
                 <Select value={selectedSector} onValueChange={setSelectedSector}>
                   <SelectTrigger className="w-full md:w-40" data-testid="select-sector-filter">
-                    <SelectValue placeholder="Sector" />
+                    <SelectValue placeholder={t("investor.filters.sector")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All sectors</SelectItem>
+                    <SelectItem value="all">{t("investor.filters.allSectors")}</SelectItem>
                     {sectorOptions.map((sector) => (
                       <SelectItem key={sector} value={sector}>{sector}</SelectItem>
                     ))}
@@ -230,15 +244,13 @@ export default function InvestorDashboard() {
 
                 <Select value={selectedStage} onValueChange={setSelectedStage}>
                   <SelectTrigger className="w-full md:w-40" data-testid="select-stage-filter">
-                    <SelectValue placeholder="Stage" />
+                    <SelectValue placeholder={t("investor.filters.stage")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All stages</SelectItem>
-                    <SelectItem value="ideation">Ideation</SelectItem>
-                    <SelectItem value="validation">Validation</SelectItem>
-                    <SelectItem value="mvp_build">MVP build</SelectItem>
-                    <SelectItem value="pilot_traction">Pilot and traction</SelectItem>
-                    <SelectItem value="pitch_ready">Pitch ready</SelectItem>
+                    <SelectItem value="all">{t("investor.filters.allStages")}</SelectItem>
+                    {projectStageEnum.enumValues.map((stage) => (
+                      <SelectItem key={stage} value={stage}>{t(`common:projectStage.${stage}`)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -250,9 +262,9 @@ export default function InvestorDashboard() {
       {/* Featured Startups */}
       <section>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="font-display text-xl font-medium">Featured startups</h2>
+          <h2 className="font-display text-xl font-medium">{t("investor.featured.title")}</h2>
           <Button variant="outline" asChild data-testid="button-view-all-startups">
-            <Link href="/investors">View all</Link>
+            <Link href="/investors">{t("investor.featured.viewAll")}</Link>
           </Button>
         </div>
 
@@ -260,8 +272,8 @@ export default function InvestorDashboard() {
           <DropZone className="py-10">
             <p className="text-sm">
               {projects.length === 0
-                ? "Startups will appear here once participants create their projects."
-                : "No startups match your search. Try adjusting the filters."}
+                ? t("investor.featured.noProjects")
+                : t("investor.featured.noMatches")}
             </p>
           </DropZone>
         )}
@@ -281,7 +293,7 @@ export default function InvestorDashboard() {
                       </CardTitle>
                       {startup.founded && (
                         <p className="font-display text-sm text-muted-foreground">
-                          Since {startup.founded}
+                          {t("investor.featured.since", { year: startup.founded })}
                         </p>
                       )}
                     </div>
@@ -293,7 +305,7 @@ export default function InvestorDashboard() {
                       </Badge>
                     )}
                     <Badge variant="secondary" data-testid={`startup-stage-${startup.id}`}>
-                      {STAGE_LABELS[startup.stage] ?? startup.stage.replace(/_/g, ' ')}
+                      {stageLabel(startup.stage)}
                     </Badge>
                   </div>
                 </div>
@@ -305,7 +317,7 @@ export default function InvestorDashboard() {
                 </p>
 
                 <div className="mb-4 mt-auto flex items-center justify-between gap-3 text-sm">
-                  <span className="font-display text-muted-foreground">Readiness</span>
+                  <span className="font-display text-muted-foreground">{t("investor.featured.readiness")}</span>
                   <div className="flex items-center gap-2">
                     <Progress value={startup.readinessScore} className="h-1.5 w-16" />
                     <span className="font-display font-medium" data-testid={`startup-readiness-${startup.id}`}>
@@ -320,7 +332,7 @@ export default function InvestorDashboard() {
                     asChild
                     data-testid={`button-request-meeting-${startup.id}`}
                   >
-                    <Link href="/investors">Request meeting</Link>
+                    <Link href="/investors">{t("investor.featured.requestMeeting")}</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -336,13 +348,13 @@ export default function InvestorDashboard() {
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
-              <span>Upcoming events</span>
+              <span>{t("investor.events.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <DropZone className="py-6">
               <p className="text-sm" data-testid="events-empty">
-                No demo days or events have been announced yet.
+                {t("investor.events.empty")}
               </p>
             </DropZone>
           </CardContent>
@@ -351,13 +363,13 @@ export default function InvestorDashboard() {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Recent activity</CardTitle>
+            <CardTitle className="text-xl">{t("investor.activity.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             {recentActivity.length === 0 ? (
               <DropZone className="py-6">
                 <p className="text-sm" data-testid="activity-empty">
-                  Request a meeting with a startup to start your pipeline.
+                  {t("investor.activity.empty")}
                 </p>
               </DropZone>
             ) : (
@@ -367,11 +379,16 @@ export default function InvestorDashboard() {
                     <div className="h-2 w-2 shrink-0 rounded-full bg-accent"></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm">
-                        <span className="font-display font-medium">{formatLevel(activity.level)}</span> {activity.projectName || "a startup"}
+                        <Trans
+                          t={t}
+                          i18nKey="investor.activity.item"
+                          values={{ level: formatLevel(activity.level), project: activity.projectName || t("investor.activity.aStartup") }}
+                          components={{ level: <span className="font-display font-medium" /> }}
+                        />
                       </p>
                       {(activity.updatedAt || activity.createdAt) && (
                         <p className="font-display text-xs text-muted-foreground">
-                          {new Date((activity.updatedAt || activity.createdAt) as any).toLocaleDateString()}
+                          {new Date((activity.updatedAt || activity.createdAt) as any).toLocaleDateString(intlLocale())}
                         </p>
                       )}
                     </div>
@@ -389,19 +406,19 @@ export default function InvestorDashboard() {
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              <span>Investment pipeline</span>
+              <span>{t("investor.pipeline.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: "Initial interest", value: pipeline.initial, testId: "pipeline-initial" },
-                { label: "Meetings scheduled", value: pipeline.meetings, testId: "pipeline-meetings" },
-                { label: "Due diligence", value: pipeline.diligence, testId: "pipeline-diligence" },
-                { label: "Investment decisions", value: pipeline.decisions, testId: "pipeline-decisions" },
+                { label: t("investor.pipeline.initial"), value: pipeline.initial, testId: "pipeline-initial" },
+                { label: t("investor.pipeline.meetings"), value: pipeline.meetings, testId: "pipeline-meetings" },
+                { label: t("investor.pipeline.diligence"), value: pipeline.diligence, testId: "pipeline-diligence" },
+                { label: t("investor.pipeline.decisions"), value: pipeline.decisions, testId: "pipeline-decisions" },
               ].map((stage, index) => (
                 <div key={stage.testId} className="rounded-lg border border-border p-4">
-                  <p className="font-display text-xs text-muted-foreground">Stage {index + 1}</p>
+                  <p className="font-display text-xs text-muted-foreground">{t("investor.pipeline.stage", { number: index + 1 })}</p>
                   <p className="mt-1 font-display text-3xl font-medium text-foreground" data-testid={stage.testId}>{stage.value}</p>
                   <p className="font-display text-sm text-muted-foreground">{stage.label}</p>
                 </div>

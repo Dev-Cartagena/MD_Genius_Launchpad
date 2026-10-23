@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { intlLocale } from "@/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,7 @@ type Mentee = {
 };
 
 export default function MentorDashboard() {
+  const { t } = useTranslation(["dashboard", "common"]);
 
   // Fetch mentor-specific data
   const { data: mentees = [] } = useQuery<Mentee[]>({
@@ -54,8 +57,8 @@ export default function MentorDashboard() {
       .slice(0, 5) // Show next 5 sessions
       .map(session => ({
         id: session.id,
-        title: session.title || "Mentor session",
-        agenda: session.agenda || "Mentoring session",
+        title: session.title || t("sessions.defaultTitle"),
+        agenda: session.agenda || t("sessions.defaultAgenda"),
         time: formatSessionTime(session.startTime),
         duration: calculateDuration(session.startTime, session.endTime),
         participants: session.participantIds?.length || 0,
@@ -73,33 +76,34 @@ export default function MentorDashboard() {
     const timeDiff = sessionDate.getTime() - today.getTime();
     const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
     
-    const timeStr = date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
+    const timeStr = date.toLocaleTimeString(intlLocale(), {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: true 
+      hour12: true,
     });
-    
-    if (daysDiff === 0) return `Today ${timeStr}`;
-    if (daysDiff === 1) return `Tomorrow ${timeStr}`;
-    if (daysDiff < 7) return `${date.toLocaleDateString('en-US', { weekday: 'short' })} ${timeStr}`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${timeStr}`;
+
+    if (daysDiff === 0) return t("sessions.today", { time: timeStr });
+    if (daysDiff === 1) return t("sessions.tomorrow", { time: timeStr });
+    if (daysDiff < 7) return t("sessions.dayTime", { day: date.toLocaleDateString(intlLocale(), { weekday: 'short' }), time: timeStr });
+    return t("sessions.dayTime", { day: date.toLocaleDateString(intlLocale(), { month: 'short', day: 'numeric' }), time: timeStr });
   };
   
   const calculateDuration = (startTime: string | Date, endTime: string | Date | null) => {
-    if (!endTime) return "60 min"; // Default duration
+    const minutes = (n: number) => t("mentor.upcoming.duration", { minutes: n });
+    if (!endTime) return minutes(60); // Default duration
     
     const start = new Date(startTime);
     const end = new Date(endTime);
     
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return "60 min"; // Fallback for invalid dates
+      return minutes(60); // Fallback for invalid dates
     }
     
     const diffMs = end.getTime() - start.getTime();
     const diffMins = Math.round(diffMs / (1000 * 60));
     
-    if (diffMins <= 0) return "60 min"; // Fallback for invalid duration
-    return `${diffMins} min`;
+    if (diffMins <= 0) return minutes(60); // Fallback for invalid duration
+    return minutes(diffMins);
   };
   
   // Calculate mentor metrics from real data only
@@ -119,11 +123,11 @@ export default function MentorDashboard() {
     .slice(0, 5) // Get most recent 5 with feedback
     .map(session => ({
       id: session.id,
-      mentee: (session.participantIds?.[0] && menteeNames.get(session.participantIds[0])) || session.participantIds?.[0] || "Participant",
-      project: session.title || "Session",
-      milestone: session.agenda || "Session notes",
+      mentee: (session.participantIds?.[0] && menteeNames.get(session.participantIds[0])) || session.participantIds?.[0] || t("mentor.feedback.participant"),
+      project: session.title || t("mentor.feedback.session"),
+      milestone: session.agenda || t("mentor.feedback.sessionNotes"),
       status: new Date(session.endTime) < new Date() ? "completed" : "upcoming",
-      lastUpdated: new Date(session.startTime).toLocaleDateString()
+      lastUpdated: new Date(session.startTime).toLocaleDateString(intlLocale())
     }));
 
   // Only show mentee progress if we have real session data - no synthetic calculations
@@ -147,11 +151,11 @@ export default function MentorDashboard() {
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
     
     return {
-      name: menteeNames.get(participantId) || `Participant ${participantId.slice(0, 8)}`,
-      project: (lastSession ?? nextSession)?.title || "No recent sessions",
+      name: menteeNames.get(participantId) || t("mentor.mentees.fallbackName", { id: participantId.slice(0, 8) }),
+      project: (lastSession ?? nextSession)?.title || t("mentor.mentees.noRecentSessions"),
       sessionCount, // Show real session count instead of synthetic progress
-      lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString() : "None yet",
-      nextSessionDate: nextSession ? new Date(nextSession.startTime).toLocaleDateString() : "None scheduled",
+      lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString(intlLocale()) : t("mentor.mentees.noneYet"),
+      nextSessionDate: nextSession ? new Date(nextSession.startTime).toLocaleDateString(intlLocale()) : t("mentor.mentees.noneScheduled"),
       hasNotes: Boolean(lastSession?.notes?.trim())
     };
   });
@@ -160,10 +164,10 @@ export default function MentorDashboard() {
     <div className="space-y-6">
       {/* Mentor Stats Overview */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Active mentees" value={mentorStats.activeMentees} hint="Current mentees" icon={Users} testId="metric-mentees" />
-        <KpiCard label="Total sessions" value={mentorStats.totalSessions} hint="All time" icon={Clock} testId="metric-total" />
-        <KpiCard label="Upcoming sessions" value={mentorStats.upcomingSessions} hint="Next 7 days" icon={Calendar} testId="metric-upcoming" />
-        <KpiCard label="Completed sessions" value={mentorStats.completedSessions} hint="Past sessions" icon={CheckCircle} testId="metric-completed" />
+        <KpiCard label={t("mentor.kpi.activeMentees")} value={mentorStats.activeMentees} hint={t("mentor.kpi.activeMenteesHint")} icon={Users} testId="metric-mentees" />
+        <KpiCard label={t("mentor.kpi.totalSessions")} value={mentorStats.totalSessions} hint={t("mentor.kpi.totalSessionsHint")} icon={Clock} testId="metric-total" />
+        <KpiCard label={t("mentor.kpi.upcomingSessions")} value={mentorStats.upcomingSessions} hint={t("mentor.kpi.upcomingSessionsHint")} icon={Calendar} testId="metric-upcoming" />
+        <KpiCard label={t("mentor.kpi.completedSessions")} value={mentorStats.completedSessions} hint={t("mentor.kpi.completedSessionsHint")} icon={CheckCircle} testId="metric-completed" />
       </section>
 
       {/* Upcoming Sessions and Recent Activity */}
@@ -172,12 +176,12 @@ export default function MentorDashboard() {
         <MistPanel>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="font-display text-sm text-foreground/80">Next 7 days</p>
-              <h2 className="font-display text-xl font-medium">Upcoming sessions</h2>
+              <p className="font-display text-sm text-foreground/80">{t("mentor.upcoming.eyebrow")}</p>
+              <h2 className="font-display text-xl font-medium">{t("mentor.upcoming.title")}</h2>
             </div>
             <Link href="/mentor-profile">
               <Button size="sm" data-testid="button-manage-schedule">
-                Edit availability
+                {t("mentor.upcoming.editAvailability")}
               </Button>
             </Link>
           </div>
@@ -193,7 +197,7 @@ export default function MentorDashboard() {
             </div>
           ) : upcomingSessions.length === 0 ? (
             <DropZone className="bg-card/60 py-8">
-              <p className="text-sm">Sessions will appear here once participants book time with you.</p>
+              <p className="text-sm">{t("mentor.upcoming.empty")}</p>
             </DropZone>
           ) : (
             <div className="space-y-3">
@@ -210,11 +214,11 @@ export default function MentorDashboard() {
                             variant="secondary"
                             data-testid={`session-status-${session.id}`}
                           >
-                            {session.status}
+                            {t("sessions.upcoming")}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mb-2">
-                          {session.agenda} · {session.participants} participant{session.participants !== 1 ? 's' : ''}
+                          {t("mentor.upcoming.agendaParticipants", { agenda: session.agenda, count: session.participants })}
                         </p>
                         <div className="flex items-center gap-4 font-display text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -232,7 +236,7 @@ export default function MentorDashboard() {
                         >
                           <a href={session.sessionData.meetingLink} target="_blank" rel="noopener noreferrer">
                             <Video className="w-3 h-3 mr-1" />
-                            Join
+                            {t("sessions.join")}
                           </a>
                         </Button>
                       )}
@@ -249,14 +253,14 @@ export default function MentorDashboard() {
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-primary" />
-              <span>Recent feedback</span>
+              <span>{t("mentor.feedback.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {recentFeedback.length === 0 && (
                 <DropZone className="py-6">
-                  <p className="text-sm">Notes you add to past sessions will appear here.</p>
+                  <p className="text-sm">{t("mentor.feedback.empty")}</p>
                 </DropZone>
               )}
               {recentFeedback.map((feedback) => (
@@ -272,7 +276,7 @@ export default function MentorDashboard() {
                       variant={feedback.status === 'completed' ? 'default' : 'outline'}
                       data-testid={`feedback-status-${feedback.id}`}
                     >
-                      {feedback.status === 'completed' ? 'Completed' : 'Upcoming'}
+                      {feedback.status === 'completed' ? t("sessions.completed") : t("sessions.upcoming")}
                     </Badge>
                     <span className="font-display text-xs text-muted-foreground">
                       {feedback.lastUpdated}
@@ -291,13 +295,13 @@ export default function MentorDashboard() {
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              <span>Mentee progress</span>
+              <span>{t("mentor.mentees.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {menteeProgress.length === 0 && (
               <DropZone className="py-6">
-                <p className="text-sm">Participants appear here after they book a session with you.</p>
+                <p className="text-sm">{t("mentor.mentees.empty")}</p>
               </DropZone>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,7 +317,7 @@ export default function MentorDashboard() {
                           {mentee.name}
                         </p>
                         <Badge variant="outline" data-testid={`mentee-sessions-${index}`}>
-                          {mentee.sessionCount} {mentee.sessionCount === 1 ? 'session' : 'sessions'}
+                          {t("mentor.mentees.sessions", { count: mentee.sessionCount })}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mb-3">
@@ -322,23 +326,23 @@ export default function MentorDashboard() {
 
                       <dl className="space-y-2 text-xs">
                         <div className="flex justify-between gap-2">
-                          <dt className="text-muted-foreground">Last session</dt>
+                          <dt className="text-muted-foreground">{t("mentor.mentees.lastSession")}</dt>
                           <dd className="font-display font-medium" data-testid={`mentee-last-session-${index}`}>
                             {mentee.lastSessionDate}
                           </dd>
                         </div>
 
                         <div className="flex justify-between gap-2">
-                          <dt className="text-muted-foreground">Next session</dt>
+                          <dt className="text-muted-foreground">{t("mentor.mentees.nextSession")}</dt>
                           <dd className="font-display font-medium" data-testid={`mentee-next-session-${index}`}>
                             {mentee.nextSessionDate}
                           </dd>
                         </div>
 
                         <div className="flex justify-between gap-2">
-                          <dt className="text-muted-foreground">Has notes</dt>
+                          <dt className="text-muted-foreground">{t("mentor.mentees.hasNotes")}</dt>
                           <dd className={`font-display font-medium ${mentee.hasNotes ? 'text-foreground' : 'text-muted-foreground'}`} data-testid={`mentee-notes-${index}`}>
-                            {mentee.hasNotes ? 'Yes' : 'No'}
+                            {mentee.hasNotes ? t("mentor.mentees.yes") : t("mentor.mentees.no")}
                           </dd>
                         </div>
                       </dl>
@@ -355,20 +359,20 @@ export default function MentorDashboard() {
       <section>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Quick actions</CardTitle>
+            <CardTitle className="text-xl">{t("mentor.quickActions.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Link href="/mentor-profile">
                 <Button className="w-full justify-start" variant="outline" data-testid="button-update-availability">
                   <Clock className="w-4 h-4 mr-2" />
-                  Update profile and availability
+                  {t("mentor.quickActions.updateProfile")}
                 </Button>
               </Link>
               <Link href="/mentors">
                 <Button className="w-full justify-start" variant="outline" data-testid="button-mentor-directory">
                   <Users className="w-4 h-4 mr-2" />
-                  Mentor directory
+                  {t("mentor.quickActions.directory")}
                 </Button>
               </Link>
             </div>
