@@ -11,6 +11,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Logo } from "@/components/brand";
+
+/** Split layout: brand gradient panel on the left (md and up), white form panel on the right. */
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background md:grid md:grid-cols-2">
+      <div className="hidden md:flex bg-brand-gradient flex-col items-center justify-center gap-8 p-12">
+        <Logo layout="vertical" tone="reversed" className="h-36" />
+        <p className="font-display text-lg text-mist text-center max-w-xs leading-relaxed">
+          Your work in the program is saved to your account, so you can pick up where you left off.
+        </p>
+      </div>
+      <div className="flex min-h-screen md:min-h-0 flex-col items-center justify-center bg-card px-4 py-10 sm:px-8">
+        <Logo layout="compact" className="h-8 mb-8 md:hidden" />
+        <div className="w-full max-w-md">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 // Validation schemas
 const loginSchema = z.object({
@@ -64,13 +83,13 @@ export default function Auth() {
   const loginMutation = useMutation({
     mutationFn: (data: LoginForm) => apiRequest("POST", "/api/auth/login", data),
     onSuccess: () => {
-      toast({ title: "Login successful", description: "Welcome back!" });
+      toast({ title: "Signed in", description: "Welcome back." });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       navigate(afterAuthPath);
     },
     onError: (error: any) => {
       toast({
-        title: "Login failed",
+        title: "Sign-in failed",
         description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
@@ -80,13 +99,13 @@ export default function Auth() {
   const registerMutation = useMutation({
     mutationFn: (data: RegisterForm) => apiRequest("POST", "/api/auth/register", data),
     onSuccess: () => {
-      toast({ title: "Registration successful", description: "Welcome to MD Genius!" });
+      toast({ title: "Account created", description: "Welcome to MD Genius Launchpad." });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       navigate(afterAuthPath);
     },
     onError: (error: any) => {
       toast({
-        title: "Registration failed",
+        title: "Could not create account",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -104,7 +123,7 @@ export default function Auth() {
     },
     onError: (error: any) => {
       toast({
-        title: "Password reset failed",
+        title: "Could not send reset email",
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -125,12 +144,12 @@ export default function Auth() {
 
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md">
+      <AuthShell>
+        <Card className="border-0 shadow-none md:border md:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Forgot Password</CardTitle>
-            <CardDescription className="text-center">
-              Enter your email address and we'll send you password reset instructions
+            <CardTitle className="text-2xl font-medium">Reset your password</CardTitle>
+            <CardDescription>
+              Enter your email address and we will send you instructions to reset your password.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -159,7 +178,7 @@ export default function Auth() {
                   disabled={forgotPasswordMutation.isPending}
                   data-testid="button-send-reset-instructions"
                 >
-                  {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Instructions"}
+                  {forgotPasswordMutation.isPending ? "Sending..." : "Send reset instructions"}
                 </Button>
                 <Button
                   type="button"
@@ -168,30 +187,30 @@ export default function Auth() {
                   onClick={() => setShowForgotPassword(false)}
                   data-testid="button-back-to-login"
                 >
-                  Back to Login
+                  Back to sign in
                 </Button>
               </form>
             </Form>
           </CardContent>
         </Card>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <AuthShell>
+      <Card className="border-0 shadow-none md:border md:shadow-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Welcome to MD Genius</CardTitle>
-          <CardDescription className="text-center">
-            Sign in or create an account with your email
+          <CardTitle className="text-2xl font-medium">Welcome to MD Genius Launchpad</CardTitle>
+          <CardDescription>
+            Sign in or create an account with your email.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" data-testid="tab-login">Login</TabsTrigger>
-              <TabsTrigger value="register" data-testid="tab-register">Register</TabsTrigger>
+              <TabsTrigger value="login" data-testid="tab-login">Sign in</TabsTrigger>
+              <TabsTrigger value="register" data-testid="tab-register">Create account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="space-y-4">
@@ -209,7 +228,6 @@ export default function Auth() {
                               {...field}
                               type="email"
                               data-testid="input-login-email"
-  
                             />
                           </FormControl>
                           <FormMessage />
@@ -227,7 +245,6 @@ export default function Auth() {
                               {...field}
                               type="password"
                               data-testid="input-login-password"
-  
                             />
                           </FormControl>
                           <FormMessage />
@@ -240,7 +257,7 @@ export default function Auth() {
                       disabled={loginMutation.isPending}
                       data-testid="button-email-login"
                     >
-                      {loginMutation.isPending ? "Signing in..." : "Sign In"}
+                      {loginMutation.isPending ? "Signing in..." : "Sign in"}
                     </Button>
                   </form>
                 </Form>
@@ -267,12 +284,11 @@ export default function Auth() {
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>First Name</FormLabel>
+                          <FormLabel>First name</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               data-testid="input-register-firstname"
-  
                             />
                           </FormControl>
                           <FormMessage />
@@ -284,12 +300,11 @@ export default function Auth() {
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Last Name (Optional)</FormLabel>
+                          <FormLabel>Last name (optional)</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               data-testid="input-register-lastname"
-  
                             />
                           </FormControl>
                           <FormMessage />
@@ -307,7 +322,6 @@ export default function Auth() {
                               {...field}
                               type="email"
                               data-testid="input-register-email"
-  
                             />
                           </FormControl>
                           <FormMessage />
@@ -325,7 +339,6 @@ export default function Auth() {
                               {...field}
                               type="password"
                               data-testid="input-register-password"
-  
                             />
                           </FormControl>
                           <FormMessage />
@@ -338,7 +351,7 @@ export default function Auth() {
                       disabled={registerMutation.isPending}
                       data-testid="button-email-register"
                     >
-                      {registerMutation.isPending ? "Creating account..." : "Create Account"}
+                      {registerMutation.isPending ? "Creating account..." : "Create account"}
                     </Button>
                   </form>
                 </Form>
@@ -347,6 +360,6 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }

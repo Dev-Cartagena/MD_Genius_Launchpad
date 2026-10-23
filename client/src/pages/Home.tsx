@@ -57,90 +57,78 @@ export default function Home() {
   const quickActions = [
     {
       icon: FileText,
-      title: "Apply to Accelerator",
+      title: "Apply to the program",
       description: "Apply to an upcoming cohort",
       href: "/apply",
-      color: "primary",
       show: user?.role === "public_visitor"
     },
     {
       icon: FileText,
-      title: "Continue Application",
+      title: "Continue application",
       description: "Complete your startup application",
       href: "/apply",
-      color: "primary",
       show: shouldShowContinueApplication()
     },
     {
       icon: TrendingUp,
-      title: "View Dashboard",
+      title: "View dashboard",
       description: "Check your progress and updates",
       href: "/dashboard", 
-      color: "accent",
       show: ["participant", "mentor", "investor", "administrator"].includes(user?.role || "")
     },
     {
       icon: Lightbulb,
-      title: "My Project",
+      title: "My project",
       description: "Manage your startup project",
       href: "/project",
-      color: "yellow",
       show: user?.role === "participant"
     },
     {
       icon: Users,
-      title: "Find Mentors",
-      description: "Connect with industry experts",
+      title: "Find mentors",
+      description: "Book time with experienced mentors",
       href: "/mentors",
-      color: "green",
       show: user?.role === "participant"
     },
     {
       icon: Calendar,
-      title: "Browse Startups",
+      title: "Browse startups",
       description: "Discover investment opportunities",
       href: "/investors",
-      color: "blue",
       show: user?.role === "investor"
     },
     {
       icon: Award,
-      title: "Admin Panel",
-      description: "Manage the platform",
+      title: "Admin",
+      description: "Manage cohorts, applications and settings",
       href: "/admin",
-      color: "purple",
       show: user?.role === "administrator"
     },
   ].filter(action => action.show);
 
   const roleDescriptions = {
-    public_visitor: "Welcome! Explore our AI startup accelerator program.",
+    public_visitor: "Explore the MD Genius Launchpad accelerator program.",
     applicant: "Your application is being reviewed. Check your dashboard for updates.",
-    participant: "Welcome to the cohort! Access your curriculum and project tools.",
+    participant: "Welcome to the cohort. Your curriculum and project tools are ready.",
     mentor: "Thank you for mentoring our entrepreneurs. Check your mentee dashboard.",
-    investor: "Discover promising AI startups in our portfolio.",
-    administrator: "Welcome back! Manage cohorts, applications, and platform settings."
+    investor: "Review the AI startups in the current program.",
+    administrator: "Manage cohorts, applications and platform settings."
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background px-4 py-6 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Welcome Section */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl md:text-5xl font-bold">
+        <div className="space-y-3">
+          <h1 className="text-3xl md:text-[44px] font-medium leading-tight">
             Welcome back{user?.firstName && `, ${user.firstName}`}
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="font-display text-lg text-muted-foreground max-w-2xl">
             {roleDescriptions[user?.role as keyof typeof roleDescriptions] || roleDescriptions.public_visitor}
           </p>
-          <Badge 
-            className={`capitalize ${
-              user?.role === 'administrator' ? 'bg-purple-500/20 text-purple-400' :
-              user?.role === 'mentor' ? 'bg-green-500/20 text-green-400' :
-              user?.role === 'investor' ? 'bg-blue-500/20 text-blue-400' :
-              user?.role === 'participant' ? 'bg-accent/20 text-accent' :
-              'bg-primary/20 text-primary'
-            }`}
+          <Badge
+            variant="secondary"
+            className="capitalize"
             data-testid="user-role-badge"
           >
             {user?.role?.replace('_', ' ') || 'Visitor'}
@@ -148,51 +136,35 @@ export default function Home() {
         </div>
 
         {/* Quick Actions */}
-        <Card className="glass-card">
-          <CardContent className="p-8">
-            <h2 className="text-2xl font-bold mb-6 text-center">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section>
+            <h2 className="text-2xl font-medium mb-4">Quick actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {quickActions.map((action, index) => (
-                <Card key={index} className="bg-secondary/30 hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => navigate(action.href)}>
+                <Card key={index} className="hover:border-accent transition-colors cursor-pointer" onClick={() => navigate(action.href)}>
                   <CardContent className="p-6">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-                      action.color === 'primary' ? 'bg-primary/20' :
-                      action.color === 'accent' ? 'bg-accent/20' :
-                      action.color === 'yellow' ? 'bg-yellow-400/20' :
-                      action.color === 'green' ? 'bg-green-400/20' :
-                      action.color === 'blue' ? 'bg-blue-400/20' :
-                      'bg-purple-500/20'
-                    }`}>
-                      <action.icon className={`w-6 h-6 ${
-                        action.color === 'primary' ? 'text-primary' :
-                        action.color === 'accent' ? 'text-accent' :
-                        action.color === 'yellow' ? 'text-yellow-400' :
-                        action.color === 'green' ? 'text-green-400' :
-                        action.color === 'blue' ? 'text-blue-400' :
-                        'text-purple-500'
-                      }`} />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 bg-secondary text-primary">
+                      <action.icon className="w-5 h-5" />
                     </div>
-                    <h3 className="font-bold mb-2" data-testid={`action-title-${index}`}>{action.title}</h3>
+                    <h3 className="text-base font-medium mb-2" data-testid={`action-title-${index}`}>{action.title}</h3>
                     <p className="text-sm text-muted-foreground mb-4" data-testid={`action-description-${index}`}>
                       {action.description}
                     </p>
                     <Button variant="ghost" className="w-full justify-between p-0" data-testid={`button-action-${index}`}>
-                      <span>Get Started</span>
+                      <span>Open</span>
                       <ArrowRight className="w-4 h-4" />
                     </Button>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
+        </section>
 
         {/* Cohorts */}
-        <Card className="glass-card">
+        <Card>
           <CardContent className="p-6">
-            <h3 className="text-xl font-bold mb-4">Cohorts</h3>
+            <h3 className="text-xl font-medium mb-4">Cohorts</h3>
             {cohortsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading cohorts...</p>
+              <p className="text-sm text-muted-foreground">Loading cohorts…</p>
             ) : cohorts.length === 0 ? (
               <p className="text-sm text-muted-foreground" data-testid="text-no-cohorts">
                 No cohorts are open right now. Check back soon.
@@ -200,9 +172,9 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {cohorts.map((cohort) => (
-                  <Card key={cohort.id} className="bg-secondary/30">
+                  <Card key={cohort.id} className="bg-secondary border-0 shadow-none">
                     <CardContent className="p-4">
-                      <h4 className="font-semibold text-sm mb-1" data-testid={`cohort-title-${cohort.id}`}>
+                      <h4 className="font-display font-medium text-sm mb-1" data-testid={`cohort-title-${cohort.id}`}>
                         {cohort.name}
                       </h4>
                       {cohort.description && (

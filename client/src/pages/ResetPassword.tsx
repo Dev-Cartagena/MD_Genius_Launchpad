@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { getApiErrorMessage } from "@/lib/utils";
+import { Logo } from "@/components/brand";
 
 const resetPasswordSchema = z
   .object({
@@ -43,14 +44,14 @@ export default function ResetPassword() {
       apiRequest("POST", "/api/auth/reset-password", { token, password: data.password }),
     onSuccess: () => {
       toast({
-        title: "Password reset successful",
+        title: "Password updated",
         description: "You can now sign in with your new password.",
       });
       navigate(loginPath);
     },
     onError: (error) => {
       toast({
-        title: "Password reset failed",
+        title: "Could not reset password",
         description: getApiErrorMessage(error),
         variant: "destructive",
       });
@@ -58,14 +59,22 @@ export default function ResetPassword() {
   });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-background md:grid md:grid-cols-2">
+      <div className="hidden md:flex bg-brand-gradient flex-col items-center justify-center gap-8 p-12">
+        <Logo layout="vertical" tone="reversed" className="h-36" />
+        <p className="font-display text-lg text-mist text-center max-w-xs leading-relaxed">
+          Choose a new password and you will be back in your account in a moment.
+        </p>
+      </div>
+      <div className="flex min-h-screen md:min-h-0 flex-col items-center justify-center bg-card px-4 py-10 sm:px-8">
+        <Logo layout="compact" className="h-8 mb-8 md:hidden" />
+      <Card className="w-full max-w-md border-0 shadow-none md:border md:shadow-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-2xl font-medium">Set a new password</CardTitle>
+          <CardDescription>
             {token
-              ? "Enter your new password below"
-              : "This reset link is missing its token. Please request a new password reset email."}
+              ? "Enter your new password below."
+              : "This reset link is incomplete. Please request a new password reset email."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -77,7 +86,7 @@ export default function ResetPassword() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>New Password</FormLabel>
+                      <FormLabel>New password</FormLabel>
                       <FormControl>
                         <Input {...field} type="password" autoComplete="new-password" data-testid="input-new-password" />
                       </FormControl>
@@ -90,7 +99,7 @@ export default function ResetPassword() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirm New Password</FormLabel>
+                      <FormLabel>Confirm new password</FormLabel>
                       <FormControl>
                         <Input {...field} type="password" autoComplete="new-password" data-testid="input-confirm-password" />
                       </FormControl>
@@ -104,7 +113,7 @@ export default function ResetPassword() {
                   disabled={resetMutation.isPending}
                   data-testid="button-reset-password"
                 >
-                  {resetMutation.isPending ? "Resetting..." : "Reset Password"}
+                  {resetMutation.isPending ? "Saving..." : "Save new password"}
                 </Button>
                 <Button
                   type="button"
@@ -113,17 +122,18 @@ export default function ResetPassword() {
                   onClick={() => navigate(loginPath)}
                   data-testid="button-back-to-login"
                 >
-                  Back to Login
+                  Back to sign in
                 </Button>
               </form>
             </Form>
           ) : (
             <Button className="w-full" onClick={() => navigate(loginPath)} data-testid="button-back-to-login">
-              Back to Login
+              Back to sign in
             </Button>
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

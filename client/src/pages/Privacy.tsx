@@ -4,9 +4,9 @@ import { ArrowLeft } from "lucide-react";
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background px-4 py-6 sm:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <Button 
             variant="ghost" 
             onClick={() => window.history.back()}
@@ -15,17 +15,17 @@ export default function Privacy() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-3xl font-bold">Privacy Policy</h1>
+          <h1 className="text-2xl md:text-3xl font-medium">Privacy policy</h1>
         </div>
 
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
             <CardTitle>MD Genius AI Startup Launchpad - Privacy Policy</CardTitle>
             <p className="text-muted-foreground">Last updated: September 12, 2025</p>
           </CardHeader>
           <CardContent className="prose prose-slate dark:prose-invert max-w-none space-y-6">
             <section>
-              <h2 className="text-xl font-semibold mb-3">1. Information We Collect</h2>
+              <h2 className="text-xl font-medium mb-3">1. Information We Collect</h2>
               <h3 className="text-lg font-medium mb-2">Personal Information</h3>
               <p>
                 We collect personal information that you provide to us, including:
@@ -40,7 +40,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">2. How We Use Your Information</h2>
+              <h2 className="text-xl font-medium mb-3">2. How We Use Your Information</h2>
               <p>We use the information we collect to:</p>
               <ul className="list-disc pl-6 space-y-1">
                 <li>Evaluate your application for the Program</li>
@@ -53,7 +53,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">3. Information Sharing</h2>
+              <h2 className="text-xl font-medium mb-3">3. Information Sharing</h2>
               <p>
                 We may share your information in the following circumstances:
               </p>
@@ -67,7 +67,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">4. Data Security</h2>
+              <h2 className="text-xl font-medium mb-3">4. Data Security</h2>
               <p>
                 We implement appropriate technical and organizational measures to protect your 
                 personal information against unauthorized access, alteration, disclosure, or 
@@ -76,7 +76,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">5. Data Retention</h2>
+              <h2 className="text-xl font-medium mb-3">5. Data Retention</h2>
               <p>
                 We retain your personal information for as long as necessary to fulfill the 
                 purposes outlined in this Privacy Policy, comply with legal obligations, 
@@ -85,7 +85,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">6. Your Rights</h2>
+              <h2 className="text-xl font-medium mb-3">6. Your Rights</h2>
               <p>You have the right to:</p>
               <ul className="list-disc pl-6 space-y-1">
                 <li>Access and review your personal information</li>
@@ -97,7 +97,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">7. Cookies and Tracking</h2>
+              <h2 className="text-xl font-medium mb-3">7. Cookies and Tracking</h2>
               <p>
                 We use cookies and similar tracking technologies to enhance your experience 
                 on our platform, analyze usage patterns, and improve our services. You can 
@@ -106,7 +106,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">8. Third-Party Services</h2>
+              <h2 className="text-xl font-medium mb-3">8. Third-Party Services</h2>
               <p>
                 Our platform may integrate with third-party services (like cloud storage, 
                 analytics, or communication tools). These services have their own privacy 
@@ -115,7 +115,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">9. Changes to This Policy</h2>
+              <h2 className="text-xl font-medium mb-3">9. Changes to This Policy</h2>
               <p>
                 We may update this Privacy Policy from time to time. We will notify you of 
                 any material changes by posting the updated policy on our platform and 
@@ -124,7 +124,7 @@ export default function Privacy() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3">10. Contact Us</h2>
+              <h2 className="text-xl font-medium mb-3">10. Contact Us</h2>
               <p>
                 If you have questions about this Privacy Policy or our data practices, 
                 please contact us at:
