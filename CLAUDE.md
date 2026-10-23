@@ -59,6 +59,13 @@ npm run check && npm test                                  # before every commit
 - Schema changes: edit shared/schema.ts, `npm run db:generate -- --name x`, commit the migration.
   New tables must enable row level security in the same migration (Supabase Data API).
 - Server relative imports need `.js` extensions (Vercel runs them as native ESM).
+- UI text: add every string to `client/src/i18n/locales/en/<area>.json` AND `es/<area>.json`
+  (Spanish per `docs/i18n/spanish-style-guide.md`: neutral Latin American, tú, no "!").
+  New server messages need a Spanish entry in `server/i18n/messages-es.ts`. New
+  translatable content fields go in `server/translations.ts` and render with `useLocalized()`.
+  `npm test` fails on missing Spanish, hard-coded screen text or untranslated server messages.
+- UI design: use the brand tokens and `client/src/components/brand` components
+  (see README "Design system"); no off-palette colors, glows or decorative gradients.
 - Login is email/password only. Promote a local admin with:
   `docker compose exec -T db psql -U postgres -d launchpad -c "update users set role='administrator' where email='you@example.com'"`
 
