@@ -6,6 +6,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { getApiErrorMessage } from "@/lib/utils";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { RoadmapTemplate, RoadmapItem, Cohort, Module, Lesson, Project } from "@shared/schema";
+import { useTranslation, Trans } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocalized } from "@/lib/localized";
+import { ContentLanguageTabs } from "@/components/ContentLanguageTabs";
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,42 +38,53 @@ import { Plus, Edit, Trash2, Eye, Calendar, Target, CheckCircle, Clock, Users, R
 const ALL_COHORTS = "__all__";
 const NONE = "__none__";
 
-// Form schemas
-const templateFormSchema = z.object({
-  name: z.string().min(1, "Template name is required"),
-  description: z.string().min(1, "Description is required"),
+type AdminT = TFunction<["admin", "common"]>;
+type ContentLang = "en" | "es";
+
+// Form schemas (built with `t` so validation messages follow the interface language)
+const makeTemplateFormSchema = (t: AdminT) => z.object({
+  name: z.string().min(1, t("roadmap.validation.nameRequired")),
+  description: z.string().min(1, t("roadmap.validation.descriptionRequired")),
   cohortId: z.string(), // ALL_COHORTS = global template
   isDefault: z.boolean().default(false),
+  // Spanish version of the text fields; empty fields fall back to English.
+  translations: z.object({
+    es: z.object({ name: z.string().optional(), description: z.string().optional() }).optional(),
+  }).optional(),
 });
 
 const autoCompletionTypes = ["none", "lesson", "module", "mentor_session"] as const;
+const itemTypes = ["task", "assignment", "deliverable", "milestone", "checkin", "learning"] as const;
 
-const itemFormSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  type: z.enum(["task", "assignment", "deliverable", "milestone", "checkin", "learning"]),
-  week: z.coerce.number().min(1, "Week must be at least 1"),
-  orderIndex: z.coerce.number().min(0, "Order index must be 0 or greater"),
+const makeItemFormSchema = (t: AdminT) => z.object({
+  title: z.string().min(1, t("roadmap.validation.titleRequired")),
+  description: z.string().min(1, t("roadmap.validation.descriptionRequired")),
+  type: z.enum(itemTypes),
+  week: z.coerce.number().min(1, t("roadmap.validation.weekMin")),
+  orderIndex: z.coerce.number().min(0, t("roadmap.validation.orderMin")),
   isOptional: z.boolean().default(false),
-  estimatedHours: z.coerce.number().min(1, "Estimated hours must be at least 1").optional(),
+  estimatedHours: z.coerce.number().min(1, t("roadmap.validation.hoursMin")).optional(),
   moduleId: z.string(), // NONE = not linked
   lessonId: z.string(), // NONE = not linked
   autoCompletionType: z.enum(autoCompletionTypes),
-  autoThreshold: z.coerce.number().min(1, "Threshold must be at least 1"),
+  autoThreshold: z.coerce.number().min(1, t("roadmap.validation.thresholdMin")),
+  translations: z.object({
+    es: z.object({ title: z.string().optional(), description: z.string().optional() }).optional(),
+  }).optional(),
 }).superRefine((data, ctx) => {
   if (data.autoCompletionType === "lesson" && data.lessonId === NONE) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["lessonId"], message: "Pick the lesson that completes this item" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["lessonId"], message: t("roadmap.validation.pickLesson") });
   }
   if (data.autoCompletionType === "module" && data.moduleId === NONE) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["moduleId"], message: "Pick the module that completes this item" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["moduleId"], message: t("roadmap.validation.pickModule") });
   }
   if (data.autoCompletionType === "module" && data.autoThreshold > 100) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["autoThreshold"], message: "Percent must be 100 or less" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["autoThreshold"], message: t("roadmap.validation.percentMax") });
   }
 });
 
-type TemplateFormData = z.infer<typeof templateFormSchema>;
-type ItemFormData = z.infer<typeof itemFormSchema>;
+type TemplateFormData = z.infer<ReturnType<typeof makeTemplateFormSchema>>;
+type ItemFormData = z.infer<ReturnType<typeof makeItemFormSchema>>;
 
 interface TemplateWithItems extends RoadmapTemplate {
   items?: RoadmapItem[];
@@ -80,6 +95,7 @@ const emptyTemplateForm: TemplateFormData = {
   description: "",
   cohortId: ALL_COHORTS,
   isDefault: false,
+  translations: { es: { name: "", description: "" } },
 };
 
 const emptyItemForm: ItemFormData = {
@@ -94,7 +110,16 @@ const emptyItemForm: ItemFormData = {
   lessonId: NONE,
   autoCompletionType: "none",
   autoThreshold: 100,
+  translations: { es: { title: "", description: "" } },
 };
+
+/** The Spanish text stored on an entity, for prefilling the Spanish tab. */
+function spanishOf(entity: { translations?: unknown } | null | undefined): Record<string, unknown> {
+  const es = (entity?.translations as Record<string, unknown> | undefined)?.es;
+  return es && typeof es === "object" ? (es as Record<string, unknown>) : {};
+}
+
+const textOr = (value: unknown) => (typeof value === "string" ? value : "");
 
 function templatePayload(data: TemplateFormData) {
   return {
@@ -102,6 +127,7 @@ function templatePayload(data: TemplateFormData) {
     description: data.description,
     cohortId: data.cohortId === ALL_COHORTS ? null : data.cohortId,
     isDefault: data.isDefault,
+    translations: data.translations,
   };
 }
 
@@ -118,37 +144,83 @@ function itemPayload(data: ItemFormData) {
     lessonId: data.lessonId === NONE ? null : data.lessonId,
     autoCompletionType: data.autoCompletionType,
     autoThreshold: data.autoThreshold,
+    translations: data.translations,
   };
 }
 
-function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFormData>; cohorts: Cohort[] }) {
+function TemplateFormFields({
+  form,
+  cohorts,
+  lang,
+  onLangChange,
+}: {
+  form: UseFormReturn<TemplateFormData>;
+  cohorts: Cohort[];
+  lang: ContentLang;
+  onLangChange: (lang: ContentLang) => void;
+}) {
+  const { t } = useTranslation(["admin", "common"]);
+  const localized = useLocalized();
   const cohortId = form.watch("cohortId");
+  const esName = form.watch("translations.es.name");
+  const esDescription = form.watch("translations.es.description");
   return (
     <>
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Template name</FormLabel>
-            <FormControl>
-              <Input
-                {...field}
-                placeholder="e.g., 8-week AI startup accelerator"
-                data-testid="input-template-name"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+      <ContentLanguageTabs
+        className="md:col-span-2"
+        value={lang}
+        onChange={onLangChange}
+        spanishMissing={!esName?.trim() && !esDescription?.trim()}
       />
+
+      {lang === "en" ? (
+        <FormField
+          key="name-en"
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("roadmap.templateForm.name")}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={t("roadmap.templateForm.namePlaceholder")}
+                  data-testid="input-template-name"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : (
+        <FormField
+          key="name-es"
+          control={form.control}
+          name="translations.es.name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("roadmap.templateForm.name")}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  lang="es"
+                  placeholder={form.getValues("name") || t("roadmap.templateForm.namePlaceholder")}
+                  data-testid="input-template-name-es"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={form.control}
         name="cohortId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Cohort</FormLabel>
+            <FormLabel>{t("roadmap.templateForm.cohort")}</FormLabel>
             <Select
               onValueChange={(value) => {
                 field.onChange(value);
@@ -162,10 +234,12 @@ function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFor
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value={ALL_COHORTS}>All cohorts</SelectItem>
+                <SelectItem value={ALL_COHORTS}>{t("roadmap.templates.allCohorts")}</SelectItem>
                 {cohorts.map((cohort) => (
                   <SelectItem key={cohort.id} value={cohort.id}>
-                    {cohort.name}{cohort.isActive === false ? " (Inactive)" : ""}
+                    {cohort.isActive === false
+                      ? t("roadmap.templateForm.inactiveCohort", { name: localized.text(cohort, "name") })
+                      : localized.text(cohort, "name")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -175,23 +249,47 @@ function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFor
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="description"
-        render={({ field }) => (
-          <FormItem className="md:col-span-2">
-            <FormLabel>Description</FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                placeholder="The program structure and goals"
-                data-testid="textarea-template-description"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {lang === "en" ? (
+        <FormField
+          key="description-en"
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem className="md:col-span-2">
+              <FormLabel>{t("shared.description")}</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder={t("roadmap.templateForm.descriptionPlaceholder")}
+                  data-testid="textarea-template-description"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : (
+        <FormField
+          key="description-es"
+          control={form.control}
+          name="translations.es.description"
+          render={({ field }) => (
+            <FormItem className="md:col-span-2">
+              <FormLabel>{t("shared.description")}</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  value={field.value ?? ""}
+                  lang="es"
+                  placeholder={form.getValues("description") || t("roadmap.templateForm.descriptionPlaceholder")}
+                  data-testid="textarea-template-description-es"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={form.control}
@@ -199,9 +297,9 @@ function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFor
         render={({ field }) => (
           <FormItem className="flex items-center justify-between gap-4 rounded-xl border p-4 md:col-span-2">
             <div className="space-y-0.5">
-              <FormLabel>Default for its cohort</FormLabel>
+              <FormLabel>{t("roadmap.templateForm.default")}</FormLabel>
               <FormDescription>
-                Assigned automatically to every project that joins this cohort.
+                {t("roadmap.templateForm.defaultHint")}
               </FormDescription>
             </div>
             <FormControl>
@@ -220,6 +318,8 @@ function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFor
 }
 
 export default function AdminRoadmapManager() {
+  const { t } = useTranslation(["admin", "common"]);
+  const localized = useLocalized();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -232,8 +332,15 @@ export default function AdminRoadmapManager() {
   const [assignProjectId, setAssignProjectId] = useState<string>("");
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
+  // Which content language each form is showing (English is the base text).
+  const [templateLang, setTemplateLang] = useState<ContentLang>("en");
+  const [editTemplateLang, setEditTemplateLang] = useState<ContentLang>("en");
+  const [itemLang, setItemLang] = useState<ContentLang>("en");
 
   // Forms
+  const templateFormSchema = useMemo(() => makeTemplateFormSchema(t), [t]);
+  const itemFormSchema = useMemo(() => makeItemFormSchema(t), [t]);
+
   const templateForm = useForm<TemplateFormData>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: emptyTemplateForm,
@@ -248,6 +355,12 @@ export default function AdminRoadmapManager() {
     resolver: zodResolver(itemFormSchema),
     defaultValues: emptyItemForm,
   });
+
+  // English is required; if it fails validation while the Spanish tab is open, show it.
+  const showEnglishOnError =
+    (setLang: (lang: ContentLang) => void, fields: string[]) => (errors: Record<string, unknown>) => {
+      if (fields.some((f) => errors[f])) setLang("en");
+    };
 
   // Queries
   const { data: templates = [], isLoading: templatesLoading } = useQuery<TemplateWithItems[]>({
@@ -274,7 +387,12 @@ export default function AdminRoadmapManager() {
   }, [templates, selectedTemplate]);
 
   const cohortName = (cohortId: string | null | undefined) =>
-    cohortId ? cohorts.find(c => c.id === cohortId)?.name ?? "Unknown cohort" : "All cohorts";
+    cohortId
+      ? (() => {
+          const cohort = cohorts.find(c => c.id === cohortId);
+          return cohort ? localized.text(cohort, "name") : t("roadmap.templates.unknownCohort");
+        })()
+      : t("roadmap.templates.allCohorts");
 
   // Modules offered for linking: the template's cohort, or every module for global templates.
   const modulesUrl = selectedTemplateData?.cohortId
@@ -288,6 +406,8 @@ export default function AdminRoadmapManager() {
 
   const itemModuleId = itemForm.watch("moduleId");
   const itemAutoType = itemForm.watch("autoCompletionType");
+  const itemEsTitle = itemForm.watch("translations.es.title");
+  const itemEsDescription = itemForm.watch("translations.es.description");
   const { data: lessons = [] } = useQuery<Lesson[]>({
     queryKey: [`/api/admin/lessons?moduleId=${encodeURIComponent(itemModuleId)}`],
     enabled: isItemDialogOpen && itemModuleId !== NONE,
@@ -308,15 +428,15 @@ export default function AdminRoadmapManager() {
   const handleError = (error: unknown, fallback: string) => {
     if (isUnauthorizedError(error as Error)) {
       toast({
-        title: "Signed out",
-        description: "Your session has ended. Taking you to sign in.",
+        title: t("shared.signedOutTitle"),
+        description: t("shared.signedOutBody"),
         variant: "destructive",
       });
       setTimeout(() => window.location.href = "/login", 500);
       return;
     }
     toast({
-      title: "Something went wrong",
+      title: t("shared.errorTitle"),
       description: getApiErrorMessage(error, fallback),
       variant: "destructive",
     });
@@ -335,14 +455,14 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Template created",
-        description: "The roadmap template is saved.",
+        title: t("roadmap.toast.templateCreatedTitle"),
+        description: t("roadmap.toast.templateCreatedBody"),
       });
       invalidateTemplates();
       templateForm.reset(emptyTemplateForm);
       setIsCreateTemplateOpen(false);
     },
-    onError: (error) => handleError(error, "The template could not be created. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.templateCreateFailed")),
   });
 
   const updateTemplateMutation = useMutation({
@@ -352,15 +472,15 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: (_result, variables) => {
       toast({
-        title: "Template updated",
+        title: t("roadmap.toast.templateUpdatedTitle"),
         description: variables.data.isActive === true
-          ? "The template is available for new assignments again."
-          : "Your changes are saved.",
+          ? t("roadmap.toast.templateRestoredBody")
+          : t("shared.changesSaved"),
       });
       invalidateTemplates();
       setEditingTemplate(null);
     },
-    onError: (error) => handleError(error, "The template could not be updated. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.templateUpdateFailed")),
   });
 
   const deactivateTemplateMutation = useMutation({
@@ -370,12 +490,12 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Template deactivated",
-        description: "It is hidden from new assignments. You can restore it at any time.",
+        title: t("roadmap.toast.templateDeactivatedTitle"),
+        description: t("roadmap.toast.templateDeactivatedBody"),
       });
       invalidateTemplates();
     },
-    onError: (error) => handleError(error, "The template could not be deactivated. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.templateDeactivateFailed")),
   });
 
   const assignTemplateMutation = useMutation({
@@ -386,15 +506,15 @@ export default function AdminRoadmapManager() {
     onSuccess: (result) => {
       const count = Array.isArray(result) ? result.length : undefined;
       toast({
-        title: "Roadmap assigned",
+        title: t("roadmap.toast.assignedTitle"),
         description: count !== undefined
-          ? `${count} roadmap item${count === 1 ? "" : "s"} assigned to the project.`
-          : "The roadmap was assigned to the project.",
+          ? t("roadmap.toast.assigned", { count })
+          : t("roadmap.toast.assignedGeneric"),
       });
       setAssigningTemplate(null);
       setAssignProjectId("");
     },
-    onError: (error) => handleError(error, "The roadmap could not be assigned. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.assignFailed")),
   });
 
   const createItemMutation = useMutation({
@@ -404,14 +524,14 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Item added",
-        description: "The roadmap item is saved.",
+        title: t("roadmap.toast.itemAddedTitle"),
+        description: t("roadmap.toast.itemAddedBody"),
       });
       invalidateItems();
       itemForm.reset(emptyItemForm);
       setIsCreateItemOpen(false);
     },
-    onError: (error) => handleError(error, "The item could not be added. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.itemAddFailed")),
   });
 
   const updateItemMutation = useMutation({
@@ -421,14 +541,14 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Item updated",
-        description: "Your changes are saved.",
+        title: t("roadmap.toast.itemUpdatedTitle"),
+        description: t("shared.changesSaved"),
       });
       invalidateItems();
       itemForm.reset(emptyItemForm);
       setEditingItem(null);
     },
-    onError: (error) => handleError(error, "The item could not be updated. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.itemUpdateFailed")),
   });
 
   const deleteItemMutation = useMutation({
@@ -438,22 +558,25 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Item deleted",
-        description: "The item was removed from this template.",
+        title: t("roadmap.toast.itemDeletedTitle"),
+        description: t("roadmap.toast.itemDeletedBody"),
       });
       invalidateItems();
     },
-    onError: (error) => handleError(error, "The item could not be deleted. Please try again."),
+    onError: (error) => handleError(error, t("roadmap.toast.itemDeleteFailed")),
   });
 
   // Populate the edit-template form when a template is picked for editing.
   useEffect(() => {
     if (editingTemplate) {
+      const es = spanishOf(editingTemplate);
+      setEditTemplateLang("en");
       editTemplateForm.reset({
         name: editingTemplate.name,
         description: editingTemplate.description || "",
         cohortId: editingTemplate.cohortId ?? ALL_COHORTS,
         isDefault: !!editingTemplate.isDefault,
+        translations: { es: { name: textOr(es.name), description: textOr(es.description) } },
       });
     }
   }, [editingTemplate, editTemplateForm]);
@@ -474,9 +597,9 @@ export default function AdminRoadmapManager() {
 
   const handleDeactivateTemplate = (template: RoadmapTemplate) => {
     setConfirmRequest({
-      title: `Deactivate "${template.name}"?`,
-      description: "It will no longer be offered for new assignments. Project roadmaps already created from it are kept, and you can restore the template later.",
-      confirmLabel: "Deactivate",
+      title: t("roadmap.confirm.deactivateTitle", { name: localized.text(template, "name") }),
+      description: t("roadmap.confirm.deactivateBody"),
+      confirmLabel: t("roadmap.confirm.deactivateLabel"),
       onConfirm: () => deactivateTemplateMutation.mutate(template.id),
     });
   };
@@ -493,6 +616,8 @@ export default function AdminRoadmapManager() {
 
   const handleEditItem = (item: RoadmapItem) => {
     setEditingItem(item);
+    setItemLang("en");
+    const es = spanishOf(item);
     const autoType = (autoCompletionTypes as readonly string[]).includes(item.autoCompletionType ?? "")
       ? (item.autoCompletionType as ItemFormData["autoCompletionType"])
       : "none";
@@ -508,13 +633,14 @@ export default function AdminRoadmapManager() {
       lessonId: item.lessonId ?? NONE,
       autoCompletionType: autoType,
       autoThreshold: item.autoThreshold ?? (autoType === "mentor_session" ? 1 : 100),
+      translations: { es: { title: textOr(es.title), description: textOr(es.description) } },
     });
   };
 
   const handleDeleteItem = (itemId: string, itemTitle?: string) => {
     setConfirmRequest({
-      title: itemTitle ? `Delete roadmap item "${itemTitle}"?` : "Delete this roadmap item?",
-      description: "This removes the item from the template and cannot be undone.",
+      title: itemTitle ? t("roadmap.confirm.deleteItemNamed", { title: itemTitle }) : t("roadmap.confirm.deleteItem"),
+      description: t("roadmap.confirm.deleteItemBody"),
       onConfirm: () => deleteItemMutation.mutate(itemId),
     });
   };
@@ -532,14 +658,17 @@ export default function AdminRoadmapManager() {
   };
 
   // Item types are categories, not statuses: one neutral badge style for all of them.
+  // Stored type values stay as they are; only the label is translated.
   const typeLabel = (type: string) =>
-    type === "checkin" ? "Check-in" : type.charAt(0).toUpperCase() + type.slice(1);
+    (itemTypes as readonly string[]).includes(type)
+      ? t(`common:itemType.${type as (typeof itemTypes)[number]}`)
+      : type.charAt(0).toUpperCase() + type.slice(1);
 
   const autoCompletionLabel = (item: RoadmapItem) => {
     switch (item.autoCompletionType) {
-      case "lesson": return "Auto: lesson completed";
-      case "module": return `Auto: ${item.autoThreshold ?? 100}% of module`;
-      case "mentor_session": return `Auto: ${item.autoThreshold ?? 1} mentor session${(item.autoThreshold ?? 1) === 1 ? "" : "s"}`;
+      case "lesson": return t("roadmap.items.auto.lesson");
+      case "module": return t("roadmap.items.auto.module", { percent: item.autoThreshold ?? 100 });
+      case "mentor_session": return t("roadmap.items.auto.mentorSession", { count: item.autoThreshold ?? 1 });
       default: return null;
     }
   };
@@ -551,10 +680,17 @@ export default function AdminRoadmapManager() {
       {/* Template Management Section */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg">Roadmap templates</h3>
+          <h3 className="text-lg">{t("roadmap.templates.heading")}</h3>
           <p className="text-sm text-muted-foreground">
-            <span className="font-display">{activeCount}</span> active template{activeCount !== 1 ? 's' : ''}
-            {templates.length > activeCount ? `, ${templates.length - activeCount} inactive` : ""}
+            <Trans
+              t={t}
+              i18nKey="roadmap.templates.activeCount"
+              count={activeCount}
+              components={{ num: <span className="font-display" /> }}
+            />
+            {templates.length > activeCount
+              ? t("roadmap.templates.inactiveSuffix", { count: templates.length - activeCount })
+              : ""}
           </p>
         </div>
 
@@ -562,22 +698,34 @@ export default function AdminRoadmapManager() {
           open={isCreateTemplateOpen}
           onOpenChange={(open) => {
             setIsCreateTemplateOpen(open);
+            setTemplateLang("en");
             if (!open) templateForm.reset(emptyTemplateForm);
           }}
         >
           <DialogTrigger asChild>
             <Button data-testid="button-create-template">
               <Plus className="w-4 h-4 mr-2" />
-              Add template
+              {t("roadmap.templates.add")}
             </Button>
           </DialogTrigger>
           <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add roadmap template</DialogTitle>
+              <DialogTitle>{t("roadmap.templates.addTitle")}</DialogTitle>
             </DialogHeader>
             <Form {...templateForm}>
-              <form onSubmit={templateForm.handleSubmit(handleCreateTemplate)} className="grid gap-4 md:grid-cols-2">
-                <TemplateFormFields form={templateForm} cohorts={cohorts} />
+              <form
+                onSubmit={templateForm.handleSubmit(
+                  handleCreateTemplate,
+                  showEnglishOnError(setTemplateLang, ["name", "description"]),
+                )}
+                className="grid gap-4 md:grid-cols-2"
+              >
+                <TemplateFormFields
+                  form={templateForm}
+                  cohorts={cohorts}
+                  lang={templateLang}
+                  onLangChange={setTemplateLang}
+                />
                 <div className="flex justify-end pt-2 md:col-span-2">
                   <Button
                     type="submit"
@@ -585,7 +733,7 @@ export default function AdminRoadmapManager() {
                     disabled={createTemplateMutation.isPending}
                     data-testid="button-submit-template"
                   >
-                    {createTemplateMutation.isPending ? "Creating..." : "Add template"}
+                    {createTemplateMutation.isPending ? t("roadmap.templates.creating") : t("roadmap.templates.add")}
                   </Button>
                 </div>
               </form>
@@ -598,11 +746,22 @@ export default function AdminRoadmapManager() {
       <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open) setEditingTemplate(null); }}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit roadmap template</DialogTitle>
+            <DialogTitle>{t("roadmap.templates.editTitle")}</DialogTitle>
           </DialogHeader>
           <Form {...editTemplateForm}>
-            <form onSubmit={editTemplateForm.handleSubmit(handleUpdateTemplate)} className="grid gap-4 md:grid-cols-2">
-              <TemplateFormFields form={editTemplateForm} cohorts={cohorts} />
+            <form
+              onSubmit={editTemplateForm.handleSubmit(
+                handleUpdateTemplate,
+                showEnglishOnError(setEditTemplateLang, ["name", "description"]),
+              )}
+              className="grid gap-4 md:grid-cols-2"
+            >
+              <TemplateFormFields
+                form={editTemplateForm}
+                cohorts={cohorts}
+                lang={editTemplateLang}
+                onLangChange={setEditTemplateLang}
+              />
               <div className="flex justify-end pt-2 md:col-span-2">
                 <Button
                   type="submit"
@@ -610,7 +769,7 @@ export default function AdminRoadmapManager() {
                   disabled={updateTemplateMutation.isPending}
                   data-testid="button-update-template"
                 >
-                  {updateTemplateMutation.isPending ? "Saving..." : "Save changes"}
+                  {updateTemplateMutation.isPending ? t("shared.saving") : t("common:actions.saveChanges")}
                 </Button>
               </div>
             </form>
@@ -630,20 +789,20 @@ export default function AdminRoadmapManager() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign "{assigningTemplate?.name}" to a project</DialogTitle>
+            <DialogTitle>{t("roadmap.assign.title", { name: localized.text(assigningTemplate, "name") })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Every item in this template is added to the project's roadmap. Items the project already has are kept.
+              {t("roadmap.assign.body")}
             </p>
             <div className="space-y-2">
-              <Label className="font-display">Project</Label>
+              <Label className="font-display">{t("roadmap.assign.project")}</Label>
               {projects.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No projects exist yet.</p>
+                <p className="text-sm text-muted-foreground">{t("roadmap.assign.noProjects")}</p>
               ) : (
                 <Select value={assignProjectId} onValueChange={setAssignProjectId}>
                   <SelectTrigger data-testid="select-assign-project">
-                    <SelectValue placeholder="Select a project" />
+                    <SelectValue placeholder={t("roadmap.assign.selectProject")} />
                   </SelectTrigger>
                   <SelectContent>
                     {[...projects]
@@ -656,8 +815,9 @@ export default function AdminRoadmapManager() {
                       })
                       .map((project) => (
                         <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                          {project.cohortId ? ` (${cohortName(project.cohortId)})` : " (no cohort)"}
+                          {project.cohortId
+                            ? t("roadmap.assign.projectOption", { project: project.name, cohort: cohortName(project.cohortId) })
+                            : t("roadmap.assign.projectNoCohort", { project: project.name })}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -675,7 +835,7 @@ export default function AdminRoadmapManager() {
                 }}
                 data-testid="button-confirm-assign"
               >
-                {assignTemplateMutation.isPending ? "Assigning..." : "Assign roadmap"}
+                {assignTemplateMutation.isPending ? t("roadmap.assign.assigning") : t("roadmap.assign.confirm")}
               </Button>
             </div>
           </div>
@@ -699,9 +859,9 @@ export default function AdminRoadmapManager() {
         ) : templates.length === 0 ? (
           <div className="col-span-full rounded-xl border border-dashed border-steel/50 p-8 text-center">
             <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-            <h3 className="text-lg mb-1">No templates yet</h3>
+            <h3 className="text-lg mb-1">{t("roadmap.templates.emptyTitle")}</h3>
             <p className="text-sm text-muted-foreground">
-              Add a roadmap template to set out the weekly tasks and milestones for a program.
+              {t("roadmap.templates.emptyBody")}
             </p>
           </div>
         ) : (
@@ -720,16 +880,16 @@ export default function AdminRoadmapManager() {
               >
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{template.name}</CardTitle>
+                    <CardTitle className="text-base">{localized.text(template, "name")}</CardTitle>
                     <div className="flex flex-wrap gap-1 justify-end">
-                      {inactive && <Badge variant="outline" className="border-transparent bg-muted text-muted-foreground">Inactive</Badge>}
-                      {template.isDefault && <Badge>Default</Badge>}
+                      {inactive && <Badge variant="outline" className="border-transparent bg-muted text-muted-foreground">{t("roadmap.templates.inactive")}</Badge>}
+                      {template.isDefault && <Badge>{t("roadmap.templates.default")}</Badge>}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground line-clamp-3">
-                    {template.description}
+                    {localized.text(template, "description")}
                   </p>
                   <div className="flex items-center text-xs text-muted-foreground mt-3">
                     <Users className="w-3 h-3 mr-1" />
@@ -746,7 +906,7 @@ export default function AdminRoadmapManager() {
                       data-testid={`button-select-template-${template.id}`}
                     >
                       <Eye className="w-3 h-3" />
-                      View
+                      {t("shared.view")}
                     </Button>
                     <Button
                       size="sm"
@@ -758,7 +918,7 @@ export default function AdminRoadmapManager() {
                       data-testid={`button-edit-template-${template.id}`}
                     >
                       <Edit className="w-3 h-3" />
-                      Edit
+                      {t("common:actions.edit")}
                     </Button>
                     {inactive ? (
                       <Button
@@ -772,7 +932,7 @@ export default function AdminRoadmapManager() {
                         data-testid={`button-restore-template-${template.id}`}
                       >
                         <RotateCcw className="w-3 h-3" />
-                        Restore
+                        {t("roadmap.templates.restore")}
                       </Button>
                     ) : (
                       <>
@@ -786,7 +946,7 @@ export default function AdminRoadmapManager() {
                           data-testid={`button-assign-template-${template.id}`}
                         >
                           <Send className="w-3 h-3" />
-                          Assign
+                          {t("roadmap.templates.assign")}
                         </Button>
                         <Button
                           size="sm"
@@ -796,8 +956,8 @@ export default function AdminRoadmapManager() {
                             handleDeactivateTemplate(template);
                           }}
                           disabled={deactivateTemplateMutation.isPending}
-                          aria-label="Deactivate template"
-                          title="Deactivate template"
+                          aria-label={t("roadmap.templates.deactivate")}
+                          title={t("roadmap.templates.deactivate")}
                           data-testid={`button-deactivate-template-${template.id}`}
                         >
                           <Trash2 className="w-3 h-3" />
@@ -819,15 +979,21 @@ export default function AdminRoadmapManager() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle>
-                  {selectedTemplateData?.name}: items
+                  {t("roadmap.items.heading", { name: localized.text(selectedTemplateData, "name") })}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  <span className="font-display">{selectedTemplateItems.length}</span> item{selectedTemplateItems.length !== 1 ? 's' : ''} in this template
+                  <Trans
+                    t={t}
+                    i18nKey="roadmap.items.count"
+                    count={selectedTemplateItems.length}
+                    components={{ num: <span className="font-display" /> }}
+                  />
                 </p>
               </div>
 
               <Dialog open={isItemDialogOpen} onOpenChange={(open) => {
                 setIsCreateItemOpen(open);
+                if (open) setItemLang("en");
                 if (!open) {
                   setEditingItem(null);
                   itemForm.reset(emptyItemForm);
@@ -836,55 +1002,114 @@ export default function AdminRoadmapManager() {
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-item">
                     <Plus className="w-4 h-4 mr-2" />
-                    Add item
+                    {t("roadmap.items.add")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
-                      {editingItem ? "Edit roadmap item" : "Add roadmap item"}
+                      {editingItem ? t("roadmap.items.editTitle") : t("roadmap.items.addTitle")}
                     </DialogTitle>
                   </DialogHeader>
                   <Form {...itemForm}>
                     <form
-                      onSubmit={itemForm.handleSubmit(editingItem ? handleUpdateItem : handleCreateItem)}
+                      onSubmit={itemForm.handleSubmit(
+                        editingItem ? handleUpdateItem : handleCreateItem,
+                        showEnglishOnError(setItemLang, ["title", "description"]),
+                      )}
                       className="space-y-4"
                     >
-                      <FormField
-                        control={itemForm.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Title</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="e.g., Complete market research"
-                                data-testid="input-item-title"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                      <ContentLanguageTabs
+                        value={itemLang}
+                        onChange={setItemLang}
+                        spanishMissing={!itemEsTitle?.trim() && !itemEsDescription?.trim()}
                       />
 
-                      <FormField
-                        control={itemForm.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                placeholder="What the founder needs to do, and what done looks like"
-                                data-testid="textarea-item-description"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      {itemLang === "en" ? (
+                        <>
+                          <FormField
+                            key="title-en"
+                            control={itemForm.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("roadmap.itemForm.title")}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder={t("roadmap.itemForm.titlePlaceholder")}
+                                    data-testid="input-item-title"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            key="description-en"
+                            control={itemForm.control}
+                            name="description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("shared.description")}</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    {...field}
+                                    placeholder={t("roadmap.itemForm.descriptionPlaceholder")}
+                                    data-testid="textarea-item-description"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <FormField
+                            key="title-es"
+                            control={itemForm.control}
+                            name="translations.es.title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("roadmap.itemForm.title")}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    lang="es"
+                                    placeholder={itemForm.getValues("title") || t("roadmap.itemForm.titlePlaceholder")}
+                                    data-testid="input-item-title-es"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            key="description-es"
+                            control={itemForm.control}
+                            name="translations.es.description"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("shared.description")}</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    lang="es"
+                                    placeholder={itemForm.getValues("description") || t("roadmap.itemForm.descriptionPlaceholder")}
+                                    data-testid="textarea-item-description-es"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <FormField
@@ -892,7 +1117,7 @@ export default function AdminRoadmapManager() {
                           name="type"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Type</FormLabel>
+                              <FormLabel>{t("roadmap.itemForm.type")}</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger data-testid="select-item-type">
@@ -900,12 +1125,9 @@ export default function AdminRoadmapManager() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="task">Task</SelectItem>
-                                  <SelectItem value="assignment">Assignment</SelectItem>
-                                  <SelectItem value="deliverable">Deliverable</SelectItem>
-                                  <SelectItem value="milestone">Milestone</SelectItem>
-                                  <SelectItem value="checkin">Check-in</SelectItem>
-                                  <SelectItem value="learning">Learning</SelectItem>
+                                  {itemTypes.map((type) => (
+                                    <SelectItem key={type} value={type}>{t(`common:itemType.${type}`)}</SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -918,7 +1140,7 @@ export default function AdminRoadmapManager() {
                           name="week"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Week</FormLabel>
+                              <FormLabel>{t("roadmap.itemForm.week")}</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
@@ -939,7 +1161,7 @@ export default function AdminRoadmapManager() {
                           name="orderIndex"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Order</FormLabel>
+                              <FormLabel>{t("roadmap.itemForm.order")}</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
@@ -961,7 +1183,7 @@ export default function AdminRoadmapManager() {
                           name="moduleId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Linked module</FormLabel>
+                              <FormLabel>{t("roadmap.itemForm.linkedModule")}</FormLabel>
                               <Select
                                 onValueChange={(value) => {
                                   field.onChange(value);
@@ -975,10 +1197,10 @@ export default function AdminRoadmapManager() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value={NONE}>None</SelectItem>
+                                  <SelectItem value={NONE}>{t("roadmap.itemForm.none")}</SelectItem>
                                   {modules.map((module) => (
                                     <SelectItem key={module.id} value={module.id}>
-                                      Week {module.week}: {module.title}
+                                      {t("roadmap.itemForm.moduleOption", { week: module.week, title: localized.text(module, "title") })}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -993,7 +1215,7 @@ export default function AdminRoadmapManager() {
                           name="lessonId"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Linked lesson</FormLabel>
+                              <FormLabel>{t("roadmap.itemForm.linkedLesson")}</FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 value={field.value}
@@ -1001,14 +1223,14 @@ export default function AdminRoadmapManager() {
                               >
                                 <FormControl>
                                   <SelectTrigger data-testid="select-item-lesson">
-                                    <SelectValue placeholder={itemModuleId === NONE ? "Pick a module first" : undefined} />
+                                    <SelectValue placeholder={itemModuleId === NONE ? t("roadmap.itemForm.pickModuleFirst") : undefined} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value={NONE}>None</SelectItem>
+                                  <SelectItem value={NONE}>{t("roadmap.itemForm.none")}</SelectItem>
                                   {lessons.map((lesson) => (
                                     <SelectItem key={lesson.id} value={lesson.id}>
-                                      {lesson.title}
+                                      {localized.text(lesson, "title")}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1025,7 +1247,7 @@ export default function AdminRoadmapManager() {
                           name="autoCompletionType"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Auto-complete when</FormLabel>
+                              <FormLabel>{t("roadmap.itemForm.autoComplete")}</FormLabel>
                               <Select
                                 onValueChange={(value) => {
                                   field.onChange(value);
@@ -1040,10 +1262,9 @@ export default function AdminRoadmapManager() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="none">Never (manual)</SelectItem>
-                                  <SelectItem value="lesson">Linked lesson is completed</SelectItem>
-                                  <SelectItem value="module">Linked module reaches a percent</SelectItem>
-                                  <SelectItem value="mentor_session">Mentor sessions are completed</SelectItem>
+                                  {autoCompletionTypes.map((type) => (
+                                    <SelectItem key={type} value={type}>{t(`roadmap.itemForm.autoTypes.${type}`)}</SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -1058,7 +1279,7 @@ export default function AdminRoadmapManager() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>
-                                  {itemAutoType === "module" ? "Module completion (%)" : "Completed sessions"}
+                                  {itemAutoType === "module" ? t("roadmap.itemForm.thresholdModule") : t("roadmap.itemForm.thresholdSessions")}
                                 </FormLabel>
                                 <FormControl>
                                   <Input
@@ -1082,7 +1303,7 @@ export default function AdminRoadmapManager() {
                         name="isOptional"
                         render={({ field }) => (
                           <FormItem className="flex items-center justify-between gap-4 rounded-xl border p-4">
-                            <FormLabel>Optional item</FormLabel>
+                            <FormLabel>{t("roadmap.itemForm.optional")}</FormLabel>
                             <FormControl>
                               <Switch
                                 checked={field.value}
@@ -1102,9 +1323,9 @@ export default function AdminRoadmapManager() {
                           data-testid="button-submit-item"
                         >
                           {editingItem ? (
-                            updateItemMutation.isPending ? "Saving..." : "Save changes"
+                            updateItemMutation.isPending ? t("shared.saving") : t("common:actions.saveChanges")
                           ) : (
-                            createItemMutation.isPending ? "Adding..." : "Add item"
+                            createItemMutation.isPending ? t("roadmap.items.adding") : t("roadmap.items.add")
                           )}
                         </Button>
                       </div>
@@ -1124,9 +1345,9 @@ export default function AdminRoadmapManager() {
             ) : selectedTemplateItems.length === 0 ? (
               <div className="rounded-xl border border-dashed border-steel/50 py-8 px-4 text-center">
                 <Target className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                <h4 className="text-lg mb-1">No items yet</h4>
+                <h4 className="text-lg mb-1">{t("roadmap.items.emptyTitle")}</h4>
                 <p className="text-sm text-muted-foreground">
-                  Add tasks, milestones and deliverables to structure the program week by week.
+                  {t("roadmap.items.emptyBody")}
                 </p>
               </div>
             ) : (
@@ -1138,9 +1359,9 @@ export default function AdminRoadmapManager() {
                       <div className="flex items-center gap-3">
                         <ConnectorBadge state="current">{week}</ConnectorBadge>
                         <div>
-                          <p className="font-display font-medium">Week {week}</p>
+                          <p className="font-display font-medium">{t("common:week", { week })}</p>
                           <p className="text-xs text-muted-foreground">
-                            {items.length} item{items.length !== 1 ? 's' : ''}
+                            {t("roadmap.items.weekCount", { count: items.length })}
                           </p>
                         </div>
                       </div>
@@ -1148,6 +1369,7 @@ export default function AdminRoadmapManager() {
                       <div className="divide-y rounded-xl border">
                         {items.map((item) => {
                           const autoLabel = autoCompletionLabel(item);
+                          const itemTitle = localized.text(item, "title");
                           return (
                             <div key={item.id} className="p-4">
                                 <div className="flex items-start justify-between gap-3">
@@ -1155,14 +1377,14 @@ export default function AdminRoadmapManager() {
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                       {getTypeIcon(item.type)}
                                       <h5 className="font-medium" data-testid={`item-title-${item.id}`}>
-                                        {item.title}
+                                        {itemTitle}
                                       </h5>
                                       <Badge variant="outline" className="border-transparent bg-secondary text-foreground">
                                         {typeLabel(item.type)}
                                       </Badge>
                                       {item.isOptional && (
                                         <Badge variant="outline" className="border-dashed border-steel/60 bg-transparent text-muted-foreground">
-                                          Optional
+                                          {t("roadmap.items.optional")}
                                         </Badge>
                                       )}
                                       {autoLabel && (
@@ -1172,7 +1394,7 @@ export default function AdminRoadmapManager() {
                                       )}
                                     </div>
                                     <p className="text-sm text-muted-foreground line-clamp-2">
-                                      {item.description}
+                                      {localized.text(item, "description")}
                                     </p>
                                   </div>
 
@@ -1181,8 +1403,8 @@ export default function AdminRoadmapManager() {
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => handleEditItem(item)}
-                                      aria-label={`Edit roadmap item ${item.title}`}
-                                      title="Edit roadmap item"
+                                      aria-label={t("roadmap.items.editAria", { title: itemTitle })}
+                                      title={t("roadmap.items.editTooltip")}
                                       data-testid={`button-edit-item-${item.id}`}
                                     >
                                       <Edit className="w-3 h-3" />
@@ -1190,10 +1412,10 @@ export default function AdminRoadmapManager() {
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      onClick={() => handleDeleteItem(item.id, item.title)}
+                                      onClick={() => handleDeleteItem(item.id, itemTitle)}
                                       disabled={deleteItemMutation.isPending}
-                                      aria-label={`Delete roadmap item ${item.title}`}
-                                      title="Delete roadmap item"
+                                      aria-label={t("roadmap.items.deleteAria", { title: itemTitle })}
+                                      title={t("roadmap.items.deleteTooltip")}
                                       data-testid={`button-delete-item-${item.id}`}
                                     >
                                       <Trash2 className="w-3 h-3" />

@@ -1,6 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useToast } from "@/hooks/use-toast";
+import { intlLocale } from "@/i18n";
+import { useLocalized } from "@/lib/localized";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getApiErrorMessage } from "@/lib/utils";
@@ -64,36 +68,38 @@ import {
 } from "lucide-react";
 
 // Form schemas - extending shared schemas with UI-specific validation
-const investorFormSchema = insertInvestorSchema.extend({
-  sectors: z.array(z.string()).min(1, "At least one sector is required"),
-  stages: z.array(z.string()).min(1, "At least one stage is required"),
-  geography: z.array(z.string()).min(1, "At least one geography is required"),
-  organization: z.string().min(1, "Organization name is required"),
-  contactEmail: z.string().email("Valid email is required"),
-  checkSize: z.string().min(1, "Check size is required"),
+type T = TFunction<["adminInvestors", "common"]>;
+
+const makeInvestorFormSchema = (t: T) => insertInvestorSchema.extend({
+  sectors: z.array(z.string()).min(1, t("validation.sectors")),
+  stages: z.array(z.string()).min(1, t("validation.stages")),
+  geography: z.array(z.string()).min(1, t("validation.geography")),
+  organization: z.string().min(1, t("validation.organization")),
+  contactEmail: z.string().email(t("validation.email")),
+  checkSize: z.string().min(1, t("validation.checkSize")),
   ndaStatus: z.boolean().default(false),
   userId: z.string().nullable().optional(),
   isActive: z.boolean().default(true),
 });
 
-const sessionFormSchema = insertInvestorSessionSchema.extend({
-  investorId: z.string().min(1, "Investor is required"),
-  title: z.string().min(1, "Session title is required"),
-  sessionType: z.string().min(1, "Session type is required"),
-  startTime: z.string().min(1, "Start time is required"),
-  endTime: z.string().min(1, "End time is required"),
+const makeSessionFormSchema = (t: T) => insertInvestorSessionSchema.extend({
+  investorId: z.string().min(1, t("validation.investor")),
+  title: z.string().min(1, t("validation.sessionTitle")),
+  sessionType: z.string().min(1, t("validation.sessionType")),
+  startTime: z.string().min(1, t("validation.startTime")),
+  endTime: z.string().min(1, t("validation.endTime")),
   participantIds: z.array(z.string()).default([]),
 });
 
-const cohortAssignmentSchema = insertInvestorCohortParticipationSchema.extend({
-  investorId: z.string().min(1, "Investor is required"),
-  cohortId: z.string().min(1, "Cohort is required"),
-  role: z.string().min(1, "Role is required"),
+const makeCohortAssignmentSchema = (t: T) => insertInvestorCohortParticipationSchema.extend({
+  investorId: z.string().min(1, t("validation.investor")),
+  cohortId: z.string().min(1, t("validation.cohort")),
+  role: z.string().min(1, t("validation.role")),
 });
 
-type InvestorFormData = z.infer<typeof investorFormSchema>;
-type SessionFormData = z.infer<typeof sessionFormSchema>;
-type CohortAssignmentData = z.infer<typeof cohortAssignmentSchema>;
+type InvestorFormData = z.infer<ReturnType<typeof makeInvestorFormSchema>>;
+type SessionFormData = z.infer<ReturnType<typeof makeSessionFormSchema>>;
+type CohortAssignmentData = z.infer<ReturnType<typeof makeCohortAssignmentSchema>>;
 
 const interestLevelOptions = [
   "viewed", "requested_info", "meeting_scheduled", "diligence", "soft_commit", "commit"
@@ -115,8 +121,8 @@ const interestLevelClass = (level: string | null | undefined) => {
   }
 };
 
-const formatLevel = (level: string | null | undefined) =>
-  (level || "viewed").replace(/_/g, " ").replace(/^\w/, (l) => l.toUpperCase());
+const isInterestLevel = (value: string): value is InterestLevel =>
+  (interestLevelOptions as readonly string[]).includes(value);
 
 type AdminProject = { id: string; name: string; cohortId: string | null; ownerId: string };
 type AdminInterest = InvestorInterest & { projectName?: string };
@@ -124,19 +130,30 @@ type AdminInterest = InvestorInterest & { projectName?: string };
 // Radix Select items can't use an empty value, so "no linked user" uses a sentinel
 const NO_USER = "__none__";
 
-// Pre-defined options
-const sectorOptions = [
-  "Healthcare", "Fintech", "EdTech", "E-commerce", "SaaS", "Cybersecurity",
-  "Climate Tech", "Web3/Blockchain", "Robotics", "IoT", "Gaming", "Media & Entertainment", "AI/Machine Learning"
-];
+// Pre-defined options. Keys are the stored values (never renamed); values are catalog label keys.
+const SECTOR_LABELS = {
+  "Healthcare": "healthcare", "Fintech": "fintech", "EdTech": "edtech", "E-commerce": "ecommerce",
+  "SaaS": "saas", "Cybersecurity": "cybersecurity", "Climate Tech": "climateTech", "Web3/Blockchain": "web3",
+  "Robotics": "robotics", "IoT": "iot", "Gaming": "gaming", "Media & Entertainment": "media",
+  "AI/Machine Learning": "ai",
+} as const;
 
-const stageOptions = [
-  "Pre-seed", "Seed", "Series A", "Series B", "Series C", "Growth", "Late Stage"
-];
+const STAGE_LABELS = {
+  "Pre-seed": "preSeed", "Seed": "seed", "Series A": "seriesA", "Series B": "seriesB",
+  "Series C": "seriesC", "Growth": "growth", "Late Stage": "lateStage",
+} as const;
 
-const geographyOptions = [
-  "North America", "Europe", "Asia-Pacific", "Latin America", "Middle East", "Africa", "Global"
-];
+const GEOGRAPHY_LABELS = {
+  "North America": "northAmerica", "Europe": "europe", "Asia-Pacific": "asiaPacific",
+  "Latin America": "latinAmerica", "Middle East": "middleEast", "Africa": "africa", "Global": "global",
+} as const;
+
+const sectorOptions = Object.keys(SECTOR_LABELS) as (keyof typeof SECTOR_LABELS)[];
+const stageOptions = Object.keys(STAGE_LABELS) as (keyof typeof STAGE_LABELS)[];
+const geographyOptions = Object.keys(GEOGRAPHY_LABELS) as (keyof typeof GEOGRAPHY_LABELS)[];
+
+const hasKey = <M extends object>(map: M, value: string | null | undefined): value is Extract<keyof M, string> =>
+  typeof value === "string" && Object.prototype.hasOwnProperty.call(map, value);
 
 const checkSizeOptions = [
   "$10K - $50K", "$50K - $100K", "$100K - $500K", "$500K - $1M", "$1M - $5M", "$5M+"
@@ -144,19 +161,24 @@ const checkSizeOptions = [
 
 const sessionTypeOptions = [
   "pitch", "feedback", "due_diligence", "demo_day"
-];
+] as const;
 
 const investorRoleOptions = [
   "advisor", "judge", "funding_partner", "demo_day_evaluator"
-];
+] as const;
 
-// Helper function to generate time slots
+const assignmentStatusOptions = ["active", "inactive"] as const;
+
+const inList = <L extends readonly string[]>(list: L, value: string | null | undefined): value is L[number] =>
+  typeof value === "string" && (list as readonly string[]).includes(value);
+
+// Helper function to generate time slots (values stay "HH:mm"; labels follow the interface language)
 const generateTimeSlots = () => {
   const slots = [];
   for (let hour = 9; hour <= 17; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
       const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      const label = new Date(`2000-01-01T${time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const label = new Date(`2000-01-01T${time}`).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit', hour12: true });
       slots.push({ value: time, label });
     }
   }
@@ -171,17 +193,43 @@ const generateDateOptions = () => {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     const value = date.toISOString().split('T')[0];
-    const label = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    const label = date.toLocaleDateString(intlLocale(), { weekday: 'short', month: 'short', day: 'numeric' });
     dates.push({ value, label });
   }
   return dates;
 };
 
-const timeSlots = generateTimeSlots();
-const dateOptions = generateDateOptions();
-
 export default function AdminInvestorManager() {
+  const { t, i18n } = useTranslation(["adminInvestors", "common"]);
+  const localized = useLocalized();
   const { toast } = useToast();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const timeSlots = useMemo(() => generateTimeSlots(), [i18n.language]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const dateOptions = useMemo(() => generateDateOptions(), [i18n.language]);
+  const investorFormSchema = useMemo(() => makeInvestorFormSchema(t), [t]);
+  const sessionFormSchema = useMemo(() => makeSessionFormSchema(t), [t]);
+  const cohortAssignmentSchema = useMemo(() => makeCohortAssignmentSchema(t), [t]);
+
+  const sectorLabel = (v: string) => (hasKey(SECTOR_LABELS, v) ? t(`labels.sector.${SECTOR_LABELS[v]}`) : v);
+  const stageLabel = (v: string) => (hasKey(STAGE_LABELS, v) ? t(`labels.stage.${STAGE_LABELS[v]}`) : v);
+  const geographyLabel = (v: string) => (hasKey(GEOGRAPHY_LABELS, v) ? t(`labels.geography.${GEOGRAPHY_LABELS[v]}`) : v);
+  const sessionTypeLabel = (v: string | null | undefined) =>
+    inList(sessionTypeOptions, v) ? t(`labels.sessionType.${v}`) : (v ?? "");
+  const roleLabel = (v: string | null | undefined) =>
+    inList(investorRoleOptions, v) ? t(`labels.role.${v}`) : v ? v : t("cohorts.unknownRole");
+  const assignmentStatusLabel = (v: string | null | undefined) =>
+    inList(assignmentStatusOptions, v) ? t(`labels.assignmentStatus.${v}`) : v ? v : t("cohorts.unknownStatus");
+  const levelLabel = (level: string | null | undefined) => {
+    const value = level || "viewed";
+    return isInterestLevel(value) ? t(`common:interestLevel.${value}`) : value;
+  };
+  const errorToast = (error: unknown) =>
+    toast({
+      title: t("common:status.error"),
+      description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
+      variant: "destructive",
+    });
   const queryClient = useQueryClient();
   
   // State
@@ -267,10 +315,10 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       setIsCreateInvestorOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Investor added" });
+      toast({ title: t("toast.investorAdded") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -282,10 +330,10 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       setEditingInvestor(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Investor updated" });
+      toast({ title: t("toast.investorUpdated") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -296,10 +344,10 @@ export default function AdminInvestorManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Investor deactivated" });
+      toast({ title: t("toast.investorDeactivated") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -310,10 +358,10 @@ export default function AdminInvestorManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Investor reactivated" });
+      toast({ title: t("toast.investorReactivated") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -331,10 +379,10 @@ export default function AdminInvestorManager() {
       setIsCreateInterestOpen(false);
       setNewInterest({ investorId: "", projectId: "", level: "viewed", notes: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
-      toast({ title: "Interest saved" });
+      toast({ title: t("toast.interestSaved") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -349,10 +397,10 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       setEditingInterest(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
-      toast({ title: "Interest updated" });
+      toast({ title: t("toast.interestUpdated") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -375,10 +423,10 @@ export default function AdminInvestorManager() {
       sessionForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Session scheduled" });
+      toast({ title: t("toast.sessionScheduled") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -396,10 +444,10 @@ export default function AdminInvestorManager() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohort-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohorts"] });
-      toast({ title: "Investor assigned" });
+      toast({ title: t("toast.investorAssigned") });
     },
     onError: (error) => {
-      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
+      errorToast(error);
     },
   });
 
@@ -581,25 +629,25 @@ export default function AdminInvestorManager() {
         name="userId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Linked investor user</FormLabel>
+            <FormLabel>{t("form.linkedUser")}</FormLabel>
             <Select
               onValueChange={(value) => field.onChange(value === NO_USER ? null : value)}
               value={field.value ?? NO_USER}
             >
               <FormControl>
                 <SelectTrigger data-testid={currentInvestorId ? "select-edit-investor-user" : "select-investor-user"}>
-                  <SelectValue placeholder="No linked user" />
+                  <SelectValue placeholder={t("form.noLinkedUser")} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value={NO_USER}>No linked user</SelectItem>
+                <SelectItem value={NO_USER}>{t("form.noLinkedUser")}</SelectItem>
                 {availableInvestorUsers(currentInvestorId).map((u) => (
                   <SelectItem key={u.id} value={u.id}>{userLabel(u)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {investorUsers.length === 0 && (
-              <p className="text-xs text-muted-foreground">No users have the investor role yet. Invite one from the Users tab.</p>
+              <p className="text-xs text-muted-foreground">{t("form.noInvestorUsers")}</p>
             )}
             <FormMessage />
           </FormItem>
@@ -618,7 +666,7 @@ export default function AdminInvestorManager() {
                 data-testid={currentInvestorId ? "switch-edit-investor-active" : "switch-investor-active"}
               />
             </FormControl>
-            <FormLabel>Active</FormLabel>
+            <FormLabel>{t("form.active")}</FormLabel>
             <FormMessage />
           </FormItem>
         )}
@@ -630,9 +678,9 @@ export default function AdminInvestorManager() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="font-display text-2xl font-medium text-foreground">Investors</h2>
+          <h2 className="font-display text-2xl font-medium text-foreground">{t("header.title")}</h2>
           <p className="text-sm text-muted-foreground">
-            Manage investor records, sessions, cohort assignments and interest in projects.
+            {t("header.description")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -640,12 +688,12 @@ export default function AdminInvestorManager() {
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-create-session">
                 <Calendar className="w-4 h-4 mr-2" />
-                Schedule session
+                {t("session.schedule")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Schedule investor session</DialogTitle>
+                <DialogTitle>{t("dialogs.scheduleSession")}</DialogTitle>
               </DialogHeader>
               <Form {...sessionForm}>
                 <form onSubmit={sessionForm.handleSubmit(handleCreateSession)} className="space-y-4">
@@ -655,11 +703,11 @@ export default function AdminInvestorManager() {
                     name="investorId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Investor</FormLabel>
+                        <FormLabel>{t("session.investor")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-investor">
-                              <SelectValue placeholder="Select investor" />
+                              <SelectValue placeholder={t("session.selectInvestor")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -680,17 +728,17 @@ export default function AdminInvestorManager() {
                     name="sessionType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Session type</FormLabel>
+                        <FormLabel>{t("session.type")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-session-type">
-                              <SelectValue placeholder="Select session type" />
+                              <SelectValue placeholder={t("session.selectType")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {sessionTypeOptions.map(type => (
                               <SelectItem key={type} value={type}>
-                                {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
+                                {sessionTypeLabel(type)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -706,9 +754,9 @@ export default function AdminInvestorManager() {
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Session title</FormLabel>
+                        <FormLabel>{t("session.title")}</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Enter session title" data-testid="input-session-title" />
+                          <Input {...field} placeholder={t("session.titlePlaceholder")} data-testid="input-session-title" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -726,7 +774,7 @@ export default function AdminInvestorManager() {
                           
                           return (
                             <FormItem>
-                              <FormLabel>Date</FormLabel>
+                              <FormLabel>{t("session.date")}</FormLabel>
                               <Select 
                                 onValueChange={(date) => {
                                   const time = timeValue || '09:00';
@@ -741,7 +789,7 @@ export default function AdminInvestorManager() {
                               >
                                 <FormControl>
                                   <SelectTrigger data-testid="select-session-date">
-                                    <SelectValue placeholder="Select date" />
+                                    <SelectValue placeholder={t("session.selectDate")} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -767,7 +815,7 @@ export default function AdminInvestorManager() {
                           
                           return (
                             <FormItem>
-                              <FormLabel>Start time</FormLabel>
+                              <FormLabel>{t("session.startTime")}</FormLabel>
                               <Select 
                                 onValueChange={(time) => {
                                   const date = dateValue || dateOptions[0]?.value;
@@ -782,7 +830,7 @@ export default function AdminInvestorManager() {
                               >
                                 <FormControl>
                                   <SelectTrigger data-testid="select-session-time">
-                                    <SelectValue placeholder="Select time" />
+                                    <SelectValue placeholder={t("session.selectTime")} />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -806,7 +854,7 @@ export default function AdminInvestorManager() {
                         name="endTime"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Duration</FormLabel>
+                            <FormLabel>{t("session.duration")}</FormLabel>
                             <Select 
                               onValueChange={(minutes) => {
                                 const startTime = sessionForm.getValues("startTime");
@@ -820,14 +868,14 @@ export default function AdminInvestorManager() {
                             >
                               <FormControl>
                                 <SelectTrigger data-testid="select-session-duration">
-                                  <SelectValue placeholder="Select duration" />
+                                  <SelectValue placeholder={t("session.selectDuration")} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="30">30 minutes</SelectItem>
-                                <SelectItem value="60">1 hour</SelectItem>
-                                <SelectItem value="90">1.5 hours</SelectItem>
-                                <SelectItem value="120">2 hours</SelectItem>
+                                <SelectItem value="30">{t("session.duration30")}</SelectItem>
+                                <SelectItem value="60">{t("session.duration60")}</SelectItem>
+                                <SelectItem value="90">{t("session.duration90")}</SelectItem>
+                                <SelectItem value="120">{t("session.duration120")}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -840,7 +888,7 @@ export default function AdminInvestorManager() {
                         name="endTime"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>End time</FormLabel>
+                            <FormLabel>{t("session.endTime")}</FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
@@ -862,9 +910,9 @@ export default function AdminInvestorManager() {
                     name="agenda"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Agenda</FormLabel>
+                        <FormLabel>{t("session.agenda")}</FormLabel>
                         <FormControl>
-                          <Textarea {...field} placeholder="Session agenda" data-testid="textarea-agenda" value={field.value || ""} />
+                          <Textarea {...field} placeholder={t("session.agendaPlaceholder")} data-testid="textarea-agenda" value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -873,10 +921,10 @@ export default function AdminInvestorManager() {
 
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button type="button" variant="outline" onClick={() => setIsCreateSessionOpen(false)}>
-                      Cancel
+                      {t("common:actions.cancel")}
                     </Button>
                     <Button type="submit" disabled={createSessionMutation.isPending} data-testid="button-submit-session">
-                      {createSessionMutation.isPending ? "Creating..." : "Schedule session"}
+                      {createSessionMutation.isPending ? t("session.creating") : t("session.schedule")}
                     </Button>
                   </div>
                 </form>
@@ -888,12 +936,12 @@ export default function AdminInvestorManager() {
             <DialogTrigger asChild>
               <Button data-testid="button-create-investor">
                 <Plus className="w-4 h-4 mr-2" />
-                Add investor
+                {t("dialogs.addInvestor")}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add investor</DialogTitle>
+                <DialogTitle>{t("dialogs.addInvestor")}</DialogTitle>
               </DialogHeader>
               <Form {...investorForm}>
                 <form onSubmit={investorForm.handleSubmit(handleCreateInvestor)} className="space-y-4">
@@ -903,9 +951,9 @@ export default function AdminInvestorManager() {
                       name="organization"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Organization</FormLabel>
+                          <FormLabel>{t("form.organization")}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Organization name" data-testid="input-organization" />
+                            <Input {...field} placeholder={t("form.organizationPlaceholder")} data-testid="input-organization" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -917,9 +965,9 @@ export default function AdminInvestorManager() {
                       name="contactEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contact email</FormLabel>
+                          <FormLabel>{t("form.contactEmail")}</FormLabel>
                           <FormControl>
-                            <Input {...field} type="email" placeholder="contact@example.com" data-testid="input-contact-email" />
+                            <Input {...field} type="email" placeholder={t("form.contactEmailPlaceholder")} data-testid="input-contact-email" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -932,7 +980,7 @@ export default function AdminInvestorManager() {
                     name="sectors"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sectors</FormLabel>
+                        <FormLabel>{t("form.sectors")}</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
                           {sectorOptions.map((sector) => (
                             <div key={sector} className="flex items-center space-x-2">
@@ -951,7 +999,7 @@ export default function AdminInvestorManager() {
                                 data-testid={`checkbox-sector-${sector.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                               />
                               <label htmlFor={`sector-${sector}`} className="text-sm">
-                                {sector}
+                                {sectorLabel(sector)}
                               </label>
                             </div>
                           ))}
@@ -966,7 +1014,7 @@ export default function AdminInvestorManager() {
                     name="stages"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Stages</FormLabel>
+                        <FormLabel>{t("form.stages")}</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {stageOptions.map((stage) => (
                             <div key={stage} className="flex items-center space-x-2">
@@ -985,7 +1033,7 @@ export default function AdminInvestorManager() {
                                 data-testid={`checkbox-stage-${stage.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                               />
                               <label htmlFor={`stage-${stage}`} className="text-sm">
-                                {stage}
+                                {stageLabel(stage)}
                               </label>
                             </div>
                           ))}
@@ -1000,7 +1048,7 @@ export default function AdminInvestorManager() {
                     name="geography"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Geographic focus</FormLabel>
+                        <FormLabel>{t("form.geography")}</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {geographyOptions.map((geo) => (
                             <div key={geo} className="flex items-center space-x-2">
@@ -1019,7 +1067,7 @@ export default function AdminInvestorManager() {
                                 data-testid={`checkbox-geo-${geo.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                               />
                               <label htmlFor={`geo-${geo}`} className="text-sm">
-                                {geo}
+                                {geographyLabel(geo)}
                               </label>
                             </div>
                           ))}
@@ -1034,11 +1082,11 @@ export default function AdminInvestorManager() {
                     name="checkSize"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Check size</FormLabel>
+                        <FormLabel>{t("form.checkSize")}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-check-size">
-                              <SelectValue placeholder="Select check size" />
+                              <SelectValue placeholder={t("form.checkSizePlaceholder")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -1070,7 +1118,7 @@ export default function AdminInvestorManager() {
                             data-testid="checkbox-nda-status"
                           />
                         </FormControl>
-                        <FormLabel>NDA signed</FormLabel>
+                        <FormLabel>{t("form.ndaSigned")}</FormLabel>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1078,10 +1126,10 @@ export default function AdminInvestorManager() {
 
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button type="button" variant="outline" onClick={() => setIsCreateInvestorOpen(false)}>
-                      Cancel
+                      {t("common:actions.cancel")}
                     </Button>
                     <Button type="submit" disabled={createInvestorMutation.isPending} data-testid="button-submit-investor">
-                      {createInvestorMutation.isPending ? "Adding..." : "Add investor"}
+                      {createInvestorMutation.isPending ? t("form.adding") : t("dialogs.addInvestor")}
                     </Button>
                   </div>
                 </form>
@@ -1093,10 +1141,10 @@ export default function AdminInvestorManager() {
 
       <Tabs defaultValue="investors" className="space-y-6">
         <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden h-auto">
-          <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
-          <TabsTrigger value="sessions" data-testid="tab-sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohort assignments</TabsTrigger>
-          <TabsTrigger value="interests" data-testid="tab-interests">Interests</TabsTrigger>
+          <TabsTrigger value="investors" data-testid="tab-investors">{t("tabs.investors")}</TabsTrigger>
+          <TabsTrigger value="sessions" data-testid="tab-sessions">{t("tabs.sessions")}</TabsTrigger>
+          <TabsTrigger value="cohorts" data-testid="tab-cohorts">{t("tabs.cohorts")}</TabsTrigger>
+          <TabsTrigger value="interests" data-testid="tab-interests">{t("tabs.interests")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="investors" className="space-y-6">
@@ -1105,7 +1153,7 @@ export default function AdminInvestorManager() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by organization or email"
+                placeholder={t("list.searchPlaceholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -1114,12 +1162,12 @@ export default function AdminInvestorManager() {
             </div>
             <Select value={filterSector} onValueChange={setFilterSector}>
               <SelectTrigger className="w-full sm:w-48" data-testid="select-filter-sector">
-                <SelectValue placeholder="Filter by sector" />
+                <SelectValue placeholder={t("list.filterSector")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All sectors</SelectItem>
+                <SelectItem value="all">{t("list.allSectors")}</SelectItem>
                 {sectorOptions.map(sector => (
-                  <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                  <SelectItem key={sector} value={sector}>{sectorLabel(sector)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -1137,13 +1185,13 @@ export default function AdminInvestorManager() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Organization</TableHead>
-                    <TableHead>Sectors</TableHead>
-                    <TableHead>Stages</TableHead>
-                    <TableHead>Check size</TableHead>
-                    <TableHead>NDA</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+                    <TableHead>{t("list.organization")}</TableHead>
+                    <TableHead>{t("list.sectors")}</TableHead>
+                    <TableHead>{t("list.stages")}</TableHead>
+                    <TableHead>{t("list.checkSize")}</TableHead>
+                    <TableHead>{t("list.nda")}</TableHead>
+                    <TableHead>{t("list.status")}</TableHead>
+                    <TableHead className="text-right"><span className="sr-only">{t("list.actions")}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1164,7 +1212,9 @@ export default function AdminInvestorManager() {
                               </div>
                               <div className="truncate text-xs text-muted-foreground">{investor.contactEmail}</div>
                               <div className="truncate text-xs text-muted-foreground">
-                                {investor.userId ? `User: ${linked ? (linked.email || linked.id) : "linked"}` : "No linked user"}
+                                {investor.userId
+                                  ? t("list.linkedUser", { user: linked ? (linked.email || linked.id) : t("list.linked") })
+                                  : t("list.noLinkedUser")}
                               </div>
                             </div>
                           </div>
@@ -1172,37 +1222,37 @@ export default function AdminInvestorManager() {
                         <TableCell className="min-w-[10rem]">
                           <div className="flex flex-wrap gap-1">
                             {(investor.sectors || []).map((sector: string, index: number) => (
-                              <Badge key={index} variant="secondary">{sector}</Badge>
+                              <Badge key={index} variant="secondary">{sectorLabel(sector)}</Badge>
                             ))}
                           </div>
                         </TableCell>
                         <TableCell className="min-w-[8rem]">
                           <div className="flex flex-wrap gap-1">
                             {(investor.stages || []).map((stage: string, index: number) => (
-                              <Badge key={index} variant="outline">{stage}</Badge>
+                              <Badge key={index} variant="outline">{stageLabel(stage)}</Badge>
                             ))}
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-display">
-                          {investor.checkSize || "Not specified"}
+                          {investor.checkSize || t("list.notSpecified")}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {investor.ndaStatus ? (
                             <span className="flex items-center gap-1 font-display text-xs text-success">
                               <CheckCircle className="h-3.5 w-3.5" />
-                              Signed
+                              {t("list.signed")}
                             </span>
                           ) : (
-                            <span className="font-display text-xs text-muted-foreground">Not signed</span>
+                            <span className="font-display text-xs text-muted-foreground">{t("list.notSigned")}</span>
                           )}
                         </TableCell>
                         <TableCell>
                           {investor.isActive === false ? (
                             <Badge variant="secondary" data-testid={`badge-inactive-${investor.id}`}>
-                              Inactive
+                              {t("list.inactive")}
                             </Badge>
                           ) : (
-                            <Badge>Active</Badge>
+                            <Badge>{t("list.active")}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -1215,15 +1265,15 @@ export default function AdminInvestorManager() {
                               data-testid={`button-contact-${investor.id}`}
                             >
                               <Mail className="h-4 w-4 mr-1.5" />
-                              Contact
+                              {t("list.contact")}
                             </Button>
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
                               onClick={() => openEditDialog(investor)}
-                              aria-label="Edit investor"
-                              title="Edit investor"
+                              aria-label={t("list.edit")}
+                              title={t("list.edit")}
                               data-testid={`button-edit-${investor.id}`}
                             >
                               <Edit className="h-4 w-4" />
@@ -1235,8 +1285,8 @@ export default function AdminInvestorManager() {
                                 className="h-8 w-8"
                                 onClick={() => reactivateInvestorMutation.mutate(investor.id)}
                                 disabled={reactivateInvestorMutation.isPending}
-                                aria-label="Reactivate investor"
-                                title="Reactivate investor"
+                                aria-label={t("list.reactivate")}
+                                title={t("list.reactivate")}
                                 data-testid={`button-reactivate-${investor.id}`}
                               >
                                 <RotateCcw className="h-4 w-4" />
@@ -1248,8 +1298,8 @@ export default function AdminInvestorManager() {
                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                 onClick={() => deactivateInvestorMutation.mutate(investor.id)}
                                 disabled={deactivateInvestorMutation.isPending}
-                                aria-label="Deactivate investor"
-                                title="Deactivate investor"
+                                aria-label={t("list.deactivate")}
+                                title={t("list.deactivate")}
                                 data-testid={`button-deactivate-${investor.id}`}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1268,11 +1318,11 @@ export default function AdminInvestorManager() {
           {filteredInvestors.length === 0 && !investorsLoading && (
             <div className="dashed-zone bg-card p-8 text-center">
               <Building className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-              <h3 className="mb-1 text-base">No investors found</h3>
+              <h3 className="mb-1 text-base">{t("list.emptyTitle")}</h3>
               <p className="text-sm text-muted-foreground">
                 {searchTerm || filterSector !== "all" 
-                  ? "Try a different search or sector filter."
-                  : "Add the first investor to get started."
+                  ? t("list.emptyFiltered")
+                  : t("list.emptyBody")
                 }
               </p>
             </div>
@@ -1291,11 +1341,11 @@ export default function AdminInvestorManager() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Session</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Investor</TableHead>
-                    <TableHead>Date and time</TableHead>
-                    <TableHead>Participants</TableHead>
+                    <TableHead>{t("sessions.session")}</TableHead>
+                    <TableHead>{t("sessions.type")}</TableHead>
+                    <TableHead>{t("sessions.investor")}</TableHead>
+                    <TableHead>{t("sessions.dateTime")}</TableHead>
+                    <TableHead>{t("sessions.participants")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1309,7 +1359,7 @@ export default function AdminInvestorManager() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="whitespace-nowrap">
-                          {session.sessionType?.charAt(0).toUpperCase() + session.sessionType?.slice(1).replace('_', ' ')}
+                          {sessionTypeLabel(session.sessionType)}
                         </Badge>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
@@ -1318,14 +1368,17 @@ export default function AdminInvestorManager() {
                       <TableCell className="whitespace-nowrap font-display text-sm">
                         <span className="flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                          {new Date(session.startTime).toLocaleDateString()} at {new Date(session.startTime).toLocaleTimeString()}
+                          {t("sessions.at", {
+                            date: new Date(session.startTime).toLocaleDateString(intlLocale()),
+                            time: new Date(session.startTime).toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" }),
+                          })}
                         </span>
                       </TableCell>
                       <TableCell className="whitespace-nowrap font-display text-sm text-muted-foreground">
                         {session.participantIds && session.participantIds.length > 0 && (
                           <span className="flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5" />
-                            {session.participantIds.length} participant{session.participantIds.length !== 1 ? 's' : ''}
+                            {t("sessions.participantCount", { count: session.participantIds.length })}
                           </span>
                         )}
                       </TableCell>
@@ -1337,9 +1390,9 @@ export default function AdminInvestorManager() {
           ) : (
             <div className="dashed-zone bg-card p-8 text-center">
               <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-              <h3 className="mb-1 text-base">No sessions scheduled</h3>
+              <h3 className="mb-1 text-base">{t("sessions.emptyTitle")}</h3>
               <p className="text-sm text-muted-foreground">
-                Schedule the first investor session to get started.
+                {t("sessions.emptyBody")}
               </p>
             </div>
           )}
@@ -1347,17 +1400,17 @@ export default function AdminInvestorManager() {
 
         <TabsContent value="cohorts" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg">Cohort assignments</h3>
+            <h3 className="text-lg">{t("cohorts.heading")}</h3>
             <Dialog open={isAssignCohortOpen} onOpenChange={setIsAssignCohortOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-assign-cohort">
                   <Plus className="w-4 h-4 mr-2" />
-                  Assign to cohort
+                  {t("cohorts.assign")}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Assign investor to cohort</DialogTitle>
+                  <DialogTitle>{t("dialogs.assignCohort")}</DialogTitle>
                 </DialogHeader>
                 <Form {...cohortForm}>
                   <form onSubmit={cohortForm.handleSubmit(handleAssignCohort)} className="space-y-4">
@@ -1366,11 +1419,11 @@ export default function AdminInvestorManager() {
                       name="investorId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Investor</FormLabel>
+                          <FormLabel>{t("session.investor")}</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-assign-investor">
-                                <SelectValue placeholder="Select investor" />
+                                <SelectValue placeholder={t("session.selectInvestor")} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -1391,17 +1444,19 @@ export default function AdminInvestorManager() {
                       name="cohortId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Cohort</FormLabel>
+                          <FormLabel>{t("cohorts.cohort")}</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-assign-cohort">
-                                <SelectValue placeholder="Select cohort" />
+                                <SelectValue placeholder={t("cohorts.selectCohort")} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               {cohorts.map((cohort: Cohort) => (
                                 <SelectItem key={cohort.id} value={cohort.id}>
-                                  {cohort.name}{cohort.isActive === false ? " (Inactive)" : ""}
+                                  {cohort.isActive === false
+                                    ? t("cohorts.inactiveName", { name: localized.text(cohort, "name") })
+                                    : localized.text(cohort, "name")}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1416,17 +1471,17 @@ export default function AdminInvestorManager() {
                       name="role"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Role</FormLabel>
+                          <FormLabel>{t("cohorts.role")}</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-assign-role">
-                                <SelectValue placeholder="Select role" />
+                                <SelectValue placeholder={t("cohorts.selectRole")} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               {investorRoleOptions.map(role => (
                                 <SelectItem key={role} value={role}>
-                                  {role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ')}
+                                  {roleLabel(role)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1438,10 +1493,10 @@ export default function AdminInvestorManager() {
 
                     <div className="flex justify-end space-x-2 pt-4">
                       <Button type="button" variant="outline" onClick={() => setIsAssignCohortOpen(false)}>
-                        Cancel
+                        {t("common:actions.cancel")}
                       </Button>
                       <Button type="submit" disabled={assignCohortMutation.isPending} data-testid="button-submit-assignment">
-                        {assignCohortMutation.isPending ? "Assigning..." : "Assign"}
+                        {assignCohortMutation.isPending ? t("cohorts.assigning") : t("cohorts.submit")}
                       </Button>
                     </div>
                   </form>
@@ -1461,11 +1516,11 @@ export default function AdminInvestorManager() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Investor</TableHead>
-                    <TableHead>Cohort</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned</TableHead>
+                    <TableHead>{t("sessions.investor")}</TableHead>
+                    <TableHead>{t("cohorts.cohort")}</TableHead>
+                    <TableHead>{t("cohorts.role")}</TableHead>
+                    <TableHead>{t("list.status")}</TableHead>
+                    <TableHead>{t("cohorts.assigned")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1482,33 +1537,36 @@ export default function AdminInvestorManager() {
                               </AvatarFallback>
                             </Avatar>
                             <span className="font-medium" data-testid={`assignment-investor-${assignment.id}`}>
-                              {investor?.organization ?? "Unknown investor"}
+                              {investor?.organization ?? t("cohorts.unknownInvestor")}
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="min-w-[10rem]">
                           <div>
-                            {cohort?.name ?? "Unknown cohort"}
-                            {cohort?.isActive === false ? " (Inactive)" : ""}
+                            {!cohort
+                              ? t("cohorts.unknownCohort")
+                              : cohort.isActive === false
+                                ? t("cohorts.inactiveName", { name: localized.text(cohort, "name") })
+                                : localized.text(cohort, "name")}
                           </div>
                           {cohort && (
                             <div className="font-display text-xs text-muted-foreground">
-                              {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
+                              {t("common:dateRange", { start: formatCohortDate(cohort.startDate), end: formatCohortDate(cohort.endDate) })}
                             </div>
                           )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="whitespace-nowrap">
-                            {assignment.role ? assignment.role.charAt(0).toUpperCase() + assignment.role.slice(1).replace('_', ' ') : "Unknown role"}
+                            {roleLabel(assignment.role)}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant={assignment.status === "active" ? "default" : "secondary"}>
-                            {assignment.status ? assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1) : "Unknown"}
+                            {assignmentStatusLabel(assignment.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-display text-sm text-muted-foreground">
-                          {assignment.assignedAt && new Date(assignment.assignedAt).toLocaleDateString()}
+                          {assignment.assignedAt && new Date(assignment.assignedAt).toLocaleDateString(intlLocale())}
                         </TableCell>
                       </TableRow>
                     );
@@ -1519,43 +1577,43 @@ export default function AdminInvestorManager() {
           ) : (
             <div className="dashed-zone bg-card p-8 text-center">
               <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-              <h3 className="mb-1 text-base">No cohort assignments</h3>
+              <h3 className="mb-1 text-base">{t("cohorts.emptyTitle")}</h3>
               <p className="text-sm text-muted-foreground">
-                Assign investors to cohorts to get started.
+                {t("cohorts.emptyBody")}
               </p>
             </div>
           )}
         </TabsContent>
         <TabsContent value="interests" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg">Investor interests</h3>
+            <h3 className="text-lg">{t("interests.heading")}</h3>
             <Dialog open={isCreateInterestOpen} onOpenChange={setIsCreateInterestOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-interest">
                   <Plus className="w-4 h-4 mr-2" />
-                  Record interest
+                  {t("interests.record")}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Record investor interest</DialogTitle>
+                  <DialogTitle>{t("dialogs.recordInterest")}</DialogTitle>
                 </DialogHeader>
                 <form
                   className="space-y-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!newInterest.investorId || !newInterest.projectId) {
-                      toast({ title: "Missing details", description: "Choose an investor and a project.", variant: "destructive" });
+                      toast({ title: t("toast.missingDetails"), description: t("toast.missingDetailsBody"), variant: "destructive" });
                       return;
                     }
                     createInterestMutation.mutate(newInterest);
                   }}
                 >
                   <div className="space-y-2">
-                    <label className="font-display text-sm font-medium">Investor</label>
+                    <label className="font-display text-sm font-medium">{t("interests.investor")}</label>
                     <Select value={newInterest.investorId} onValueChange={(v) => setNewInterest((p) => ({ ...p, investorId: v }))}>
                       <SelectTrigger data-testid="select-interest-investor">
-                        <SelectValue placeholder="Select investor" />
+                        <SelectValue placeholder={t("session.selectInvestor")} />
                       </SelectTrigger>
                       <SelectContent>
                         {activeInvestors.map((investor) => (
@@ -1565,10 +1623,10 @@ export default function AdminInvestorManager() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="font-display text-sm font-medium">Project</label>
+                    <label className="font-display text-sm font-medium">{t("interests.project")}</label>
                     <Select value={newInterest.projectId} onValueChange={(v) => setNewInterest((p) => ({ ...p, projectId: v }))}>
                       <SelectTrigger data-testid="select-interest-project">
-                        <SelectValue placeholder={projects.length === 0 ? "No projects yet" : "Select project"} />
+                        <SelectValue placeholder={projects.length === 0 ? t("interests.noProjects") : t("interests.selectProject")} />
                       </SelectTrigger>
                       <SelectContent>
                         {projects.map((project) => (
@@ -1578,36 +1636,36 @@ export default function AdminInvestorManager() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="font-display text-sm font-medium">Level</label>
+                    <label className="font-display text-sm font-medium">{t("interests.level")}</label>
                     <Select value={newInterest.level} onValueChange={(v) => setNewInterest((p) => ({ ...p, level: v as InterestLevel }))}>
                       <SelectTrigger data-testid="select-interest-level">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {interestLevelOptions.map((level) => (
-                          <SelectItem key={level} value={level}>{formatLevel(level)}</SelectItem>
+                          <SelectItem key={level} value={level}>{levelLabel(level)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="font-display text-sm font-medium">Notes</label>
+                    <label className="font-display text-sm font-medium">{t("interests.notes")}</label>
                     <Textarea
                       value={newInterest.notes}
                       onChange={(e) => setNewInterest((p) => ({ ...p, notes: e.target.value }))}
-                      placeholder="Optional notes"
+                      placeholder={t("interests.notesPlaceholder")}
                       data-testid="textarea-interest-notes"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    If this investor already has an interest in the project, it is updated instead of duplicated.
+                    {t("interests.upsertHint")}
                   </p>
                   <div className="flex justify-end space-x-2 pt-2">
                     <Button type="button" variant="outline" onClick={() => setIsCreateInterestOpen(false)}>
-                      Cancel
+                      {t("common:actions.cancel")}
                     </Button>
                     <Button type="submit" disabled={createInterestMutation.isPending} data-testid="button-submit-interest">
-                      {createInterestMutation.isPending ? "Saving..." : "Save"}
+                      {createInterestMutation.isPending ? t("form.saving") : t("common:actions.save")}
                     </Button>
                   </div>
                 </form>
@@ -1626,44 +1684,47 @@ export default function AdminInvestorManager() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Project</TableHead>
-                    <TableHead>Investor</TableHead>
-                    <TableHead>Level</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>Updated</TableHead>
-                    <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+                    <TableHead>{t("interests.project")}</TableHead>
+                    <TableHead>{t("sessions.investor")}</TableHead>
+                    <TableHead>{t("interests.level")}</TableHead>
+                    <TableHead>{t("interests.notes")}</TableHead>
+                    <TableHead>{t("interests.updated")}</TableHead>
+                    <TableHead className="text-right"><span className="sr-only">{t("list.actions")}</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {interests.map((interest) => {
                     const investor = investors.find((inv) => inv.id === interest.investorId);
-                    const projectName = interest.projectName || projects.find((p) => p.id === interest.projectId)?.name || "Unknown project";
+                    const projectName = interest.projectName || projects.find((p) => p.id === interest.projectId)?.name || t("interests.unknownProject");
                     return (
                       <TableRow key={interest.id}>
                         <TableCell className="min-w-[10rem] font-medium" data-testid={`interest-project-${interest.id}`}>
                           {projectName}
                         </TableCell>
                         <TableCell className="min-w-[10rem] text-muted-foreground">
-                          {investor?.organization ?? "Unknown investor"}
-                          {investor?.isActive === false ? " (Inactive)" : ""}
+                          {!investor
+                            ? t("cohorts.unknownInvestor")
+                            : investor.isActive === false
+                              ? t("cohorts.inactiveName", { name: investor.organization })
+                              : investor.organization}
                         </TableCell>
                         <TableCell>
                           <Badge className={`whitespace-nowrap ${interestLevelClass(interest.level)}`}>
                             <TrendingUp className="w-3 h-3 mr-1" />
-                            {formatLevel(interest.level)}
+                            {levelLabel(interest.level)}
                           </Badge>
                         </TableCell>
                         <TableCell className="min-w-[14rem] max-w-sm">
                           {interest.notes && <p className="line-clamp-2 text-sm">{interest.notes}</p>}
                           {interest.questions && interest.questions.length > 0 && (
                             <p className="font-display text-xs text-muted-foreground">
-                              {interest.questions.length} question{interest.questions.length !== 1 ? "s" : ""}
+                              {t("interests.questionCount", { count: interest.questions.length })}
                             </p>
                           )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-display text-sm text-muted-foreground">
                           {(interest.updatedAt || interest.createdAt) &&
-                            new Date((interest.updatedAt || interest.createdAt) as unknown as string).toLocaleDateString()}
+                            new Date((interest.updatedAt || interest.createdAt) as unknown as string).toLocaleDateString(intlLocale())}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -1671,8 +1732,8 @@ export default function AdminInvestorManager() {
                             variant="ghost"
                             className="h-8 w-8"
                             onClick={() => openEditInterest(interest)}
-                            aria-label="Edit investor interest"
-                            title="Edit investor interest"
+                            aria-label={t("interests.edit")}
+                            title={t("interests.edit")}
                             data-testid={`button-edit-interest-${interest.id}`}
                           >
                             <Edit className="h-4 w-4" />
@@ -1687,9 +1748,9 @@ export default function AdminInvestorManager() {
           ) : (
             <div className="dashed-zone bg-card p-8 text-center">
               <TrendingUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-              <h3 className="mb-1 text-base">No investor interest recorded yet</h3>
+              <h3 className="mb-1 text-base">{t("interests.emptyTitle")}</h3>
               <p className="text-sm text-muted-foreground">
-                Record an investor's interest in a project to track the pipeline.
+                {t("interests.emptyBody")}
               </p>
             </div>
           )}
@@ -1700,7 +1761,7 @@ export default function AdminInvestorManager() {
       <Dialog open={editingInterest !== null} onOpenChange={(open) => { if (!open) setEditingInterest(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit investor interest</DialogTitle>
+            <DialogTitle>{t("dialogs.editInterest")}</DialogTitle>
           </DialogHeader>
           <form
             className="space-y-4"
@@ -1712,20 +1773,20 @@ export default function AdminInvestorManager() {
             }}
           >
             <div className="space-y-2">
-              <label className="font-display text-sm font-medium">Level</label>
+              <label className="font-display text-sm font-medium">{t("interests.level")}</label>
               <Select value={editInterestLevel} onValueChange={(v) => setEditInterestLevel(v as InterestLevel)}>
                 <SelectTrigger data-testid="select-edit-interest-level">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {interestLevelOptions.map((level) => (
-                    <SelectItem key={level} value={level}>{formatLevel(level)}</SelectItem>
+                    <SelectItem key={level} value={level}>{levelLabel(level)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="font-display text-sm font-medium">Notes</label>
+              <label className="font-display text-sm font-medium">{t("interests.notes")}</label>
               <Textarea
                 value={editInterestNotes}
                 onChange={(e) => setEditInterestNotes(e.target.value)}
@@ -1734,10 +1795,10 @@ export default function AdminInvestorManager() {
             </div>
             <div className="flex justify-end space-x-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditingInterest(null)}>
-                Cancel
+                {t("common:actions.cancel")}
               </Button>
               <Button type="submit" disabled={updateInterestMutation.isPending} data-testid="button-update-interest">
-                {updateInterestMutation.isPending ? "Saving..." : "Save"}
+                {updateInterestMutation.isPending ? t("form.saving") : t("common:actions.save")}
               </Button>
             </div>
           </form>
@@ -1748,7 +1809,7 @@ export default function AdminInvestorManager() {
       <Dialog open={editingInvestor !== null} onOpenChange={() => setEditingInvestor(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit investor</DialogTitle>
+            <DialogTitle>{t("dialogs.editInvestor")}</DialogTitle>
           </DialogHeader>
           <Form {...investorForm}>
             <form onSubmit={investorForm.handleSubmit(handleUpdateInvestor)} className="space-y-4">
@@ -1759,9 +1820,9 @@ export default function AdminInvestorManager() {
                   name="organization"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Organization</FormLabel>
+                      <FormLabel>{t("form.organization")}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Organization name" data-testid="input-edit-organization" />
+                        <Input {...field} placeholder={t("form.organizationPlaceholder")} data-testid="input-edit-organization" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1773,9 +1834,9 @@ export default function AdminInvestorManager() {
                   name="contactEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact email</FormLabel>
+                      <FormLabel>{t("form.contactEmail")}</FormLabel>
                       <FormControl>
-                        <Input {...field} type="email" placeholder="contact@example.com" data-testid="input-edit-contact-email" />
+                        <Input {...field} type="email" placeholder={t("form.contactEmailPlaceholder")} data-testid="input-edit-contact-email" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1788,11 +1849,11 @@ export default function AdminInvestorManager() {
                 name="checkSize"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Check size</FormLabel>
+                    <FormLabel>{t("form.checkSize")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-check-size">
-                          <SelectValue placeholder="Select check size" />
+                          <SelectValue placeholder={t("form.checkSizePlaceholder")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -1812,10 +1873,10 @@ export default function AdminInvestorManager() {
 
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setEditingInvestor(null)}>
-                  Cancel
+                  {t("common:actions.cancel")}
                 </Button>
                 <Button type="submit" disabled={updateInvestorMutation.isPending} data-testid="button-update-investor">
-                  {updateInvestorMutation.isPending ? "Saving..." : "Save changes"}
+                  {updateInvestorMutation.isPending ? t("form.saving") : t("common:actions.saveChanges")}
                 </Button>
               </div>
             </form>

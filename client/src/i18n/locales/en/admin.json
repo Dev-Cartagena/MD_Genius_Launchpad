@@ -1,1 +1,456 @@
-{}
+{
+  "page": {
+    "title": "Admin",
+    "subtitle": "Manage applications, cohorts, program content and people for MD Genius Launchpad",
+    "restrictedSubtitle": "Access restricted",
+    "restrictedTitle": "Administrators only",
+    "restrictedBody": "Your account doesn't have administrator access. If you need it, ask a Launchpad administrator."
+  },
+  "tabs": {
+    "overview": "Overview",
+    "applications": "Applications",
+    "cohorts": "Cohorts",
+    "roadmap": "Roadmap",
+    "curriculum": "Curriculum",
+    "mentors": "Mentors",
+    "investors": "Investors",
+    "users": "Users"
+  },
+  "shared": {
+    "saving": "Saving...",
+    "changesSaved": "Your changes are saved.",
+    "signedOutTitle": "Signed out",
+    "signedOutBody": "Your session has ended. Taking you to sign in.",
+    "errorTitle": "Something went wrong",
+    "active": "Active",
+    "inactive": "Inactive",
+    "status": "Status",
+    "actions": "Actions",
+    "view": "View",
+    "email": "Email",
+    "emailAddress": "Email address",
+    "emailPlaceholder": "name@example.com",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "role": "Role",
+    "selectRole": "Select a role",
+    "notProvided": "Not provided",
+    "noneListed": "None listed",
+    "separateWithCommas": "Separate with commas",
+    "description": "Description"
+  },
+  "validation": {
+    "email": "Please enter a valid email address",
+    "role": "Please select a role",
+    "cohortName": "Cohort name must be at least 3 characters",
+    "cohortDescription": "Description must be at least 10 characters",
+    "startDate": "Start date is required",
+    "endDate": "End date is required",
+    "capacity": "Capacity must be at least 1"
+  },
+  "setup": {
+    "title": "Set up the program",
+    "progress": "{{done}} of {{total}} done",
+    "done": "Done",
+    "steps": {
+      "cohort": {
+        "title": "Create a cohort",
+        "description": "A cohort is one run of the program, with its own dates and participants.",
+        "action": "Create cohort"
+      },
+      "curriculum": {
+        "title": "Add the curriculum",
+        "description": "Weekly modules, lessons and quizzes for the cohort.",
+        "action": "Open curriculum"
+      },
+      "roadmap": {
+        "title": "Create a roadmap template",
+        "description": "The week-by-week tasks each startup is assigned.",
+        "action": "Open roadmap"
+      },
+      "mentors": {
+        "title": "Invite mentors",
+        "description": "Mentors can then set up their profile and take sessions.",
+        "action": "Open mentors"
+      }
+    }
+  },
+  "overview": {
+    "metrics": {
+      "totalApplications": "Total applications",
+      "allTime": "All time",
+      "acceptanceRate": "Acceptance rate",
+      "ofAllApplications": "Of all applications",
+      "activeProjects": "Active projects",
+      "acrossCohorts_one": "Across {{count}} running cohort",
+      "acrossCohorts_other": "Across {{count}} running cohorts",
+      "users": "Users",
+      "allRoles": "All roles"
+    },
+    "recentApplications": "Recent applications",
+    "noApplications": "No applications yet.",
+    "score": "Score",
+    "needsAttention": "Needs attention",
+    "nothingNeedsAttention": "Nothing needs attention right now.",
+    "alerts": {
+      "pendingTitle": "Applications waiting for review",
+      "pending_one": "{{count}} application awaiting review",
+      "pending_other": "{{count}} applications awaiting review",
+      "cohortsTitle": "Active cohorts",
+      "running_one": "{{count}} cohort currently running",
+      "running_other": "{{count}} cohorts currently running",
+      "upcoming_one": "{{count}} cohort starting soon",
+      "upcoming_other": "{{count}} cohorts starting soon",
+      "ended_one": "{{count}} cohort active but past the end date",
+      "ended_other": "{{count}} cohorts active but past the end date",
+      "acceptedTitle": "New participants",
+      "accepted_one": "{{count}} application accepted this week",
+      "accepted_other": "{{count}} applications accepted this week"
+    }
+  },
+  "applications": {
+    "title": "Applications",
+    "count_one": "<num>{{count}}</num> application",
+    "count_other": "<num>{{count}}</num> applications",
+    "filterPlaceholder": "Application status",
+    "all": "All applications",
+    "exportCsv": "Export CSV",
+    "noMatch": "No applications match this filter.",
+    "unknownUser": "Unknown user",
+    "columns": {
+      "applicant": "Applicant",
+      "project": "Project",
+      "score": "Score"
+    },
+    "csv": {
+      "applicantName": "Applicant Name",
+      "projectName": "Project Name",
+      "status": "Status",
+      "score": "Score",
+      "email": "Email",
+      "submittedDaysAgo": "Submitted Days Ago",
+      "description": "Description",
+      "reviewerNotes": "Reviewer Notes"
+    },
+    "toast": {
+      "exportReadyTitle": "Export ready",
+      "exportReady_one": "{{count}} application exported to CSV.",
+      "exportReady_other": "{{count}} applications exported to CSV.",
+      "exportFailedTitle": "Export failed",
+      "exportFailedBody": "The applications could not be exported. Please try again.",
+      "statusUpdatedTitle": "Status updated",
+      "statusUpdatedBody": "The application status is saved.",
+      "updateFailed": "The application could not be updated. Please try again.",
+      "selectStatusTitle": "Select a status",
+      "selectStatusBody": "Choose the new status before saving."
+    },
+    "statusDialog": {
+      "trigger": "Update status",
+      "title": "Update application status",
+      "subtitle": "Application by {{applicant}} for {{project}}",
+      "currentStatus": "Current status",
+      "newStatus": "New status",
+      "selectStatus": "Select a status",
+      "reviewerNotes": "Reviewer notes",
+      "notesPlaceholder": "Add a note for the review record (optional)",
+      "previousNotes": "Previous notes",
+      "updating": "Updating..."
+    },
+    "viewDialog": {
+      "title": "Application details",
+      "subtitle": "Application by {{applicant}}",
+      "applicantName": "Applicant name",
+      "projectName": "Project name",
+      "score": "Score",
+      "submitted": "Submitted",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago",
+      "projectDescription": "Project description",
+      "reviewerNotes": "Reviewer notes"
+    }
+  },
+  "cohorts": {
+    "title": "Cohorts",
+    "subtitle": "Applicants can only apply to active cohorts.",
+    "add": "Add cohort",
+    "creating": "Creating...",
+    "editTitle": "Edit cohort",
+    "loading": "Loading cohorts",
+    "empty": "No cohorts yet. Add one to open applications.",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "active": "Active",
+    "inactive": "Inactive",
+    "form": {
+      "name": "Cohort name",
+      "namePlaceholder": "e.g., Spring Cohort",
+      "capacity": "Capacity",
+      "descriptionPlaceholder": "The cohort's focus and goals",
+      "startDate": "Start date",
+      "endDate": "End date"
+    },
+    "columns": {
+      "cohort": "Cohort",
+      "dates": "Dates",
+      "capacity": "Capacity"
+    },
+    "toast": {
+      "reactivatedTitle": "Cohort reactivated",
+      "reactivatedBody": "Applicants can see this cohort again.",
+      "deactivatedTitle": "Cohort deactivated",
+      "deactivatedBody": "This cohort is now hidden from applicants.",
+      "updateFailed": "The cohort could not be updated. Please try again.",
+      "createdTitle": "Cohort created",
+      "createdBody": "The new cohort is saved.",
+      "createFailed": "The cohort could not be created. Please try again.",
+      "updatedTitle": "Cohort updated"
+    }
+  },
+  "mentors": {
+    "title": "Mentors",
+    "description": "Manage mentor profiles and see who participants can book.",
+    "search": "Search mentors",
+    "invite": "Invite mentor",
+    "loading": "Loading mentors",
+    "empty": "No mentors found.",
+    "unnamed": "Unnamed mentor",
+    "noProfileWarning": "No mentor profile yet, so participants can't see or book this mentor.",
+    "noProfile": "No profile",
+    "viewMentor": "View mentor",
+    "editMentor": "Edit mentor",
+    "createProfile": "Create profile",
+    "editProfile": "Edit profile",
+    "emailName": "Email {{name}}",
+    "columns": {
+      "mentor": "Mentor",
+      "expertise": "Expertise",
+      "industries": "Industries"
+    },
+    "viewDialog": {
+      "title": "Mentor profile: {{name}}",
+      "subtitle": "Contact details and the profile participants see.",
+      "name": "Name",
+      "noProfileYet": "No profile yet",
+      "bio": "Bio",
+      "noBio": "No bio provided",
+      "expertise": "Expertise",
+      "noExpertise": "No expertise listed",
+      "industries": "Industries",
+      "noIndustries": "No industries listed"
+    },
+    "editDialog": {
+      "createTitle": "Create mentor profile: {{name}}",
+      "editTitle": "Edit mentor profile: {{name}}",
+      "createBody": "This mentor has no profile yet. Create one so participants can find and book them.",
+      "editBody": "Update the profile participants see when they book.",
+      "bio": "Bio",
+      "bioPlaceholder": "A short introduction for participants",
+      "expertise": "Expertise",
+      "expertisePlaceholder": "e.g., Fundraising, Product, Go-to-market",
+      "industries": "Industries",
+      "industriesPlaceholder": "e.g., Healthcare, Fintech",
+      "active": "Active",
+      "activeHint": "Inactive mentors are hidden from participants."
+    },
+    "toast": {
+      "createdTitle": "Mentor profile created",
+      "createdBody": "The mentor now appears to participants.",
+      "createFailed": "The mentor profile could not be created. Please try again.",
+      "updatedTitle": "Mentor profile updated",
+      "updateFailed": "The mentor profile could not be updated. Please try again."
+    },
+    "sessions": {
+      "title": "Recent sessions",
+      "description": "Recent mentoring sessions across all cohorts.",
+      "loading": "Loading sessions",
+      "empty": "No recent sessions.",
+      "when": "{{date}} at {{start}} – {{end}}",
+      "columns": {
+        "session": "Session",
+        "when": "When",
+        "participants": "Participants"
+      },
+      "status": {
+        "completed": "Completed",
+        "upcoming": "Upcoming"
+      }
+    }
+  },
+  "users": {
+    "title": "Users",
+    "description": "Everyone with a Launchpad account, across all roles.",
+    "search": "Search users",
+    "invite": "Invite user",
+    "loading": "Loading users",
+    "empty": "No users found.",
+    "unnamed": "Unnamed user",
+    "columns": {
+      "name": "Name"
+    },
+    "editDialog": {
+      "title": "Edit user",
+      "subtitle": "Update this person's details and role."
+    },
+    "toast": {
+      "updatedTitle": "User updated",
+      "updateFailed": "The user could not be updated. Please try again."
+    }
+  },
+  "invite": {
+    "title": "Invite user",
+    "subtitle": "Create an account for this person. If email is set up, they also receive an invitation to sign in.",
+    "language": {
+      "label": "Language",
+      "hint": "The invitation email and their account use this language.",
+      "en": "English",
+      "es": "Español"
+    },
+    "send": "Send invitation",
+    "sending": "Sending...",
+    "toast": {
+      "sentTitle": "Invitation sent",
+      "sentBody": "The invitation email has been sent.",
+      "createdTitle": "User created",
+      "createdBody": "Email is not configured, so no invitation was sent.",
+      "exists": "A user with this email address already exists.",
+      "failed": "The invitation could not be sent. Please try again."
+    }
+  },
+  "roadmap": {
+    "tab": {
+      "title": "Program roadmap",
+      "description": "Create and manage the roadmap templates assigned to participant projects."
+    },
+    "templates": {
+      "heading": "Roadmap templates",
+      "activeCount_one": "<num>{{count}}</num> active template",
+      "activeCount_other": "<num>{{count}}</num> active templates",
+      "inactiveSuffix_one": ", {{count}} inactive",
+      "inactiveSuffix_other": ", {{count}} inactive",
+      "add": "Add template",
+      "addTitle": "Add roadmap template",
+      "editTitle": "Edit roadmap template",
+      "creating": "Creating...",
+      "emptyTitle": "No templates yet",
+      "emptyBody": "Add a roadmap template to set out the weekly tasks and milestones for a program.",
+      "inactive": "Inactive",
+      "default": "Default",
+      "restore": "Restore",
+      "assign": "Assign",
+      "deactivate": "Deactivate template",
+      "allCohorts": "All cohorts",
+      "unknownCohort": "Unknown cohort"
+    },
+    "templateForm": {
+      "name": "Template name",
+      "namePlaceholder": "e.g., 8-week AI startup accelerator",
+      "cohort": "Cohort",
+      "inactiveCohort": "{{name}} (Inactive)",
+      "descriptionPlaceholder": "The program structure and goals",
+      "default": "Default for its cohort",
+      "defaultHint": "Assigned automatically to every project that joins this cohort."
+    },
+    "assign": {
+      "title": "Assign \"{{name}}\" to a project",
+      "body": "Every item in this template is added to the project's roadmap. Items the project already has are kept.",
+      "project": "Project",
+      "noProjects": "No projects exist yet.",
+      "selectProject": "Select a project",
+      "projectOption": "{{project}} ({{cohort}})",
+      "projectNoCohort": "{{project}} (no cohort)",
+      "assigning": "Assigning...",
+      "confirm": "Assign roadmap"
+    },
+    "items": {
+      "heading": "{{name}}: items",
+      "count_one": "<num>{{count}}</num> item in this template",
+      "count_other": "<num>{{count}}</num> items in this template",
+      "weekCount_one": "{{count}} item",
+      "weekCount_other": "{{count}} items",
+      "add": "Add item",
+      "addTitle": "Add roadmap item",
+      "editTitle": "Edit roadmap item",
+      "adding": "Adding...",
+      "emptyTitle": "No items yet",
+      "emptyBody": "Add tasks, milestones and deliverables to structure the program week by week.",
+      "optional": "Optional",
+      "editAria": "Edit roadmap item {{title}}",
+      "editTooltip": "Edit roadmap item",
+      "deleteAria": "Delete roadmap item {{title}}",
+      "deleteTooltip": "Delete roadmap item",
+      "auto": {
+        "lesson": "Auto: lesson completed",
+        "module": "Auto: {{percent}}% of module",
+        "mentorSession_one": "Auto: {{count}} mentor session",
+        "mentorSession_other": "Auto: {{count}} mentor sessions"
+      }
+    },
+    "itemForm": {
+      "title": "Title",
+      "titlePlaceholder": "e.g., Complete market research",
+      "descriptionPlaceholder": "What the founder needs to do, and what done looks like",
+      "type": "Type",
+      "week": "Week",
+      "order": "Order",
+      "linkedModule": "Linked module",
+      "linkedLesson": "Linked lesson",
+      "none": "None",
+      "moduleOption": "Week {{week}}: {{title}}",
+      "pickModuleFirst": "Pick a module first",
+      "autoComplete": "Auto-complete when",
+      "autoTypes": {
+        "none": "Never (manual)",
+        "lesson": "Linked lesson is completed",
+        "module": "Linked module reaches a percent",
+        "mentor_session": "Mentor sessions are completed"
+      },
+      "thresholdModule": "Module completion (%)",
+      "thresholdSessions": "Completed sessions",
+      "optional": "Optional item"
+    },
+    "validation": {
+      "nameRequired": "Template name is required",
+      "descriptionRequired": "Description is required",
+      "titleRequired": "Title is required",
+      "weekMin": "Week must be at least 1",
+      "orderMin": "Order index must be 0 or greater",
+      "hoursMin": "Estimated hours must be at least 1",
+      "thresholdMin": "Threshold must be at least 1",
+      "pickLesson": "Pick the lesson that completes this item",
+      "pickModule": "Pick the module that completes this item",
+      "percentMax": "Percent must be 100 or less"
+    },
+    "confirm": {
+      "deactivateTitle": "Deactivate \"{{name}}\"?",
+      "deactivateBody": "It will no longer be offered for new assignments. Project roadmaps already created from it are kept, and you can restore the template later.",
+      "deactivateLabel": "Deactivate",
+      "deleteItemNamed": "Delete roadmap item \"{{title}}\"?",
+      "deleteItem": "Delete this roadmap item?",
+      "deleteItemBody": "This removes the item from the template and cannot be undone."
+    },
+    "toast": {
+      "templateCreatedTitle": "Template created",
+      "templateCreatedBody": "The roadmap template is saved.",
+      "templateCreateFailed": "The template could not be created. Please try again.",
+      "templateUpdatedTitle": "Template updated",
+      "templateRestoredBody": "The template is available for new assignments again.",
+      "templateUpdateFailed": "The template could not be updated. Please try again.",
+      "templateDeactivatedTitle": "Template deactivated",
+      "templateDeactivatedBody": "It is hidden from new assignments. You can restore it at any time.",
+      "templateDeactivateFailed": "The template could not be deactivated. Please try again.",
+      "assignedTitle": "Roadmap assigned",
+      "assigned_one": "{{count}} roadmap item assigned to the project.",
+      "assigned_other": "{{count}} roadmap items assigned to the project.",
+      "assignedGeneric": "The roadmap was assigned to the project.",
+      "assignFailed": "The roadmap could not be assigned. Please try again.",
+      "itemAddedTitle": "Item added",
+      "itemAddedBody": "The roadmap item is saved.",
+      "itemAddFailed": "The item could not be added. Please try again.",
+      "itemUpdatedTitle": "Item updated",
+      "itemUpdateFailed": "The item could not be updated. Please try again.",
+      "itemDeletedTitle": "Item deleted",
+      "itemDeletedBody": "The item was removed from this template.",
+      "itemDeleteFailed": "The item could not be deleted. Please try again."
+    }
+  }
+}

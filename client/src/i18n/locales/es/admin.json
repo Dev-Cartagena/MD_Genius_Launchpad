@@ -1,1 +1,456 @@
-{}
+{
+  "page": {
+    "title": "Administración",
+    "subtitle": "Gestiona postulaciones, cohortes, contenido del programa y personas de MD Genius Launchpad",
+    "restrictedSubtitle": "Acceso restringido",
+    "restrictedTitle": "Solo para administradores",
+    "restrictedBody": "Tu cuenta no tiene acceso de administrador. Si lo necesitas, pídeselo a un administrador de Launchpad."
+  },
+  "tabs": {
+    "overview": "Resumen",
+    "applications": "Postulaciones",
+    "cohorts": "Cohortes",
+    "roadmap": "Hoja de ruta",
+    "curriculum": "Currículo",
+    "mentors": "Mentores",
+    "investors": "Inversionistas",
+    "users": "Usuarios"
+  },
+  "shared": {
+    "saving": "Guardando...",
+    "changesSaved": "Tus cambios están guardados.",
+    "signedOutTitle": "Sesión cerrada",
+    "signedOutBody": "Tu sesión terminó. Te llevamos a iniciar sesión.",
+    "errorTitle": "Algo salió mal",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "status": "Estado",
+    "actions": "Acciones",
+    "view": "Ver",
+    "email": "Correo",
+    "emailAddress": "Correo electrónico",
+    "emailPlaceholder": "nombre@ejemplo.com",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "role": "Rol",
+    "selectRole": "Selecciona un rol",
+    "notProvided": "No indicado",
+    "noneListed": "Sin datos",
+    "separateWithCommas": "Separa con comas",
+    "description": "Descripción"
+  },
+  "validation": {
+    "email": "Ingresa un correo electrónico válido",
+    "role": "Selecciona un rol",
+    "cohortName": "El nombre de la cohorte debe tener al menos 3 caracteres",
+    "cohortDescription": "La descripción debe tener al menos 10 caracteres",
+    "startDate": "La fecha de inicio es obligatoria",
+    "endDate": "La fecha de cierre es obligatoria",
+    "capacity": "La capacidad debe ser al menos 1"
+  },
+  "setup": {
+    "title": "Configura el programa",
+    "progress": "{{done}} de {{total}} listos",
+    "done": "Listo",
+    "steps": {
+      "cohort": {
+        "title": "Crea una cohorte",
+        "description": "Una cohorte es una edición del programa, con sus propias fechas y participantes.",
+        "action": "Crear cohorte"
+      },
+      "curriculum": {
+        "title": "Agrega el currículo",
+        "description": "Módulos, lecciones y quizzes semanales para la cohorte.",
+        "action": "Abrir currículo"
+      },
+      "roadmap": {
+        "title": "Crea una plantilla de hoja de ruta",
+        "description": "Las tareas semana a semana que se asignan a cada startup.",
+        "action": "Abrir hoja de ruta"
+      },
+      "mentors": {
+        "title": "Invita mentores",
+        "description": "Así los mentores pueden configurar su perfil y dar sesiones.",
+        "action": "Abrir mentores"
+      }
+    }
+  },
+  "overview": {
+    "metrics": {
+      "totalApplications": "Total de postulaciones",
+      "allTime": "Desde el inicio",
+      "acceptanceRate": "Tasa de aceptación",
+      "ofAllApplications": "Del total de postulaciones",
+      "activeProjects": "Proyectos activos",
+      "acrossCohorts_one": "En {{count}} cohorte en curso",
+      "acrossCohorts_other": "En {{count}} cohortes en curso",
+      "users": "Usuarios",
+      "allRoles": "Todos los roles"
+    },
+    "recentApplications": "Postulaciones recientes",
+    "noApplications": "Aún no hay postulaciones.",
+    "score": "Puntaje",
+    "needsAttention": "Requiere atención",
+    "nothingNeedsAttention": "Por ahora no hay nada pendiente.",
+    "alerts": {
+      "pendingTitle": "Postulaciones por revisar",
+      "pending_one": "{{count}} postulación espera revisión",
+      "pending_other": "{{count}} postulaciones esperan revisión",
+      "cohortsTitle": "Cohortes activas",
+      "running_one": "{{count}} cohorte en curso",
+      "running_other": "{{count}} cohortes en curso",
+      "upcoming_one": "{{count}} cohorte por comenzar",
+      "upcoming_other": "{{count}} cohortes por comenzar",
+      "ended_one": "{{count}} cohorte activa con la fecha de cierre vencida",
+      "ended_other": "{{count}} cohortes activas con la fecha de cierre vencida",
+      "acceptedTitle": "Nuevos participantes",
+      "accepted_one": "{{count}} postulación aceptada esta semana",
+      "accepted_other": "{{count}} postulaciones aceptadas esta semana"
+    }
+  },
+  "applications": {
+    "title": "Postulaciones",
+    "count_one": "<num>{{count}}</num> postulación",
+    "count_other": "<num>{{count}}</num> postulaciones",
+    "filterPlaceholder": "Estado de la postulación",
+    "all": "Todas las postulaciones",
+    "exportCsv": "Exportar CSV",
+    "noMatch": "Ninguna postulación coincide con este filtro.",
+    "unknownUser": "Usuario desconocido",
+    "columns": {
+      "applicant": "Postulante",
+      "project": "Proyecto",
+      "score": "Puntaje"
+    },
+    "csv": {
+      "applicantName": "Nombre del postulante",
+      "projectName": "Nombre del proyecto",
+      "status": "Estado",
+      "score": "Puntaje",
+      "email": "Correo",
+      "submittedDaysAgo": "Días desde el envío",
+      "description": "Descripción",
+      "reviewerNotes": "Notas de revisión"
+    },
+    "toast": {
+      "exportReadyTitle": "Exportación lista",
+      "exportReady_one": "{{count}} postulación exportada a CSV.",
+      "exportReady_other": "{{count}} postulaciones exportadas a CSV.",
+      "exportFailedTitle": "No se pudo exportar",
+      "exportFailedBody": "No pudimos exportar las postulaciones. Intenta de nuevo.",
+      "statusUpdatedTitle": "Estado actualizado",
+      "statusUpdatedBody": "El estado de la postulación está guardado.",
+      "updateFailed": "No pudimos actualizar la postulación. Intenta de nuevo.",
+      "selectStatusTitle": "Selecciona un estado",
+      "selectStatusBody": "Elige el nuevo estado antes de guardar."
+    },
+    "statusDialog": {
+      "trigger": "Cambiar estado",
+      "title": "Cambiar estado de la postulación",
+      "subtitle": "Postulación de {{applicant}} para {{project}}",
+      "currentStatus": "Estado actual",
+      "newStatus": "Nuevo estado",
+      "selectStatus": "Selecciona un estado",
+      "reviewerNotes": "Notas de revisión",
+      "notesPlaceholder": "Agrega una nota al registro de revisión (opcional)",
+      "previousNotes": "Notas anteriores",
+      "updating": "Actualizando..."
+    },
+    "viewDialog": {
+      "title": "Detalle de la postulación",
+      "subtitle": "Postulación de {{applicant}}",
+      "applicantName": "Nombre del postulante",
+      "projectName": "Nombre del proyecto",
+      "score": "Puntaje",
+      "submitted": "Enviada",
+      "daysAgo_one": "Hace {{count}} día",
+      "daysAgo_other": "Hace {{count}} días",
+      "projectDescription": "Descripción del proyecto",
+      "reviewerNotes": "Notas de revisión"
+    }
+  },
+  "cohorts": {
+    "title": "Cohortes",
+    "subtitle": "Solo se puede postular a cohortes activas.",
+    "add": "Agregar cohorte",
+    "creating": "Creando...",
+    "editTitle": "Editar cohorte",
+    "loading": "Cargando cohortes",
+    "empty": "Aún no hay cohortes. Agrega una para abrir las postulaciones.",
+    "deactivate": "Desactivar",
+    "reactivate": "Reactivar",
+    "active": "Activa",
+    "inactive": "Inactiva",
+    "form": {
+      "name": "Nombre de la cohorte",
+      "namePlaceholder": "p. ej., Cohorte de primavera",
+      "capacity": "Capacidad",
+      "descriptionPlaceholder": "El enfoque y los objetivos de la cohorte",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de cierre"
+    },
+    "columns": {
+      "cohort": "Cohorte",
+      "dates": "Fechas",
+      "capacity": "Capacidad"
+    },
+    "toast": {
+      "reactivatedTitle": "Cohorte reactivada",
+      "reactivatedBody": "Los postulantes vuelven a ver esta cohorte.",
+      "deactivatedTitle": "Cohorte desactivada",
+      "deactivatedBody": "Esta cohorte ya no es visible para los postulantes.",
+      "updateFailed": "No pudimos actualizar la cohorte. Intenta de nuevo.",
+      "createdTitle": "Cohorte creada",
+      "createdBody": "La nueva cohorte está guardada.",
+      "createFailed": "No pudimos crear la cohorte. Intenta de nuevo.",
+      "updatedTitle": "Cohorte actualizada"
+    }
+  },
+  "mentors": {
+    "title": "Mentores",
+    "description": "Gestiona los perfiles de mentores y revisa a quiénes pueden agendar los participantes.",
+    "search": "Buscar mentores",
+    "invite": "Invitar mentor",
+    "loading": "Cargando mentores",
+    "empty": "No se encontraron mentores.",
+    "unnamed": "Mentor sin nombre",
+    "noProfileWarning": "Aún no tiene perfil de mentor, así que los participantes no pueden verlo ni agendar sesiones.",
+    "noProfile": "Sin perfil",
+    "viewMentor": "Ver mentor",
+    "editMentor": "Editar mentor",
+    "createProfile": "Crear perfil",
+    "editProfile": "Editar perfil",
+    "emailName": "Escribir a {{name}}",
+    "columns": {
+      "mentor": "Mentor",
+      "expertise": "Especialidad",
+      "industries": "Industrias"
+    },
+    "viewDialog": {
+      "title": "Perfil de mentor: {{name}}",
+      "subtitle": "Datos de contacto y el perfil que ven los participantes.",
+      "name": "Nombre",
+      "noProfileYet": "Aún sin perfil",
+      "bio": "Biografía",
+      "noBio": "Sin biografía",
+      "expertise": "Especialidad",
+      "noExpertise": "Sin especialidades",
+      "industries": "Industrias",
+      "noIndustries": "Sin industrias"
+    },
+    "editDialog": {
+      "createTitle": "Crear perfil de mentor: {{name}}",
+      "editTitle": "Editar perfil de mentor: {{name}}",
+      "createBody": "Este mentor aún no tiene perfil. Créalo para que los participantes puedan encontrarlo y agendar sesiones.",
+      "editBody": "Actualiza el perfil que ven los participantes al agendar.",
+      "bio": "Biografía",
+      "bioPlaceholder": "Una presentación breve para los participantes",
+      "expertise": "Especialidad",
+      "expertisePlaceholder": "p. ej., Fundraising, Producto, Go-to-market",
+      "industries": "Industrias",
+      "industriesPlaceholder": "p. ej., Salud, Fintech",
+      "active": "Activo",
+      "activeHint": "Los mentores inactivos no son visibles para los participantes."
+    },
+    "toast": {
+      "createdTitle": "Perfil de mentor creado",
+      "createdBody": "El mentor ya es visible para los participantes.",
+      "createFailed": "No pudimos crear el perfil de mentor. Intenta de nuevo.",
+      "updatedTitle": "Perfil de mentor actualizado",
+      "updateFailed": "No pudimos actualizar el perfil de mentor. Intenta de nuevo."
+    },
+    "sessions": {
+      "title": "Sesiones recientes",
+      "description": "Sesiones de mentoría recientes de todas las cohortes.",
+      "loading": "Cargando sesiones",
+      "empty": "No hay sesiones recientes.",
+      "when": "{{date}}, {{start}} – {{end}}",
+      "columns": {
+        "session": "Sesión",
+        "when": "Cuándo",
+        "participants": "Participantes"
+      },
+      "status": {
+        "completed": "Completada",
+        "upcoming": "Próxima"
+      }
+    }
+  },
+  "users": {
+    "title": "Usuarios",
+    "description": "Todas las personas con cuenta en Launchpad, de todos los roles.",
+    "search": "Buscar usuarios",
+    "invite": "Invitar usuario",
+    "loading": "Cargando usuarios",
+    "empty": "No se encontraron usuarios.",
+    "unnamed": "Usuario sin nombre",
+    "columns": {
+      "name": "Nombre"
+    },
+    "editDialog": {
+      "title": "Editar usuario",
+      "subtitle": "Actualiza los datos y el rol de esta persona."
+    },
+    "toast": {
+      "updatedTitle": "Usuario actualizado",
+      "updateFailed": "No pudimos actualizar el usuario. Intenta de nuevo."
+    }
+  },
+  "invite": {
+    "title": "Invitar usuario",
+    "subtitle": "Crea una cuenta para esta persona. Si el correo está configurado, también recibe una invitación para iniciar sesión.",
+    "language": {
+      "label": "Idioma",
+      "hint": "El correo de invitación y su cuenta usan este idioma.",
+      "en": "English",
+      "es": "Español"
+    },
+    "send": "Enviar invitación",
+    "sending": "Enviando...",
+    "toast": {
+      "sentTitle": "Invitación enviada",
+      "sentBody": "Enviamos el correo de invitación.",
+      "createdTitle": "Usuario creado",
+      "createdBody": "El correo no está configurado, así que no se envió ninguna invitación.",
+      "exists": "Ya existe un usuario con este correo electrónico.",
+      "failed": "No pudimos enviar la invitación. Intenta de nuevo."
+    }
+  },
+  "roadmap": {
+    "tab": {
+      "title": "Hoja de ruta del programa",
+      "description": "Crea y gestiona las plantillas de hoja de ruta que se asignan a los proyectos de los participantes."
+    },
+    "templates": {
+      "heading": "Plantillas de hoja de ruta",
+      "activeCount_one": "<num>{{count}}</num> plantilla activa",
+      "activeCount_other": "<num>{{count}}</num> plantillas activas",
+      "inactiveSuffix_one": ", {{count}} inactiva",
+      "inactiveSuffix_other": ", {{count}} inactivas",
+      "add": "Agregar plantilla",
+      "addTitle": "Agregar plantilla de hoja de ruta",
+      "editTitle": "Editar plantilla de hoja de ruta",
+      "creating": "Creando...",
+      "emptyTitle": "Aún no hay plantillas",
+      "emptyBody": "Agrega una plantilla de hoja de ruta para definir las tareas e hitos semanales de un programa.",
+      "inactive": "Inactiva",
+      "default": "Predeterminada",
+      "restore": "Restaurar",
+      "assign": "Asignar",
+      "deactivate": "Desactivar plantilla",
+      "allCohorts": "Todas las cohortes",
+      "unknownCohort": "Cohorte desconocida"
+    },
+    "templateForm": {
+      "name": "Nombre de la plantilla",
+      "namePlaceholder": "p. ej., Aceleradora de startups de IA de 8 semanas",
+      "cohort": "Cohorte",
+      "inactiveCohort": "{{name}} (inactiva)",
+      "descriptionPlaceholder": "La estructura y los objetivos del programa",
+      "default": "Predeterminada para su cohorte",
+      "defaultHint": "Se asigna automáticamente a cada proyecto que se une a esta cohorte."
+    },
+    "assign": {
+      "title": "Asignar \"{{name}}\" a un proyecto",
+      "body": "Todas las actividades de esta plantilla se agregan a la hoja de ruta del proyecto. Las que el proyecto ya tiene se mantienen.",
+      "project": "Proyecto",
+      "noProjects": "Aún no hay proyectos.",
+      "selectProject": "Selecciona un proyecto",
+      "projectOption": "{{project}} ({{cohort}})",
+      "projectNoCohort": "{{project}} (sin cohorte)",
+      "assigning": "Asignando...",
+      "confirm": "Asignar hoja de ruta"
+    },
+    "items": {
+      "heading": "{{name}}: actividades",
+      "count_one": "<num>{{count}}</num> actividad en esta plantilla",
+      "count_other": "<num>{{count}}</num> actividades en esta plantilla",
+      "weekCount_one": "{{count}} actividad",
+      "weekCount_other": "{{count}} actividades",
+      "add": "Agregar actividad",
+      "addTitle": "Agregar actividad",
+      "editTitle": "Editar actividad",
+      "adding": "Agregando...",
+      "emptyTitle": "Aún no hay actividades",
+      "emptyBody": "Agrega tareas, hitos y entregables para estructurar el programa semana a semana.",
+      "optional": "Opcional",
+      "editAria": "Editar actividad {{title}}",
+      "editTooltip": "Editar actividad",
+      "deleteAria": "Eliminar actividad {{title}}",
+      "deleteTooltip": "Eliminar actividad",
+      "auto": {
+        "lesson": "Auto: lección completada",
+        "module": "Auto: {{percent}}% del módulo",
+        "mentorSession_one": "Auto: {{count}} sesión de mentoría",
+        "mentorSession_other": "Auto: {{count}} sesiones de mentoría"
+      }
+    },
+    "itemForm": {
+      "title": "Título",
+      "titlePlaceholder": "p. ej., Completar la investigación de mercado",
+      "descriptionPlaceholder": "Lo que debe hacer el equipo fundador y cómo se ve terminado",
+      "type": "Tipo",
+      "week": "Semana",
+      "order": "Orden",
+      "linkedModule": "Módulo vinculado",
+      "linkedLesson": "Lección vinculada",
+      "none": "Ninguno",
+      "moduleOption": "Semana {{week}}: {{title}}",
+      "pickModuleFirst": "Primero elige un módulo",
+      "autoComplete": "Completar automáticamente cuando",
+      "autoTypes": {
+        "none": "Nunca (manual)",
+        "lesson": "Se completa la lección vinculada",
+        "module": "El módulo vinculado llega a un porcentaje",
+        "mentor_session": "Se completan sesiones de mentoría"
+      },
+      "thresholdModule": "Avance del módulo (%)",
+      "thresholdSessions": "Sesiones completadas",
+      "optional": "Actividad opcional"
+    },
+    "validation": {
+      "nameRequired": "El nombre de la plantilla es obligatorio",
+      "descriptionRequired": "La descripción es obligatoria",
+      "titleRequired": "El título es obligatorio",
+      "weekMin": "La semana debe ser al menos 1",
+      "orderMin": "El orden debe ser 0 o mayor",
+      "hoursMin": "Las horas estimadas deben ser al menos 1",
+      "thresholdMin": "El umbral debe ser al menos 1",
+      "pickLesson": "Elige la lección que completa esta actividad",
+      "pickModule": "Elige el módulo que completa esta actividad",
+      "percentMax": "El porcentaje debe ser 100 o menos"
+    },
+    "confirm": {
+      "deactivateTitle": "¿Desactivar \"{{name}}\"?",
+      "deactivateBody": "Ya no se ofrecerá para nuevas asignaciones. Las hojas de ruta de proyectos creadas a partir de ella se mantienen, y puedes restaurar la plantilla más adelante.",
+      "deactivateLabel": "Desactivar",
+      "deleteItemNamed": "¿Eliminar la actividad \"{{title}}\"?",
+      "deleteItem": "¿Eliminar esta actividad?",
+      "deleteItemBody": "Esto quita la actividad de la plantilla y no se puede deshacer."
+    },
+    "toast": {
+      "templateCreatedTitle": "Plantilla creada",
+      "templateCreatedBody": "La plantilla de hoja de ruta está guardada.",
+      "templateCreateFailed": "No pudimos crear la plantilla. Intenta de nuevo.",
+      "templateUpdatedTitle": "Plantilla actualizada",
+      "templateRestoredBody": "La plantilla vuelve a estar disponible para nuevas asignaciones.",
+      "templateUpdateFailed": "No pudimos actualizar la plantilla. Intenta de nuevo.",
+      "templateDeactivatedTitle": "Plantilla desactivada",
+      "templateDeactivatedBody": "Ya no se ofrece para nuevas asignaciones. Puedes restaurarla cuando quieras.",
+      "templateDeactivateFailed": "No pudimos desactivar la plantilla. Intenta de nuevo.",
+      "assignedTitle": "Hoja de ruta asignada",
+      "assigned_one": "Se asignó {{count}} actividad al proyecto.",
+      "assigned_other": "Se asignaron {{count}} actividades al proyecto.",
+      "assignedGeneric": "La hoja de ruta se asignó al proyecto.",
+      "assignFailed": "No pudimos asignar la hoja de ruta. Intenta de nuevo.",
+      "itemAddedTitle": "Actividad agregada",
+      "itemAddedBody": "La actividad está guardada.",
+      "itemAddFailed": "No pudimos agregar la actividad. Intenta de nuevo.",
+      "itemUpdatedTitle": "Actividad actualizada",
+      "itemUpdateFailed": "No pudimos actualizar la actividad. Intenta de nuevo.",
+      "itemDeletedTitle": "Actividad eliminada",
+      "itemDeletedBody": "La actividad se quitó de esta plantilla.",
+      "itemDeleteFailed": "No pudimos eliminar la actividad. Intenta de nuevo."
+    }
+  }
+}
