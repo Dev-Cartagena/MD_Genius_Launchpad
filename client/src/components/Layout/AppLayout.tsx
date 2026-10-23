@@ -16,7 +16,8 @@ import { ChevronDown, User, LogOut, Menu } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  title: string;
+  /** Omit to render a page with its own hero (only the menu and profile controls show). */
+  title?: string;
   subtitle?: string;
 }
 
@@ -41,7 +42,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
       <main className="flex-1 min-w-0 overflow-auto">
         {/* Header */}
         <header className="bg-background px-4 pt-4 md:px-8 md:pt-6">
-          <div className="flex items-center justify-between gap-2 pb-3 md:pb-4">
+          <div className={`flex items-center justify-between gap-2 ${title ? "pb-3 md:pb-4" : "pb-1"}`}>
             <div className="flex items-center gap-2 min-w-0">
               <Button
                 variant="ghost"
@@ -54,12 +55,12 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               >
                 <Menu className="h-5 w-5" />
               </Button>
-              <div className="min-w-0">
+              {title && <div className="min-w-0">
                 <h1 className="truncate font-display text-2xl font-medium text-foreground md:text-[32px]" data-testid="page-title">{title}</h1>
                 {subtitle && (
                   <p className="mt-1 line-clamp-2 font-display text-sm text-muted-foreground md:truncate md:text-base" data-testid="page-subtitle">{subtitle}</p>
                 )}
-              </div>
+              </div>}
             </div>
             
             <div className="flex items-center shrink-0">
@@ -106,7 +107,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               </DropdownMenu>
             </div>
           </div>
-          <NodeRule />
+          {title && <NodeRule />}
         </header>
 
         {/* Main Content */}
