@@ -33,7 +33,12 @@ const isLevel = (v: string): v is InterestLevel => (investorInterestLevelEnum.en
 const isSessionType = (v: string): v is SessionType => (SESSION_TYPES as readonly string[]).includes(v);
 
 export default function InvestorDashboard() {
-  const { t } = useTranslation(["dashboard", "common"]);
+  const { t, i18n } = useTranslation(["dashboard", "common"]);
+  // Sectors are stored values (a project's primary AI component); show the translated label when there is one
+  const sectorLabel = (sector: string) => {
+    const key = `investors:sectors.${sector.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
+    return i18n.exists(key) ? String(t(key as never)) : sector;
+  };
   const stageLabel = (stage: string) => (isStage(stage) ? t(`common:projectStage.${stage}`) : stage.replace(/_/g, " "));
   const sessionTypeLabel = (type: string) =>
     isSessionType(type) ? t(`investor.sessionType.${type}`) : type.replace(/_/g, " ");
@@ -231,19 +236,19 @@ export default function InvestorDashboard() {
               </div>
               <div className="grid grid-cols-2 gap-2 md:flex">
                 <Select value={selectedSector} onValueChange={setSelectedSector}>
-                  <SelectTrigger className="w-full md:w-40" data-testid="select-sector-filter">
+                  <SelectTrigger className="w-full md:w-48" data-testid="select-sector-filter">
                     <SelectValue placeholder={t("investor.filters.sector")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("investor.filters.allSectors")}</SelectItem>
                     {sectorOptions.map((sector) => (
-                      <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                      <SelectItem key={sector} value={sector}>{sectorLabel(sector)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
                 <Select value={selectedStage} onValueChange={setSelectedStage}>
-                  <SelectTrigger className="w-full md:w-40" data-testid="select-stage-filter">
+                  <SelectTrigger className="w-full md:w-48" data-testid="select-stage-filter">
                     <SelectValue placeholder={t("investor.filters.stage")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,7 +306,7 @@ export default function InvestorDashboard() {
                   <div className="flex flex-wrap items-center gap-1">
                     {startup.sector && (
                       <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
-                        {startup.sector}
+                        {sectorLabel(startup.sector)}
                       </Badge>
                     )}
                     <Badge variant="secondary" data-testid={`startup-stage-${startup.id}`}>

@@ -5,13 +5,13 @@
     "process_guide": { "label": "Guía del proceso", "description": "Plazos, pasos, listas de verificación" },
     "ideation": { "label": "Ideación", "description": "Definir el problema, ideas de solución" },
     "technical": { "label": "Técnico", "description": "Fundamentos de IA/ML, implementación" },
-    "gtm": { "label": "Go-to-market", "description": "Descubrimiento de clientes, mensajes" },
+    "gtm": { "label": "Salida al mercado", "description": "Descubrimiento de clientes, mensajes" },
     "pitch": { "label": "Coach de pitch", "description": "Preparación para inversionistas, storytelling" }
   },
   "sources": "Fuentes",
   "thinking": "AI Coach está pensando",
   "input": {
-    "placeholder": "Pregunta sobre tu startup o el programa",
+    "placeholder": "Pregunta sobre tu startup",
     "label": "Escríbele al AI Coach",
     "send": "Enviar mensaje",
     "hint": "Presiona Enter para enviar",

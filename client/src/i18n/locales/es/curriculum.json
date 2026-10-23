@@ -31,12 +31,12 @@
     "toast": {
       "passed": {
         "title": "Quiz aprobado",
-        "description": "Obtuviste {{score}} %. La lección quedó completada."
+        "description": "Obtuviste {{score}}%. La lección quedó completada."
       },
       "notPassed": {
         "title": "Quiz no aprobado",
-        "description": "Obtuviste {{score}} %.",
-        "descriptionWithThreshold": "Obtuviste {{score}} %. Necesitas {{threshold}} % para aprobar."
+        "description": "Obtuviste {{score}}%.",
+        "descriptionWithThreshold": "Obtuviste {{score}}%. Necesitas {{threshold}}% para aprobar."
       },
       "submitFailed": {
         "title": "No se pudo enviar el quiz",
@@ -44,13 +44,13 @@
       }
     },
     "loadFailed": "No se pudo cargar el quiz de esta lección.",
-    "passMark": "Para aprobar: {{threshold}} %",
+    "passMark": "Para aprobar: {{threshold}}%",
     "attemptOf": "Intento {{attempt}} de {{max}}",
     "maxAttempts": "Máximo de intentos: {{max}}",
     "alreadyCompleted": "Ya completaste esta lección.",
     "result": {
-      "passed": "Aprobado: {{correct}} de {{total}} correctas ({{score}} %).",
-      "notPassed": "No aprobado: {{correct}} de {{total}} correctas ({{score}} %)."
+      "passed": "Aprobado: {{correct}} de {{total}} correctas ({{score}}%).",
+      "notPassed": "No aprobado: {{correct}} de {{total}} correctas ({{score}}%)."
     },
     "noAttemptsLeft": "Ya no te quedan intentos para este quiz.",
     "submit": "Enviar respuestas",
@@ -93,7 +93,7 @@
   "overview": {
     "title": "{{cohort}}: progreso del currículo",
     "adminView": "Vista de administración",
-    "percentComplete": "{{percent}} % completado",
+    "percentComplete": "{{percent}}% completado",
     "stats": {
       "modules_one": "Módulo",
       "modules_other": "Módulos",

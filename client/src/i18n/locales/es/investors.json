@@ -6,8 +6,8 @@
     "subtitleParticipant": "Encuentra inversionistas cuyo enfoque coincida con tu emprendimiento"
   },
   "tabs": {
-    "startups": "Directorio de startups",
-    "investors": "Directorio de inversionistas",
+    "startups": "Startups",
+    "investors": "Inversionistas",
     "events": "Eventos y demo days"
   },
   "filters": {

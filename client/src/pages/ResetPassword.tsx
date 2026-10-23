@@ -59,7 +59,7 @@ export default function ResetPassword() {
     onError: (error) => {
       toast({
         title: t("toast.resetFailed.title"),
-        description: getApiErrorMessage(error),
+        description: getApiErrorMessage(error, t("status.tryAgainLater", { ns: "common" })),
         variant: "destructive",
       });
     },

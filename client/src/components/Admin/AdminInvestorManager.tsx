@@ -683,7 +683,7 @@ export default function AdminInvestorManager() {
             {t("header.description")}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 sm:shrink-0 sm:flex-nowrap">
           <Dialog open={isCreateSessionOpen} onOpenChange={setIsCreateSessionOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-create-session">

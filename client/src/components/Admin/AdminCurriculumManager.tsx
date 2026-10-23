@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type ReactNode } from "react";
+import { Fragment, useState, useMemo, useEffect, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog, { type ConfirmRequest } from "@/components/ConfirmDialog";
 import { ContentLanguageTabs } from "@/components/ContentLanguageTabs";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/utils";
 import { formatCohortDate } from "@/lib/dates";
 import { useLocalized } from "@/lib/localized";
 import type { Module, Lesson, Quiz, Cohort, Locale } from "@shared/schema";
@@ -217,7 +218,7 @@ function ModuleTextFields({
     <>
       <ContentLanguageTabs value={lang} onChange={onLangChange} spanishMissing={!esTitle?.trim()} />
       {lang === "en" ? (
-        <>
+        <Fragment key="en">
           <FormField
             control={form.control}
             name="title"
@@ -252,9 +253,9 @@ function ModuleTextFields({
               </FormItem>
             )}
           />
-        </>
+        </Fragment>
       ) : (
-        <>
+        <Fragment key="es">
           <FormField
             control={form.control}
             name="translations.es.title"
@@ -285,7 +286,7 @@ function ModuleTextFields({
           />
           {renderList("objectives", baseObjectives, esObjectives)}
           {renderList("resources", baseResources, esResources)}
-        </>
+        </Fragment>
       )}
     </>
   );
@@ -314,6 +315,7 @@ function LessonTextFields({
       <ContentLanguageTabs value={lang} onChange={onLangChange} spanishMissing={!esTitle?.trim()} />
       {lang === "en" ? (
         <FormField
+          key="title-en"
           control={form.control}
           name="title"
           render={({ field }) => (
@@ -332,6 +334,7 @@ function LessonTextFields({
         />
       ) : (
         <FormField
+          key="title-es"
           control={form.control}
           name="translations.es.title"
           render={({ field }) => (
@@ -349,6 +352,7 @@ function LessonTextFields({
       {moduleField}
       {lang === "en" ? (
         <FormField
+          key="content-en"
           control={form.control}
           name="content"
           render={({ field }) => (
@@ -368,6 +372,7 @@ function LessonTextFields({
         />
       ) : (
         <FormField
+          key="content-es"
           control={form.control}
           name="translations.es.content"
           render={({ field }) => (
@@ -530,7 +535,7 @@ function QuizFormFields({
 
   if (lang === "es") {
     return (
-      <>
+      <Fragment key="es">
         <ContentLanguageTabs value={lang} onChange={onLangChange} spanishMissing={!esTitle?.trim()} />
         <FormField
           control={form.control}
@@ -605,12 +610,12 @@ function QuizFormFields({
             </div>
           ))}
         </div>
-      </>
+      </Fragment>
     );
   }
 
   return (
-    <>
+    <Fragment key="en">
       <ContentLanguageTabs value={lang} onChange={onLangChange} spanishMissing={!esTitle?.trim()} />
       <FormField
         control={form.control}
@@ -784,7 +789,7 @@ function QuizFormFields({
           );
         })}
       </div>
-    </>
+    </Fragment>
   );
 }
 
@@ -1112,7 +1117,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.createModule"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1142,7 +1147,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.updateModule"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1171,7 +1176,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.deleteModule"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1202,7 +1207,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.duplicateModule"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1240,7 +1245,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.createLesson"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1284,7 +1289,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.updateLesson"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1319,7 +1324,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.deleteLesson"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1339,7 +1344,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.createQuiz"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1358,7 +1363,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.updateQuiz"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },
@@ -1376,7 +1381,7 @@ export default function AdminCurriculumManager({
     onError: (error: any) => {
       toast({
         title: t("toast.error.deleteQuiz"),
-        description: error.message,
+        description: getApiErrorMessage(error, t("common:status.tryAgainLater")),
         variant: "destructive",
       });
     },

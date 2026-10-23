@@ -81,7 +81,7 @@
     "signIn": {
       "title": "Crea una cuenta para postularte",
       "body": "Las postulaciones se guardan en tu cuenta, así que puedes retomar un borrador y seguir su estado después de enviarla. Inicia sesión o crea una cuenta gratuita y luego vuelve aquí para completar el formulario.",
-      "button": "Inicia sesión o crea una cuenta para postularte"
+      "button": "Inicia sesión o regístrate"
     }
   },
   "form": {

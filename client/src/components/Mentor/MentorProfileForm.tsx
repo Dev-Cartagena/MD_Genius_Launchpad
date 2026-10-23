@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, X, Star, Clock, Users, Save, CheckCircle } from "lucide-react";
@@ -156,7 +157,7 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
     onError: (error: any) => {
       toast({
         title: t("form.toast.createFailed.title"),
-        description: error.message || t("form.toast.createFailed.description"),
+        description: getApiErrorMessage(error, t("form.toast.createFailed.description")),
         variant: "destructive",
       });
     },
@@ -178,7 +179,7 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
     onError: (error: any) => {
       toast({
         title: t("form.toast.saveFailed.title"),
-        description: error.message || t("form.toast.saveFailed.description"),
+        description: getApiErrorMessage(error, t("form.toast.saveFailed.description")),
         variant: "destructive",
       });
     },

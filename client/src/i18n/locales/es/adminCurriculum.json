@@ -174,7 +174,7 @@
     "correct": "Respuesta correcta",
     "emptyTitle": "Aún no hay quizzes",
     "emptyBody": "Crea un quiz para comprobar lo que aprendieron los participantes.",
-    "percent": "{{value}} %",
+    "percent": "{{value}}%",
     "table": {
       "quiz": "Quiz",
       "questions": "Preguntas",

@@ -395,6 +395,7 @@
       "linkedModule": "Módulo vinculado",
       "linkedLesson": "Lección vinculada",
       "none": "Ninguno",
+      "noneLesson": "Ninguna",
       "moduleOption": "Semana {{week}}: {{title}}",
       "pickModuleFirst": "Primero elige un módulo",
       "autoComplete": "Completar automáticamente cuando",

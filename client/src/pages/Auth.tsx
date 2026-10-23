@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { currentLocale } from "@/i18n";
@@ -102,7 +103,7 @@ export default function Auth() {
     onError: (error: any) => {
       toast({
         title: t("toast.signInFailed.title"),
-        description: error.message || t("toast.signInFailed.description"),
+        description: getApiErrorMessage(error, t("toast.signInFailed.description")),
         variant: "destructive",
       });
     },
@@ -118,7 +119,7 @@ export default function Auth() {
     onError: (error: any) => {
       toast({
         title: t("toast.registerFailed.title"),
-        description: error.message || t("toast.registerFailed.description"),
+        description: getApiErrorMessage(error, t("toast.registerFailed.description")),
         variant: "destructive",
       });
     },
@@ -136,7 +137,7 @@ export default function Auth() {
     onError: (error: any) => {
       toast({
         title: t("toast.resetEmailFailed.title"),
-        description: error.message || t("toast.resetEmailFailed.description"),
+        description: getApiErrorMessage(error, t("toast.resetEmailFailed.description")),
         variant: "destructive",
       });
     },

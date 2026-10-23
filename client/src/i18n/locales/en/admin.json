@@ -395,6 +395,7 @@
       "linkedModule": "Linked module",
       "linkedLesson": "Linked lesson",
       "none": "None",
+      "noneLesson": "None",
       "moduleOption": "Week {{week}}: {{title}}",
       "pickModuleFirst": "Pick a module first",
       "autoComplete": "Auto-complete when",

@@ -682,7 +682,7 @@ export default function CurriculumView() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-lg">{t("timeline.title")}</CardTitle>
-              <span className="font-display text-sm text-muted-foreground">
+              <span className="shrink-0 whitespace-nowrap font-display text-sm text-muted-foreground">
                 {t("common:weekOf", { week: selectedWeek, total: totalWeeks })}
               </span>
             </div>

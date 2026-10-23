@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { Fragment, useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog, { type ConfirmRequest } from "@/components/ConfirmDialog";
@@ -895,7 +895,7 @@ export default function AdminRoadmapManager() {
                     <Users className="w-3 h-3 mr-1" />
                     {cohortName(template.cohortId)}
                   </div>
-                  <div className="flex flex-wrap items-center justify-end mt-4 pt-3 border-t">
+                  <div className="flex flex-wrap items-center justify-end mt-4 pt-3 border-t [&>button]:px-2.5">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1026,7 +1026,7 @@ export default function AdminRoadmapManager() {
                       />
 
                       {itemLang === "en" ? (
-                        <>
+                        <Fragment key="en">
                           <FormField
                             key="title-en"
                             control={itemForm.control}
@@ -1064,9 +1064,9 @@ export default function AdminRoadmapManager() {
                               </FormItem>
                             )}
                           />
-                        </>
+                        </Fragment>
                       ) : (
-                        <>
+                        <Fragment key="es">
                           <FormField
                             key="title-es"
                             control={itemForm.control}
@@ -1108,7 +1108,7 @@ export default function AdminRoadmapManager() {
                               </FormItem>
                             )}
                           />
-                        </>
+                        </Fragment>
                       )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1227,7 +1227,7 @@ export default function AdminRoadmapManager() {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value={NONE}>{t("roadmap.itemForm.none")}</SelectItem>
+                                  <SelectItem value={NONE}>{t("roadmap.itemForm.noneLesson")}</SelectItem>
                                   {lessons.map((lesson) => (
                                     <SelectItem key={lesson.id} value={lesson.id}>
                                       {localized.text(lesson, "title")}
