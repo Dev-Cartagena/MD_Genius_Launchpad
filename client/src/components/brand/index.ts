@@ -6,3 +6,5 @@ export { ConnectorBadge } from "./ConnectorBadge";
 export { BlockLoader } from "./BlockLoader";
 export { DropZone } from "./DropZone";
 export { StatusChip } from "./StatusChip";
+export { ProgramTrack } from "./ProgramTrack";
+export { ArrowDisc } from "./ArrowDisc";
