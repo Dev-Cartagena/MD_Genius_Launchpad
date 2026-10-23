@@ -1,4 +1,8 @@
+import { useEffect } from "react";
 import { Switch, Route } from "wouter";
+import { useTranslation } from "react-i18next";
+import { BlockLoader } from "@/components/brand/BlockLoader";
+import { isLocale } from "@/i18n";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,15 +27,20 @@ import ResetPassword from "@/pages/ResetPassword";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  // Subscribing here re-renders the whole tree when the language changes.
+  const { t, i18n } = useTranslation();
+
+  // The account's language wins once we know who is signed in.
+  useEffect(() => {
+    if (user && isLocale(user.locale) && user.locale !== i18n.language) {
+      i18n.changeLanguage(user.locale);
+    }
+  }, [user, i18n]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-primary rounded-full animate-pulse"></div>
-          <div className="w-4 h-4 bg-accent rounded-full animate-pulse"></div>
-          <div className="w-4 h-4 bg-primary rounded-full animate-pulse"></div>
-        </div>
+        <BlockLoader label={t("status.loading")} />
       </div>
     );
   }

@@ -1,3 +1,5 @@
+import { intlLocale } from "@/i18n";
+
 /**
  * Cohort start/end dates are stored as UTC midnight. Format them in UTC so they
  * don't shift a day for users west of UTC.
@@ -9,5 +11,5 @@ export function formatCohortDate(
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString(undefined, { ...options, timeZone: "UTC" });
+  return date.toLocaleDateString(intlLocale(), { ...options, timeZone: "UTC" });
 }
