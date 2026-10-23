@@ -155,6 +155,17 @@ function zodMessage(error: z.ZodError): string {
   return issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message;
 }
 
+/** Week 1-8 of the user's cohort today, or null when they have no cohort. */
+async function currentProgramWeek(userId: string): Promise<number | null> {
+  const project = await storage.getRoadmapProjectForUser(userId);
+  const cohortId = project?.cohortId ?? (await storage.getAcceptedCohortIds(userId))[0];
+  if (!cohortId) return null;
+  const cohort = await storage.getCohort(cohortId);
+  if (!cohort?.startDate) return null;
+  const elapsed = Math.floor((Date.now() - new Date(cohort.startDate).getTime()) / (7 * 24 * 60 * 60 * 1000));
+  return Math.min(Math.max(elapsed + 1, 1), 8);
+}
+
 /** Non-admins may only attach a project to a cohort they were accepted into. */
 async function canUseCohort(user: User, cohortId: string | null | undefined): Promise<boolean> {
   if (!cohortId || user.role === "administrator") return true;
@@ -1780,7 +1791,15 @@ export function registerRoutes(app: Express): void {
     try {
       const mentors = await storage.getMentors();
       const isAdmin = currentUser(req).role === 'administrator';
-      res.json(isAdmin ? mentors : mentors.map(({ email: _email, ...mentor }) => mentor));
+      if (isAdmin) {
+        return res.json(mentors);
+      }
+      // Others only see bookable mentors (active profile), without emails.
+      res.json(
+        mentors
+          .filter((m) => m.mentorProfile?.id && m.mentorProfile.isActive !== false)
+          .map(({ email: _email, ...mentor }) => mentor),
+      );
     } catch (error) {
       console.error("Error fetching mentors:", error);
       if (respondDbError(res, error)) return;
@@ -1811,12 +1830,8 @@ export function registerRoutes(app: Express): void {
       }
       
       const profile = await storage.getMentorProfile(userId);
-      
-      if (!profile) {
-        return res.status(404).json({ message: "Mentor profile not found" });
-      }
-      
-      res.json(profile);
+      // null means "no profile yet"; the page then offers to create one.
+      res.json(profile ?? null);
     } catch (error) {
       console.error("Error fetching mentor profile:", error);
       if (respondDbError(res, error)) return;
@@ -2121,7 +2136,8 @@ export function registerRoutes(app: Express): void {
       // Get investor by user ID and then their sessions
       const investors = await storage.getInvestorsByUser(userId);
       if (investors.length === 0) {
-        return res.status(404).json({ message: "Investor profile not found" });
+        // Not linked to an investor record yet: nothing scheduled.
+        return res.json([]);
       }
       
       const sessions = await storage.getInvestorSessions(investors[0].id);
@@ -2606,7 +2622,8 @@ export function registerRoutes(app: Express): void {
         return res.status(503).json({ message: "The AI Coach is not configured yet. Please contact a mentor." });
       }
       
-      const response = await aiCoachService.generateResponse(messages, mode, user.role, user.locale || "en");
+      const programWeek = await currentProgramWeek(user.id);
+      const response = await aiCoachService.generateResponse(messages, mode, user.role, user.locale || "en", programWeek);
       const history = [...messages, { role: "assistant" as const, content: response.message }];
       
       let savedId = conversationId;

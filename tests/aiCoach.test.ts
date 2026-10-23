@@ -65,6 +65,15 @@ describe("AI Coach on Claude", () => {
     expect(params).not.toHaveProperty("temperature");
   });
 
+  it("tells the coach which program week the participant is in", async () => {
+    create.mockResolvedValue({
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ message: "ok", sources: [], confidence: 1, suggestedActions: [] }) }],
+    });
+    await aiCoachService.generateResponse([{ role: "user", content: "hi" }], "process_guide", "participant", "en", 3);
+    expect(create.mock.calls[0][0].system).toContain("week 3 of 8");
+  });
+
   it("answers politely when Claude declines", async () => {
     create.mockResolvedValue({ stop_reason: "refusal", content: [] });
     const reply = await aiCoachService.generateResponse([{ role: "user", content: "x" }]);
