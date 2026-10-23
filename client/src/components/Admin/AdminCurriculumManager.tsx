@@ -22,6 +22,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConnectorBadge } from "@/components/brand";
+import { cohortTiming } from "@/lib/programWeek";
 
 // Form handling
 import { useForm, type UseFormReturn } from "react-hook-form";
@@ -323,11 +324,14 @@ interface AdminCurriculumManagerProps {
   /** Optional lifted cohort selection, so it survives the parent switching tabs. */
   selectedCohort?: string | null;
   onSelectedCohortChange?: (cohortId: string | null) => void;
+  /** Opens the create-cohort flow; shown when there are no cohorts yet. */
+  onRequestCreateCohort?: () => void;
 }
 
 export default function AdminCurriculumManager({
   selectedCohort: controlledCohort,
   onSelectedCohortChange,
+  onRequestCreateCohort,
 }: AdminCurriculumManagerProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -460,6 +464,20 @@ export default function AdminCurriculumManager({
   const { data: cohorts = [], isLoading: isLoadingCohorts } = useQuery<Cohort[]>({
     queryKey: ['/api/admin/cohorts'],
   });
+
+  // Open on the cohort that matters now: the running one, else the next, else the latest.
+  useEffect(() => {
+    if (selectedCohort || cohorts.length === 0) return;
+    const byStart = [...cohorts].sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+    );
+    const pick =
+      byStart.find((c) => cohortTiming(c)?.state === "running") ??
+      byStart.find((c) => cohortTiming(c)?.state === "upcoming") ??
+      byStart[byStart.length - 1];
+    if (pick) setSelectedCohort(pick.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cohorts, selectedCohort]);
 
   const { data: modules = [], isLoading: isLoadingModules } = useQuery({
     queryKey: ['/api/admin/modules', { cohortId: selectedCohort }],
@@ -892,8 +910,25 @@ export default function AdminCurriculumManager({
         </p>
       </div>
 
+      {cohorts.length === 0 && (
+        <div className="dashed-zone flex flex-col items-start gap-4 bg-card/60 p-6 sm:flex-row sm:items-center sm:justify-between" data-testid="curriculum-no-cohorts">
+          <div>
+            <p className="font-display text-base font-medium text-foreground">Create a cohort first</p>
+            <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">
+              Curriculum belongs to a cohort. Once a cohort exists, you can add its weekly modules, lessons and quizzes here.
+            </p>
+          </div>
+          {onRequestCreateCohort && (
+            <Button onClick={onRequestCreateCohort} className="shrink-0" data-testid="button-curriculum-create-cohort">
+              <Plus className="h-4 w-4" />
+              Create a cohort
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Cohort Selection */}
-      <Card>
+      {cohorts.length > 0 && <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
           <div className="flex shrink-0 items-center gap-2 font-display text-sm text-muted-foreground">
             <Users className="h-4 w-4" />
@@ -918,7 +953,7 @@ export default function AdminCurriculumManager({
           </Select>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {selectedCohort && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
