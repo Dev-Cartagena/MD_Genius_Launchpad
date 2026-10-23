@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { DropZone } from "@/components/brand";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getApiErrorMessage } from "@/lib/utils";
@@ -27,6 +28,21 @@ interface ObjectUploaderProps {
 /** Link that opens an uploaded file (the server checks access and redirects to a signed URL). */
 export function fileUrl(path: string) {
   return `/api/files/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** Readable list of accepted formats, e.g. ".pdf,.docx" -> "PDF, DOCX". */
+function describeAccept(accept?: string): string | null {
+  if (!accept) return null;
+  const parts = accept
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      if (part.startsWith(".")) return part.slice(1).toUpperCase();
+      if (part.endsWith("/*")) return `${part.slice(0, -2)} files`;
+      return part;
+    });
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 /**
@@ -92,8 +108,11 @@ export function ObjectUploader({
     }
   };
 
+  const maxSizeMb = Math.round(maxFileSize / 1024 / 1024);
+  const formats = describeAccept(accept);
+
   return (
-    <div>
+    <DropZone className="w-full">
       <input
         ref={inputRef}
         type="file"
@@ -111,6 +130,11 @@ export function ObjectUploader({
       >
         {isUploading ? "Uploading..." : children}
       </Button>
-    </div>
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {isUploading
+          ? "Uploading your file. This can take a moment."
+          : `${formats ? `${formats}. ` : ""}One file, up to ${maxSizeMb}MB.`}
+      </p>
+    </DropZone>
   );
 }

@@ -13,10 +13,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
-import { getApiErrorMessage } from "@/lib/utils";
+import { cn, getApiErrorMessage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { assignmentStatusClass, assignmentStatusLabel, isAssignmentDone, type AssignmentStatus } from "@/lib/roadmapStatus";
+import { isAssignmentDone, type AssignmentStatus } from "@/lib/roadmapStatus";
+import { ConnectorBadge, ProgressRing, StatusChip } from "@/components/brand";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { ObjectUploader, fileUrl, type UploadedFile } from "@/components/ObjectUploader";
 import type { Project, Deliverable, Artifact, RoadmapItem, AssignedRoadmap, RoadmapTemplate, Application, Cohort } from "@shared/schema";
@@ -44,8 +45,10 @@ import {
   Clock,
   AlertTriangle,
   Award,
-  Play,
-  Flag
+  Flag,
+  File,
+  FileImage,
+  FileVideo
 } from "lucide-react";
 
 const projectSchema = z.object({
@@ -64,10 +67,10 @@ type ProjectFormData = z.infer<typeof projectSchema>;
 
 const stageOptions = [
   { value: "ideation", label: "Ideation", description: "Exploring and refining the core idea" },
-  { value: "validation", label: "Market Validation", description: "Testing assumptions and validating market need" },
-  { value: "mvp_build", label: "MVP Development", description: "Building minimum viable product" },
-  { value: "pilot_traction", label: "Pilot & Traction", description: "Testing with real users and gaining traction" },
-  { value: "pitch_ready", label: "Pitch Ready", description: "Ready for investor presentations" },
+  { value: "validation", label: "Market validation", description: "Testing assumptions and validating market need" },
+  { value: "mvp_build", label: "MVP development", description: "Building the minimum viable product" },
+  { value: "pilot_traction", label: "Pilot and traction", description: "Testing with real users and gaining traction" },
+  { value: "pitch_ready", label: "Pitch ready", description: "Ready for investor presentations" },
 ];
 
 const aiComponentOptions = [
@@ -82,6 +85,24 @@ const aiComponentOptions = [
   "Speech Recognition",
   "Data Mining"
 ];
+
+/** Display names for artifact types (the type strings themselves are stored data). */
+const artifactTypeLabels: Record<string, string> = {
+  "Pitch Deck": "Pitch deck",
+  "One-Pager": "One-pager",
+  "Demo Video": "Demo video",
+  "Model Documentation": "Model documentation",
+};
+
+/** Lucide icon for a project file, from its extension or else its artifact type. */
+function getFileIcon(artifactType: string, fileName?: string | null) {
+  const ext = fileName?.split(".").pop()?.toLowerCase() ?? "";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return FileImage;
+  if (["mp4", "mov", "webm", "m4v", "avi"].includes(ext)) return FileVideo;
+  if (["pdf", "doc", "docx", "ppt", "pptx", "key", "txt", "md"].includes(ext)) return FileText;
+  if (fileName) return File;
+  return artifactType === "Demo Video" ? FileVideo : FileText;
+}
 
 interface ProjectOverviewProps {
   projectId?: string;
@@ -148,15 +169,15 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject?.id, 'roadmap'] });
       toast({
-        title: "Status Updated",
-        description: "Milestone status has been updated successfully.",
+        title: "Status updated",
+        description: "The milestone has been updated.",
       });
     },
     onError: (error) => {
       console.error('Failed to update milestone status:', error);
       toast({
-        title: "Update Failed",
-        description: "Failed to update milestone status. Please try again.",
+        title: "Could not update status",
+        description: "The milestone was not updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -205,8 +226,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Project Created!",
-        description: "Your project has been created successfully.",
+        title: "Project created",
+        description: "Your project has been created.",
       });
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects/my"] });
@@ -216,8 +237,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -226,8 +247,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         return;
       }
       toast({
-        title: "Error",
-        description: getApiErrorMessage(error, "Failed to create project. Please try again."),
+        title: "Could not create project",
+        description: getApiErrorMessage(error, "The project was not created. Please try again."),
         variant: "destructive",
       });
     }
@@ -246,8 +267,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Project Updated!",
-        description: "Your project has been updated successfully.",
+        title: "Project saved",
+        description: "Your changes have been saved.",
       });
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects/my"] });
@@ -256,8 +277,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -266,8 +287,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         return;
       }
       toast({
-        title: "Error",
-        description: getApiErrorMessage(error, "Failed to update project. Please try again."),
+        title: "Could not save project",
+        description: getApiErrorMessage(error, "Your changes were not saved. Please try again."),
         variant: "destructive",
       });
     }
@@ -287,14 +308,14 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       setOpenUploadDialog(null);
 
       toast({
-        title: "Artifact uploaded successfully!",
-        description: `${artifactType} has been uploaded and saved to your project.`,
+        title: "File uploaded",
+        description: `${artifactTypeLabels[artifactType] ?? artifactType} has been saved to your project.`,
       });
     } catch (error) {
       console.error('Failed to save artifact:', error);
       toast({
-        title: "Upload successful, but save failed",
-        description: "File was uploaded but couldn't be saved to the project. Please try again.",
+        title: "File not saved",
+        description: "The file was uploaded but could not be added to your project. Please try again.",
         variant: "destructive"
       });
     }
@@ -332,7 +353,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <Card className="glass-card animate-pulse">
+        <Card className="animate-pulse">
           <CardContent className="p-6">
             <div className="h-8 bg-muted rounded w-1/3 mb-4"></div>
             <div className="h-4 bg-muted rounded w-full mb-2"></div>
@@ -346,20 +367,21 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   if (!currentProject && !isEditing) {
     return (
       <div className="space-y-6">
-        <Card className="glass-card">
+        <Card>
           <CardContent className="p-8 text-center">
-            <Lightbulb className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No Project Yet</h3>
+            <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-secondary text-primary flex items-center justify-center">
+              <Lightbulb className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl mb-2">No project yet</h3>
             <p className="text-muted-foreground mb-6">
-              Start your entrepreneurial journey by creating your first project.
+              Create your project to start working through the program.
             </p>
-            <Button 
-              onClick={() => setIsEditing(true)} 
-              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            <Button
+              onClick={() => setIsEditing(true)}
               data-testid="button-create-project"
             >
               <Lightbulb className="w-4 h-4 mr-2" />
-              Create Your Project
+              Create your project
             </Button>
           </CardContent>
         </Card>
@@ -367,53 +389,95 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     );
   }
 
+  const currentStageIndex = stageOptions.findIndex(s => s.value === currentProject?.stage);
+  const stageState = (index: number): "done" | "current" | "upcoming" => {
+    if (currentStageIndex < 0) return "upcoming";
+    if (index < currentStageIndex) return "done";
+    if (index === currentStageIndex) return "current";
+    return "upcoming";
+  };
+
   return (
     <div className="space-y-6">
       {/* Project Header */}
       {currentProject && !isEditing && (
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-                  <Lightbulb className="w-6 h-6 text-white" />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-4 min-w-0">
+                <div className="w-12 h-12 shrink-0 bg-secondary text-primary rounded-lg flex items-center justify-center">
+                  <Lightbulb className="w-6 h-6" />
                 </div>
-                <div>
-                  <CardTitle className="text-2xl" data-testid="project-name">
+                <div className="min-w-0 space-y-2">
+                  <CardTitle className="text-2xl break-words" data-testid="project-name">
                     {currentProject.name}
                   </CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <Badge 
-                      className={`${
-                        currentProject.stage === 'pitch_ready' ? 'bg-green-400/20 text-green-400' :
-                        currentProject.stage === 'mvp_build' ? 'bg-primary/20 text-primary' :
-                        currentProject.stage === 'validation' ? 'bg-accent/20 text-accent' :
-                        'bg-yellow-400/20 text-yellow-400'
-                      }`}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="bg-secondary text-primary border-transparent"
                       data-testid="project-stage"
                     >
                       {stageOptions.find(s => s.value === currentProject.stage)?.label || currentProject.stage}
                     </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Readiness Score: <span className="font-medium text-accent">{currentProject.readinessScore || 0}%</span>
-                    </span>
                   </div>
+                  <p className="text-muted-foreground" data-testid="project-summary">
+                    {currentProject.summary}
+                  </p>
                 </div>
               </div>
-              <Button 
-                onClick={() => setIsEditing(true)} 
-                variant="outline"
-                data-testid="button-edit-project"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Project
-              </Button>
+              <div className="flex items-center gap-4 sm:flex-col sm:items-end">
+                <ProgressRing
+                  value={currentProject.readinessScore || 0}
+                  size={104}
+                  caption="Readiness"
+                />
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  variant="outline"
+                  data-testid="button-edit-project"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit project
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground" data-testid="project-summary">
-              {currentProject.summary}
-            </p>
+            {/* Lifecycle stages as connected blocks */}
+            <div className="border-t border-border pt-6">
+              <h3 className="font-display text-sm text-muted-foreground mb-4">Project lifecycle</h3>
+              <ol className="grid gap-4 lg:grid-cols-5 lg:gap-0">
+                {stageOptions.map((stage, index) => {
+                  const state = stageState(index);
+                  return (
+                    <li key={stage.value} className="relative flex gap-3 lg:flex-col lg:pr-4">
+                      {index < stageOptions.length - 1 && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-[17px] top-10 -bottom-3 w-px bg-primary/20 lg:left-12 lg:right-2 lg:top-[18px] lg:bottom-auto lg:h-px lg:w-auto"
+                        />
+                      )}
+                      <ConnectorBadge state={state}>{index + 1}</ConnectorBadge>
+                      <div className="min-w-0">
+                        <p
+                          className={cn(
+                            "font-display text-sm font-medium",
+                            state === "upcoming" ? "text-muted-foreground" : "text-foreground",
+                          )}
+                        >
+                          {stage.label}
+                          <span className="sr-only">
+                            {state === "done" ? " (completed)" : state === "current" ? " (current stage)" : " (upcoming)"}
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">{stage.description}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -422,10 +486,10 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       {isEditing && (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
                 <CardTitle>
-                  {currentProject ? "Edit Project" : "Create New Project"}
+                  {currentProject ? "Edit project" : "Create your project"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -434,11 +498,10 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Name</FormLabel>
+                      <FormLabel>Project name</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
-                          className="bg-secondary border-border input-glow"
                           data-testid="input-project-name"
                         />
                       </FormControl>
@@ -452,12 +515,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="summary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project Summary</FormLabel>
+                      <FormLabel>Project summary</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
                           placeholder="Brief overview of your AI startup project..."
-                          className="bg-secondary border-border input-glow min-h-[100px]"
+                          className="min-h-[100px]"
                           data-testid="textarea-project-summary"
                         />
                       </FormControl>
@@ -472,12 +535,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="problem"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Problem Statement</FormLabel>
+                        <FormLabel>Problem statement</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
                             placeholder="What specific problem does your project solve?"
-                            className="bg-secondary border-border input-glow min-h-[120px]"
+                            className="min-h-[120px]"
                             data-testid="textarea-problem-statement"
                           />
                         </FormControl>
@@ -491,12 +554,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="solution"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Solution Approach</FormLabel>
+                        <FormLabel>Solution approach</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
                             placeholder="How does your AI solution address this problem?"
-                            className="bg-secondary border-border input-glow min-h-[120px]"
+                            className="min-h-[120px]"
                             data-testid="textarea-solution"
                           />
                         </FormControl>
@@ -511,12 +574,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="market"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target Market</FormLabel>
+                      <FormLabel>Target market</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
                           placeholder="Who is your target customer and what is the market size?"
-                          className="bg-secondary border-border input-glow"
                           data-testid="textarea-target-market"
                         />
                       </FormControl>
@@ -530,7 +592,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="aiComponents"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>AI Components</FormLabel>
+                      <FormLabel>AI components</FormLabel>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {aiComponentOptions.map((component) => (
                           <div key={component} className="flex items-center space-x-2">
@@ -564,12 +626,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="dataNeeds"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data Requirements</FormLabel>
+                        <FormLabel>Data requirements</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
                             placeholder="What data do you need for your AI solution?"
-                            className="bg-secondary border-border input-glow"
                             data-testid="textarea-data-needs"
                           />
                         </FormControl>
@@ -583,12 +644,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="ethics"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Ethics & Considerations</FormLabel>
+                        <FormLabel>Ethics and considerations</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
                             placeholder="What ethical considerations and responsible AI practices will you implement?"
-                            className="bg-secondary border-border input-glow"
                             data-testid="textarea-ethics"
                           />
                         </FormControl>
@@ -600,9 +660,9 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
 
                 {acceptedCohortIds.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Cohort</label>
+                    <label className="font-display text-sm font-medium">Cohort</label>
                     <Select value={selectedCohortId} onValueChange={setSelectedCohortId}>
-                      <SelectTrigger className="bg-secondary border-border" data-testid="select-project-cohort">
+                      <SelectTrigger data-testid="select-project-cohort">
                         <SelectValue placeholder="Pick the cohort this project belongs to" />
                       </SelectTrigger>
                       <SelectContent>
@@ -617,15 +677,14 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   </div>
                 )}
 
-                <div className="flex space-x-4">
+                <div className="flex flex-wrap gap-3">
                   <Button 
                     type="submit" 
                     disabled={createProject.isPending || updateProject.isPending}
-                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
                     data-testid="button-save-project"
                   >
                     <Save className="w-4 h-4 mr-2" />
-                    {createProject.isPending || updateProject.isPending ? "Saving..." : "Save Project"}
+                    {createProject.isPending || updateProject.isPending ? "Saving..." : "Save project"}
                   </Button>
                   <Button 
                     type="button" 
@@ -646,23 +705,23 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       {currentProject && !isEditing && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Problem & Solution */}
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Target className="w-5 h-5" />
-                <span>Problem & Solution</span>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" />
+                <span>Problem and solution</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold text-sm mb-2">Problem Statement</h4>
-                <p className="text-sm text-muted-foreground" data-testid="display-problem">
+                <h4 className="font-display text-sm text-muted-foreground mb-1">Problem statement</h4>
+                <p className="text-sm text-foreground" data-testid="display-problem">
                   {currentProject.problem || "Not specified"}
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold text-sm mb-2">Solution Approach</h4>
-                <p className="text-sm text-muted-foreground" data-testid="display-solution">
+                <h4 className="font-display text-sm text-muted-foreground mb-1">Solution approach</h4>
+                <p className="text-sm text-foreground" data-testid="display-solution">
                   {currentProject.solution || "Not specified"}
                 </p>
               </div>
@@ -670,22 +729,22 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           </Card>
 
           {/* Market & AI Components */}
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5" />
-                <span>Market & Technology</span>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                <span>Market and technology</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold text-sm mb-2">Target Market</h4>
-                <p className="text-sm text-muted-foreground" data-testid="display-market">
+                <h4 className="font-display text-sm text-muted-foreground mb-1">Target market</h4>
+                <p className="text-sm text-foreground" data-testid="display-market">
                   {currentProject.market || "Not specified"}
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold text-sm mb-2">AI Components</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-2">AI components</h4>
                 <div className="flex flex-wrap gap-1">
                   {currentProject.aiComponents?.map((component: string, index: number) => (
                     <Badge key={index} variant="outline" className="text-xs">
@@ -698,23 +757,23 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           </Card>
 
           {/* Data & Ethics */}
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="w-5 h-5" />
-                <span>Data & Ethics</span>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <span>Data and ethics</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-semibold text-sm mb-2">Data Requirements</h4>
-                <p className="text-sm text-muted-foreground" data-testid="display-data-needs">
+                <h4 className="font-display text-sm text-muted-foreground mb-1">Data requirements</h4>
+                <p className="text-sm text-foreground" data-testid="display-data-needs">
                   {currentProject.dataNeeds || "Not specified"}
                 </p>
               </div>
               <div>
-                <h4 className="font-semibold text-sm mb-2">Ethics & Considerations</h4>
-                <p className="text-sm text-muted-foreground" data-testid="display-ethics">
+                <h4 className="font-display text-sm text-muted-foreground mb-1">Ethics and considerations</h4>
+                <p className="text-sm text-foreground" data-testid="display-ethics">
                   {currentProject.ethics || "Not specified"}
                 </p>
               </div>
@@ -722,66 +781,73 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           </Card>
 
           {/* Project Artifacts */}
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="w-5 h-5" />
-                <span>Project Artifacts</span>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <span>Project files</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                {["Pitch Deck", "One-Pager", "Demo Video", "Model Documentation"].map((artifactType) => (
-                  <div key={artifactType} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{artifactType}</span>
-                    <div className="flex items-center space-x-2">
-                      {(() => {
-                        const latest = artifacts
-                          .filter(a => a.type === artifactType && !!a.fileRef)
-                          .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0];
-                        return latest ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 text-green-400" />
-                            <a
-                              href={fileUrl(latest.fileRef!)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline max-w-[10rem] truncate"
-                              data-testid={`link-artifact-${artifactType.toLowerCase().replace(/ /g, '-')}`}
-                            >
-                              {latest.title}
-                            </a>
-                          </>
-                        ) : null;
-                      })()}
+            <CardContent>
+              <div className="divide-y divide-border">
+                {["Pitch Deck", "One-Pager", "Demo Video", "Model Documentation"].map((artifactType) => {
+                  const latest = artifacts
+                    .filter(a => a.type === artifactType && !!a.fileRef)
+                    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0];
+                  const FileIcon = getFileIcon(artifactType, latest?.title);
+                  return (
+                  <div key={artifactType} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="w-9 h-9 shrink-0 rounded-lg bg-secondary text-primary flex items-center justify-center">
+                      <FileIcon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{artifactTypeLabels[artifactType] ?? artifactType}</p>
+                      {latest ? (
+                        <p className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                          <a
+                            href={fileUrl(latest.fileRef!)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:underline truncate"
+                            data-testid={`link-artifact-${artifactType.toLowerCase().replace(/ /g, '-')}`}
+                          >
+                            {latest.title}
+                          </a>
+                          {latest.createdAt && (
+                            <span className="shrink-0">· {new Date(latest.createdAt).toLocaleDateString()}</span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Not uploaded yet</p>
+                      )}
+                    </div>
                       <Dialog
                         open={openUploadDialog === artifactType}
                         onOpenChange={(open) => setOpenUploadDialog(open ? artifactType : null)}
                       >
                         <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" data-testid={`button-upload-${artifactType.toLowerCase().replace(/ /g, '-')}`}>
+                          <Button size="sm" variant="outline" className="shrink-0" data-testid={`button-upload-${artifactType.toLowerCase().replace(/ /g, '-')}`}>
                             <Upload className="w-3 h-3 mr-1" />
                             {artifacts.some(a => a.type === artifactType) ? "Replace" : "Upload"}
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Upload {artifactType}</DialogTitle>
+                            <DialogTitle>Upload {(artifactTypeLabels[artifactType] ?? artifactType).toLowerCase()}</DialogTitle>
                           </DialogHeader>
                           <ObjectUploader
                             maxFileSize={10 * 1024 * 1024}
                             onUploaded={(file) => handleUploadComplete(file, artifactType)}
-                            buttonClassName="w-full bg-primary hover:bg-primary/90"
+                            buttonClassName="w-full sm:w-auto"
                           >
                             <Upload className="w-4 h-4 mr-2" />
-                            Select {artifactType}
+                            Select file
                           </ObjectUploader>
-                          <p className="text-xs text-muted-foreground">Maximum file size: 10MB</p>
                         </DialogContent>
                       </Dialog>
-                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -790,43 +856,42 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
 
       {/* Deliverables & Milestones */}
       {currentProject && !isEditing && deliverables.length > 0 && (
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5" />
-              <span>Deliverables & Milestones</span>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span>Deliverables</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="divide-y divide-border">
               {deliverables.map((deliverable: any) => (
-                <div key={deliverable.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      deliverable.status === 'approved' ? 'bg-green-400/20' :
-                      deliverable.status === 'submitted' ? 'bg-primary/20' :
-                      deliverable.status === 'needs_revision' ? 'bg-yellow-400/20' :
-                      'bg-gray-400/20'
-                    }`}>
-                      {deliverable.status === 'approved' ? (
-                        <CheckCircle className="w-4 h-4 text-green-400" />
-                      ) : deliverable.status === 'submitted' ? (
-                        <Clock className="w-4 h-4 text-primary" />
-                      ) : deliverable.status === 'needs_revision' ? (
-                        <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                      ) : (
-                        <span className="text-xs font-medium">•</span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm" data-testid={`deliverable-title-${deliverable.id}`}>
-                        {deliverable.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Status: {deliverable.status?.replace('_', ' ')} 
-                        {deliverable.submittedAt && ` • Submitted ${new Date(deliverable.submittedAt).toLocaleDateString()}`}
-                      </p>
-                    </div>
+                <div key={deliverable.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className={cn(
+                    "w-8 h-8 shrink-0 rounded-lg flex items-center justify-center",
+                    deliverable.status === 'approved' ? 'bg-success/10 text-success' :
+                    deliverable.status === 'submitted' ? 'bg-secondary text-accent' :
+                    deliverable.status === 'needs_revision' ? 'bg-warning/10 text-warning' :
+                    'border border-dashed border-steel/50 text-muted-foreground'
+                  )}>
+                    {deliverable.status === 'approved' ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : deliverable.status === 'submitted' ? (
+                      <Clock className="w-4 h-4" />
+                    ) : deliverable.status === 'needs_revision' ? (
+                      <AlertTriangle className="w-4 h-4" />
+                    ) : (
+                      <FileText className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm" data-testid={`deliverable-title-${deliverable.id}`}>
+                      {deliverable.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Status: {deliverable.status?.replace('_', ' ')}
+                      {deliverable.submittedAt && ` · Submitted ${new Date(deliverable.submittedAt).toLocaleDateString()}`}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -837,18 +902,18 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
 
       {/* Roadmap Milestones */}
       {currentProject && !isEditing && (
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Award className="w-5 h-5" />
-              <span>Roadmap Milestones</span>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-primary" />
+              <span>Roadmap milestones</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {roadmapLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse p-3 bg-secondary/30 rounded-lg">
+                  <div key={i} className="animate-pulse p-3 bg-muted/50 rounded-lg">
                     <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
                     <div className="h-3 bg-muted rounded w-1/2"></div>
                   </div>
@@ -856,7 +921,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
               </div>
             ) : getRoadmapMilestones().length === 0 ? (
               <div className="text-center py-8">
-                <Flag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <Flag className="w-10 h-10 mx-auto text-primary mb-4" />
                 {roadmap && roadmap.items.length > 0 ? (
                   <>
                     <p className="text-muted-foreground" data-testid="text-no-milestone-items">
@@ -875,83 +940,76 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   <>
                     <p className="text-muted-foreground">No roadmap is assigned to this project yet.</p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Milestones will appear here once a roadmap template is assigned to your project.
+                      Milestones will appear here once a roadmap is assigned to your project.
                     </p>
                   </>
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {getRoadmapMilestones().map((milestone: RoadmapItemWithAssignment) => (
-                  <div key={milestone.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-secondary/30 rounded-lg">
-                    <div className="flex items-center space-x-4 min-w-0">
-                      <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
+              <ol className="relative space-y-4 before:absolute before:left-[17px] before:top-4 before:bottom-4 before:w-px before:bg-primary/20 before:content-['']">
+                {getRoadmapMilestones().map((milestone: RoadmapItemWithAssignment, index: number) => (
+                  <li key={milestone.id} className="relative flex gap-3 sm:gap-4">
+                    <ConnectorBadge
+                      state={
                         isAssignmentDone(milestone.assignment?.status)
-                          ? 'bg-green-400/20' 
-                          : milestone.assignment?.status === 'blocked'
-                          ? 'bg-red-400/20'
+                          ? "done"
                           : milestone.assignment?.status === 'in_progress'
-                          ? 'bg-blue-400/20'
-                          : 'bg-gray-400/20'
-                      }`}>
-                        {isAssignmentDone(milestone.assignment?.status) ? (
-                          <CheckCircle className="w-5 h-5 text-green-400" />
-                        ) : milestone.assignment?.status === 'in_progress' ? (
-                          <Play className="w-5 h-5 text-blue-400" />
-                        ) : (
-                          <Flag className="w-5 h-5 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-base mb-1" data-testid={`milestone-title-${milestone.id}`}>
+                          ? "current"
+                          : "upcoming"
+                      }
+                    >
+                      {index + 1}
+                    </ConnectorBadge>
+                    <div className="flex min-w-0 flex-1 flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-base mb-1" data-testid={`milestone-title-${milestone.id}`}>
                           {milestone.title}
                         </h4>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {milestone.description}
-                        </p>
-                        <div className="flex items-center space-x-4">
-                          <Badge 
-                            variant="outline" 
+                        {milestone.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {milestone.description}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant="outline"
                             className="text-xs"
                             data-testid={`milestone-week-${milestone.id}`}
                           >
                             Week {milestone.week}
                           </Badge>
-                          <Badge 
-                            className={`text-xs ${assignmentStatusClass(milestone.assignment?.status)}`}
-                            data-testid={`milestone-status-${milestone.id}`}
-                          >
-                            {assignmentStatusLabel(milestone.assignment?.status)}
-                          </Badge>
+                          <span data-testid={`milestone-status-${milestone.id}`}>
+                            <StatusChip status={milestone.assignment?.status} />
+                          </span>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        {milestone.assignment ? (
+                          !isAssignmentDone(milestone.assignment.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={updateRoadmapStatusMutation.isPending}
+                              onClick={() => milestone.assignment?.id && milestone.assignment.status && handleMilestoneStatusUpdate(milestone.assignment.id, milestone.assignment.status)}
+                              data-testid={`button-milestone-${milestone.assignment.status}-${milestone.id}`}
+                            >
+                              {milestone.assignment.status !== 'in_progress' ? (
+                                updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
+                              ) : (
+                                updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
+                              )}
+                            </Button>
+                          )
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Not assigned
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {milestone.assignment ? (
-                        !isAssignmentDone(milestone.assignment.status) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={updateRoadmapStatusMutation.isPending}
-                            onClick={() => milestone.assignment?.id && milestone.assignment.status && handleMilestoneStatusUpdate(milestone.assignment.id, milestone.assignment.status)}
-                            data-testid={`button-milestone-${milestone.assignment.status}-${milestone.id}`}
-                          >
-                            {milestone.assignment.status !== 'in_progress' ? (
-                              updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
-                            ) : (
-                              updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
-                            )}
-                          </Button>
-                        )
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          Not Assigned
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
             )}
           </CardContent>
         </Card>

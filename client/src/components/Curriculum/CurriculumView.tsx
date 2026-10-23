@@ -14,7 +14,9 @@ import { Link } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { assignmentStatusClass, assignmentStatusLabel, isAssignmentDone, type AssignmentStatus } from "@/lib/roadmapStatus";
+import { isAssignmentDone, type AssignmentStatus } from "@/lib/roadmapStatus";
+import { ConnectorBadge, DropZone, MistPanel, StatusChip } from "@/components/brand";
+import { cn } from "@/lib/utils";
 import type { Module, Lesson, Milestone, UserProgress, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
 
 // Extended roadmap types for curriculum integration
@@ -143,12 +145,12 @@ function LessonQuiz({
       }
     },
     onError: (err) => {
-      const message = getErrorMessage(err, "Failed to submit quiz. Please try again.");
+      const message = getErrorMessage(err, "Your answers were not submitted. Please try again.");
       if (getErrorStatus(err) === 409) {
         setAttemptsExhausted(message);
         return;
       }
-      toast({ title: "Quiz submission failed", description: message, variant: "destructive" });
+      toast({ title: "Could not submit quiz", description: message, variant: "destructive" });
     },
   });
 
@@ -185,14 +187,14 @@ function LessonQuiz({
   };
 
   return (
-    <div className="border border-border/50 rounded-lg p-4 space-y-4 bg-background/50" data-testid={`lesson-quiz-${lessonId}`}>
-      <div className="flex items-center justify-between">
-        <h5 className="font-semibold text-sm flex items-center space-x-2">
+    <div className="border border-border rounded-lg p-4 space-y-4 bg-card" data-testid={`lesson-quiz-${lessonId}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h5 className="font-display font-medium text-sm flex items-center space-x-2">
           <HelpCircle className="w-4 h-4 text-primary" />
           <span>{quiz.title}</span>
         </h5>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">Pass: {quiz.passThreshold}%</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="text-xs">Pass mark {quiz.passThreshold}%</Badge>
           {maxAttempts != null && (
             <Badge variant="outline" className="text-xs">
               {attemptNumber !== undefined ? `Attempt ${attemptNumber} of ${maxAttempts}` : `Max attempts: ${maxAttempts}`}
@@ -202,7 +204,7 @@ function LessonQuiz({
       </div>
 
       {lessonCompleted && !result && (
-        <p className="text-sm text-green-500">You have already completed this lesson.</p>
+        <p className="text-sm text-success">You have already completed this lesson.</p>
       )}
 
       {questions.map((q, qIndex) => (
@@ -230,10 +232,10 @@ function LessonQuiz({
 
       {result && (
         <div
-          className={`flex items-center space-x-2 text-sm rounded-md p-3 ${result.passed ? "bg-green-500/10 text-green-500" : "bg-destructive/10 text-destructive"}`}
+          className={`flex items-center space-x-2 text-sm rounded-md p-3 ${result.passed ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
           data-testid={`quiz-result-${lessonId}`}
         >
-          {result.passed ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          {result.passed ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
           <span>
             {result.passed ? "Passed" : "Not passed"}: {result.correct} of {result.total} correct ({result.score}%).
           </span>
@@ -406,15 +408,15 @@ export default function CurriculumView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject?.id, 'roadmap'] });
       toast({
-        title: "Status Updated",
-        description: "Roadmap item status has been updated successfully.",
+        title: "Status updated",
+        description: "The roadmap item has been updated.",
       });
     },
     onError: (error) => {
       console.error('Failed to update roadmap status:', error);
       toast({
-        title: "Update Failed",
-        description: "Failed to update roadmap item status. Please try again.",
+        title: "Could not update status",
+        description: "The roadmap item was not updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -493,7 +495,7 @@ export default function CurriculumView() {
     return (
       <div className="space-y-6">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="glass-card animate-pulse">
+          <Card key={i} className="animate-pulse">
             <CardContent className="p-6">
               <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
               <div className="h-4 bg-muted rounded w-full mb-2"></div>
@@ -508,15 +510,24 @@ export default function CurriculumView() {
   const totalWeeks = Math.max(...modules.map((m: Module) => m.week), 8);
   const completionPercentage = getCompletionPercentage();
 
+  // Program week from the cohort start date (same rule as the dashboard), used for the timeline
+  const programWeek = (() => {
+    if (!currentCohort?.startDate) return 1;
+    const elapsedWeeks = Math.floor((Date.now() - new Date(currentCohort.startDate).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    return Math.min(Math.max(elapsedWeeks + 1, 1), totalWeeks);
+  })();
+  const weekState = (week: number): "done" | "current" | "upcoming" =>
+    week < programWeek ? "done" : week === programWeek ? "current" : "upcoming";
+
   // Better Empty States - only show after loading is complete
   if (!cohortsLoading && cohorts.length === 0) {
     return (
-      <Card className="glass-card">
+      <Card>
         <CardContent className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Cohorts Available</h3>
+          <AlertCircle className="w-10 h-10 mx-auto text-primary mb-4" />
+          <h3 className="text-xl mb-2">No cohorts available</h3>
           <p className="text-muted-foreground">
-            There are currently no active cohorts. Please contact an administrator to set up the curriculum.
+            There are no active cohorts at the moment. Contact an administrator to set up the curriculum.
           </p>
         </CardContent>
       </Card>
@@ -525,14 +536,14 @@ export default function CurriculumView() {
 
   if (!currentCohort) {
     return (
-      <Card className="glass-card">
+      <Card>
         <CardContent className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Cohort Assigned</h3>
+          <AlertCircle className="w-10 h-10 mx-auto text-primary mb-4" />
+          <h3 className="text-xl mb-2">No cohort assigned</h3>
           <p className="text-muted-foreground">
-            {user?.role === 'administrator' 
-              ? 'Select a cohort to view its curriculum.' 
-              : 'You have not been assigned to a cohort yet. Please contact an administrator.'
+            {user?.role === 'administrator'
+              ? 'Select a cohort to view its curriculum.'
+              : 'You have not been assigned to a cohort yet. Contact an administrator for help.'
             }
           </p>
         </CardContent>
@@ -540,19 +551,23 @@ export default function CurriculumView() {
     );
   }
 
+  const weekModules = getCurrentWeekModules();
+  const isProgramWeekSelected = selectedWeek === programWeek;
+  const WeekPanel = isProgramWeekSelected ? MistPanel : "div";
+
   return (
     <div className="space-y-6">
       {/* Administrator Cohort Selector */}
       {user?.role === 'administrator' && cohorts.length > 0 && (
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Admin Controls</CardTitle>
+            <CardTitle className="text-lg">Admin controls</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Select Cohort to View</label>
-              <Select 
-                value={selectedCohortId || currentCohort.id} 
+              <label className="font-display text-sm font-medium">Cohort to view</label>
+              <Select
+                value={selectedCohortId || currentCohort.id}
                 onValueChange={setSelectedCohortId}
                 data-testid="select-admin-cohort"
               >
@@ -561,8 +576,8 @@ export default function CurriculumView() {
                 </SelectTrigger>
                 <SelectContent>
                   {cohorts.map((cohort: any) => (
-                    <SelectItem 
-                      key={cohort.id} 
+                    <SelectItem
+                      key={cohort.id}
                       value={cohort.id}
                       data-testid={`select-item-cohort-${cohort.id}`}
                     >
@@ -587,96 +602,121 @@ export default function CurriculumView() {
       )}
 
       {/* Progress Overview */}
-      <Card className="glass-card">
+      <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xl">
-              {currentCohort.name} - Curriculum Progress
+              {currentCohort.name}: curriculum progress
             </CardTitle>
-            <Badge className="bg-accent/20 text-accent" data-testid="completion-badge">
-              {user?.role === 'administrator' ? 'Admin View' : `${completionPercentage}% Complete`}
+            <Badge variant="outline" className="bg-secondary text-primary border-transparent" data-testid="completion-badge">
+              {user?.role === 'administrator' ? 'Admin view' : `${completionPercentage}% complete`}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Progress value={completionPercentage} className="h-3" data-testid="progress-bar" />
-            
+            <Progress value={completionPercentage} className="h-2" data-testid="progress-bar" />
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary" data-testid="stat-modules">{modules.length}</p>
-                <p className="text-sm text-muted-foreground">Modules</p>
+              <div>
+                <p className="font-display text-3xl font-medium" data-testid="stat-modules">{modules.length}</p>
+                <p className="font-display text-sm text-muted-foreground">Modules</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-accent" data-testid="stat-lessons">
+              <div>
+                <p className="font-display text-3xl font-medium" data-testid="stat-lessons">
                   {lessons.length}
                 </p>
-                <p className="text-sm text-muted-foreground">Lessons</p>
+                <p className="font-display text-sm text-muted-foreground">Lessons</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-400" data-testid="stat-completed">
+              <div>
+                <p className="font-display text-3xl font-medium" data-testid="stat-completed">
                   {userProgress.filter(p => p.isCompleted).length}
                 </p>
-                <p className="text-sm text-muted-foreground">Completed</p>
+                <p className="font-display text-sm text-muted-foreground">Completed</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-yellow-400" data-testid="stat-milestones">{milestones.length}</p>
-                <p className="text-sm text-muted-foreground">Milestones</p>
+              <div>
+                <p className="font-display text-3xl font-medium" data-testid="stat-milestones">{milestones.length}</p>
+                <p className="font-display text-sm text-muted-foreground">Milestones</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Week Navigation */}
-      <Card className="glass-card">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Program Timeline</h3>
-            <span className="text-sm text-muted-foreground">
-              Week {selectedWeek} of {totalWeeks}
-            </span>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((week) => (
-              <Button
-                key={week}
-                variant={selectedWeek === week ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleWeekChange(week)}
-                className={selectedWeek === week ? "bg-primary" : ""}
-                data-testid={`button-week-${week}`}
-              >
-                Week {week}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:grid-rows-[auto_1fr]">
+        {/* Week timeline on a hairline */}
+        <Card className="lg:col-start-3 lg:row-start-1">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-lg">Program timeline</CardTitle>
+              <span className="font-display text-sm text-muted-foreground">
+                Week {selectedWeek} of {totalWeeks}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ol className="relative space-y-2 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-px before:bg-primary/20 before:content-['']">
+              {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((week) => {
+                const state = weekState(week);
+                const moduleCount = modules.filter((m: Module) => m.week === week).length;
+                const isSelected = selectedWeek === week;
+                return (
+                  <li key={week} className="relative flex items-center gap-3">
+                    <ConnectorBadge state={state}>{week}</ConnectorBadge>
+                    <button
+                      type="button"
+                      onClick={() => handleWeekChange(week)}
+                      aria-pressed={isSelected}
+                      className={cn(
+                        "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-3 py-2 text-left transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        isSelected ? "bg-secondary text-primary" : "hover:bg-muted",
+                      )}
+                      data-testid={`button-week-${week}`}
+                    >
+                      <span className={cn("font-display text-sm", isSelected ? "font-medium" : "text-foreground")}>
+                        Week {week}
+                        {state === "current" && <span className="ml-2 text-xs text-accent">Current</span>}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {moduleCount} {moduleCount === 1 ? "module" : "modules"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </CardContent>
+        </Card>
 
-      {/* Current Week Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Modules & Lessons */}
-        <div className="lg:col-span-2 space-y-4">
-          <h3 className="text-xl font-semibold flex items-center space-x-2">
-            <BookOpen className="w-5 h-5" />
-            <span>Week {selectedWeek} Modules</span>
-          </h3>
+        <WeekPanel
+          className={cn(
+            "min-w-0 space-y-4 p-4 sm:p-6 lg:col-span-2 lg:col-start-1 lg:row-span-2 lg:row-start-1",
+            !isProgramWeekSelected && "panel",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-xl flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-primary" />
+              <span>Week {selectedWeek} modules</span>
+            </h3>
+            {isProgramWeekSelected && (
+              <span className="font-display text-xs text-accent">Current week</span>
+            )}
+          </div>
 
-          {getCurrentWeekModules().length === 0 ? (
-            <Card className="glass-card">
-              <CardContent className="p-8 text-center">
-                <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No modules available for this week.</p>
-              </CardContent>
-            </Card>
+          {weekModules.length === 0 ? (
+            <DropZone className="p-8">
+              <BookOpen className="w-8 h-8 text-primary" />
+              <p className="text-muted-foreground">No modules for this week yet.</p>
+            </DropZone>
           ) : (
             <div className="space-y-4">
-              {getCurrentWeekModules().map((module: Module) => (
-                <Card key={module.id} className="glass-card">
+              {weekModules.map((module: Module) => (
+                <Card key={module.id}>
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
+                    <CardTitle className="flex flex-wrap items-center justify-between gap-2">
                       <span data-testid={`module-title-${module.id}`}>{module.title}</span>
                       <Badge variant="outline">Week {module.week}</Badge>
                     </CardTitle>
@@ -688,9 +728,9 @@ export default function CurriculumView() {
                   <CardContent>
                     {/* Learning Objectives */}
                     <div className="mb-4">
-                      <h4 className="font-semibold text-sm mb-2 flex items-center space-x-1">
-                        <Target className="w-4 h-4" />
-                        <span>Learning Objectives</span>
+                      <h4 className="font-display font-medium text-sm mb-2 flex items-center space-x-1">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span>Learning objectives</span>
                       </h4>
                       <ul className="space-y-1">
                         {module.objectives?.map((objective, index) => (
@@ -706,28 +746,28 @@ export default function CurriculumView() {
                     <Accordion type="single" collapsible>
                       <AccordionItem value="lessons">
                         <AccordionTrigger 
-                          className="text-sm font-semibold"
+                          className="font-display text-sm font-medium"
                           onClick={() => setSelectedModule(module.id)}
                         >
                           Lessons ({selectedModule === module.id ? lessons.length : 0})
                         </AccordionTrigger>
                         <AccordionContent>
-                          <div className="space-y-3">
+                          <div className="divide-y divide-border">
                             {selectedModule === module.id && (lessonsLoading || progressLoading) ? (
                               <div className="space-y-2">
                                 {[1, 2].map((i) => (
-                                  <div key={i} className="h-16 bg-secondary/30 rounded-lg animate-pulse"></div>
+                                  <div key={i} className="h-16 bg-muted/60 rounded-lg animate-pulse"></div>
                                 ))}
                               </div>
                             ) : selectedModule === module.id && lessons.map((lesson) => {
                               const progress = progressMap.get(lesson.id);
                               return (
-                                <Card key={lesson.id} className="bg-secondary/20 border-border/50">
-                                  <CardContent className="p-4">
+                                <div key={lesson.id} className="bg-card py-5 first:pt-2 last:pb-2">
+                                  <div>
                                     <div className="space-y-4">
                                       <div className="flex-1 space-y-3">
                                           <div>
-                                            <h4 className="font-semibold text-base leading-tight mb-2" data-testid={`lesson-title-${lesson.id}`}>
+                                            <h4 className="font-display font-medium text-base leading-tight mb-2" data-testid={`lesson-title-${lesson.id}`}>
                                               {lesson.title}
                                             </h4>
                                             <div className="space-y-4">
@@ -931,14 +971,14 @@ export default function CurriculumView() {
                                                     if (match[1]) {
                                                       // Bold (**text**)
                                                       elements.push(
-                                                        <strong key={`bold-${match.index}`} className="font-semibold text-primary">
+                                                        <strong key={`bold-${match.index}`} className="font-semibold text-foreground">
                                                           {match[2]}
                                                         </strong>
                                                       );
                                                     } else if (match[3]) {
                                                       // Italic (*text*)
                                                       elements.push(
-                                                        <em key={`italic-${match.index}`} className="italic text-accent">
+                                                        <em key={`italic-${match.index}`} className="italic">
                                                           {match[4]}
                                                         </em>
                                                       );
@@ -949,7 +989,7 @@ export default function CurriculumView() {
                                                         <a
                                                           key={`link-${match.index}`}
                                                           href={match[7]}
-                                                          className="text-primary hover:text-primary/80 underline underline-offset-2"
+                                                          className="text-accent hover:text-primary underline underline-offset-2"
                                                           target="_blank"
                                                           rel="noopener noreferrer"
                                                         >
@@ -979,21 +1019,21 @@ export default function CurriculumView() {
                                                     {section.title && (
                                                       <div className="flex items-center space-x-2 mb-3">
                                                         {section.type === 'objectives' && (
-                                                          <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                                                            <Target className="w-4 h-4 text-accent" />
+                                                          <div className="w-8 h-8 rounded-lg bg-secondary text-primary flex items-center justify-center">
+                                                            <Target className="w-4 h-4" />
                                                           </div>
                                                         )}
                                                         {section.type === 'section' && (
-                                                          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                                                            <BookOpen className="w-4 h-4 text-primary" />
+                                                          <div className="w-8 h-8 rounded-lg bg-secondary text-primary flex items-center justify-center">
+                                                            <BookOpen className="w-4 h-4" />
                                                           </div>
                                                         )}
                                                         {section.type === 'overview' && (
-                                                          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                                            <Info className="w-4 h-4 text-blue-500" />
+                                                          <div className="w-8 h-8 rounded-lg bg-secondary text-primary flex items-center justify-center">
+                                                            <Info className="w-4 h-4" />
                                                           </div>
                                                         )}
-                                                        <h4 className="text-base font-semibold text-foreground">
+                                                        <h4 className="font-display text-base font-medium text-foreground">
                                                           {section.title}
                                                         </h4>
                                                       </div>
@@ -1003,8 +1043,8 @@ export default function CurriculumView() {
                                                       {section.content.map((contentItem, itemIdx) => {
                                                         if (contentItem.type === 'subheading') {
                                                           return (
-                                                            <h5 key={itemIdx} className="text-sm font-semibold text-primary mt-4 mb-2 flex items-center space-x-2">
-                                                              <div className="w-1 h-4 bg-primary rounded-full"></div>
+                                                            <h5 key={itemIdx} className="font-display text-sm font-medium text-primary mt-4 mb-2 flex items-center space-x-2">
+                                                              <div className="w-px h-4 bg-primary/40"></div>
                                                               <span>{transformInlineMarkdown(contentItem.text!)}</span>
                                                             </h5>
                                                           );
@@ -1017,12 +1057,12 @@ export default function CurriculumView() {
                                                           if (section.type === 'objectives') {
                                                             // Special objectives styling
                                                             return (
-                                                              <div key={itemIdx} className="bg-accent/5 border border-accent/20 rounded-lg p-4">
+                                                              <div key={itemIdx} className="bg-secondary rounded-lg p-4">
                                                                 <div className="grid grid-cols-1 gap-2">
                                                                   {items.map((item, objIdx) => (
                                                                     <div key={objIdx} className="flex items-start space-x-3">
-                                                                      <div className="w-5 h-5 rounded border-2 border-accent/40 flex items-center justify-center mt-0.5 bg-background">
-                                                                        <CheckCircle className="w-3 h-3 text-accent opacity-60" />
+                                                                      <div className="w-5 h-5 shrink-0 flex items-center justify-center mt-0.5 text-primary">
+                                                                        <CheckCircle className="w-4 h-4" />
                                                                       </div>
                                                                       <p className="text-sm leading-relaxed text-foreground flex-1">
                                                                         {transformInlineMarkdown(item.text)}
@@ -1035,7 +1075,7 @@ export default function CurriculumView() {
                                                           } else {
                                                             // Regular list styling
                                                             return (
-                                                              <div key={itemIdx} className="bg-secondary/30 rounded-lg p-4">
+                                                              <div key={itemIdx} className="pl-1">
                                                                 {isNumbered ? (
                                                                   <ol className="space-y-2 list-decimal list-inside">
                                                                     {items.map((item, listItemIdx) => (
@@ -1048,7 +1088,7 @@ export default function CurriculumView() {
                                                                   <ul className="space-y-2">
                                                                     {items.map((item, listItemIdx) => (
                                                                       <li key={listItemIdx} className="flex items-start space-x-3">
-                                                                        <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+                                                                        <div className="w-1 h-1 rounded-full bg-primary mt-2 flex-shrink-0"></div>
                                                                         <span className="text-sm leading-relaxed text-foreground">
                                                                           {transformInlineMarkdown(item.text)}
                                                                         </span>
@@ -1063,11 +1103,9 @@ export default function CurriculumView() {
                                                         
                                                         if (contentItem.type === 'text') {
                                                           return (
-                                                            <div key={itemIdx} className="bg-background/50 rounded-lg p-4 border border-border/50">
-                                                              <p className="text-sm leading-relaxed text-foreground">
-                                                                {transformInlineMarkdown(contentItem.text!)}
-                                                              </p>
-                                                            </div>
+                                                            <p key={itemIdx} className="text-sm leading-relaxed text-foreground">
+                                                              {transformInlineMarkdown(contentItem.text!)}
+                                                            </p>
                                                           );
                                                         }
                                                         
@@ -1121,12 +1159,13 @@ export default function CurriculumView() {
                                       )}
 
                                       {/* Lesson Completion */}
-                                      <div className="border-t border-border/50 pt-4">
+                                      <div className="border-t border-border pt-4">
                                         {canCompleteLessons ? (
-                                          <div className="flex items-center justify-between">
-                                            <div className="text-sm text-muted-foreground">
+                                          <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div className={cn("flex items-center gap-2 text-sm", progress?.isCompleted ? "text-success" : "text-muted-foreground")}>
+                                              {progress?.isCompleted && <CheckCircle className="w-4 h-4" />}
                                               {progress?.isCompleted
-                                                ? "✅ Lesson completed"
+                                                ? "Lesson completed"
                                                 : lesson.quizId
                                                 ? "Pass the quiz above to complete this lesson"
                                                 : "Mark this lesson as completed when you're done"}
@@ -1136,13 +1175,14 @@ export default function CurriculumView() {
                                                 onClick={() => toggleLessonComplete(lesson.id)}
                                                 disabled={markCompleteMutation.isPending || Boolean(progress?.isCompleted)}
                                                 size="sm"
-                                                className={progress?.isCompleted ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+                                                variant={progress?.isCompleted ? 'outline' : 'default'}
+                                                className={progress?.isCompleted ? 'border-success/30 bg-success/10 text-success disabled:opacity-100' : ''}
                                                 data-testid={`button-complete-lesson-${lesson.id}`}
                                               >
                                                 <CheckCircle className="w-4 h-4 mr-2" />
                                                 {progress?.isCompleted
                                                   ? 'Completed'
-                                                  : markCompleteMutation.isPending ? 'Marking...' : 'Mark as Complete'}
+                                                  : markCompleteMutation.isPending ? 'Marking...' : 'Mark as complete'}
                                               </Button>
                                             )}
                                           </div>
@@ -1153,8 +1193,8 @@ export default function CurriculumView() {
                                         )}
                                       </div>
                                     </div>
-                                  </CardContent>
-                                </Card>
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
@@ -1165,9 +1205,9 @@ export default function CurriculumView() {
                     {/* Resources */}
                     {module.resources && module.resources.length > 0 && (
                       <div className="mt-4">
-                        <h4 className="font-semibold text-sm mb-2 flex items-center space-x-1">
-                          <FileText className="w-4 h-4" />
-                          <span>Additional Resources</span>
+                        <h4 className="font-display font-medium text-sm mb-2 flex items-center space-x-1">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <span>Additional resources</span>
                         </h4>
                         <div className="flex flex-wrap gap-2">
                           {module.resources.map((resource, index) => (
@@ -1183,46 +1223,44 @@ export default function CurriculumView() {
               ))}
             </div>
           )}
-        </div>
+        </WeekPanel>
 
         {/* Sidebar - Milestones & Quick Actions */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-start-3 lg:row-start-2">
           {/* Week Milestones */}
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-lg">
-                <Award className="w-5 h-5" />
-                <span>Week {selectedWeek} Milestones</span>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Award className="w-5 h-5 text-primary" />
+                <span>Week {selectedWeek} milestones</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {getCurrentWeekMilestones().length === 0 ? (
                 <p className="text-sm text-muted-foreground">No milestones this week.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="divide-y divide-border">
                   {getCurrentWeekMilestones().map((milestone: Milestone) => (
-                    <Card key={milestone.id} className="bg-secondary/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-start space-x-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-yellow-400/20`}>
-                            <Clock className="w-4 h-4 text-yellow-400" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-sm" data-testid={`milestone-title-${milestone.id}`}>
-                              {milestone.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {milestone.description}
-                            </p>
-                            {milestone.dueDate && (
-                              <p className="text-xs text-accent">
-                                Due: {new Date(milestone.dueDate).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div key={milestone.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center bg-secondary text-primary">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm" data-testid={`milestone-title-${milestone.id}`}>
+                          {milestone.title}
+                        </p>
+                        {milestone.description && (
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {milestone.description}
+                          </p>
+                        )}
+                        {milestone.dueDate && (
+                          <p className="font-display text-xs text-accent">
+                            Due {new Date(milestone.dueDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -1231,119 +1269,103 @@ export default function CurriculumView() {
 
           {/* Week Roadmap - For Participants Only */}
           {user?.role === 'participant' && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-lg">
-                  <ListTodo className="w-5 h-5" />
-                  <span>Week {selectedWeek} Roadmap</span>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ListTodo className="w-5 h-5 text-primary" />
+                  <span>Week {selectedWeek} roadmap</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {roadmapLoading ? (
                   <div className="space-y-3">
                     {[1, 2].map((i) => (
-                      <Card key={i} className="animate-pulse bg-secondary/30">
-                        <CardContent className="p-4">
-                          <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                          <div className="h-3 bg-muted rounded w-1/2"></div>
-                        </CardContent>
-                      </Card>
+                      <div key={i} className="animate-pulse rounded-lg bg-muted/50 p-4">
+                        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                      </div>
                     ))}
                   </div>
                 ) : getCurrentWeekRoadmapItems().length === 0 ? (
                   <p className="text-sm text-muted-foreground">No roadmap items this week.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="divide-y divide-border">
                     {getCurrentWeekRoadmapItems().map((item: RoadmapItemWithAssignment) => (
-                      <Card key={item.id} className="bg-secondary/30">
-                        <CardContent className="p-4">
-                          <div className="flex items-start space-x-3">
-                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center ${
-                              item.assignment?.status === 'completed' 
-                                ? 'bg-green-400/20' 
-                                : item.assignment?.status === 'waived'
-                                ? 'bg-purple-400/20'
-                                : item.assignment?.status === 'blocked'
-                                ? 'bg-red-400/20'
-                                : item.assignment?.status === 'in_progress'
-                                ? 'bg-blue-400/20'
-                                : 'bg-gray-400/20'
-                            }`}>
-                              {item.assignment?.status === 'completed' ? (
-                                <CheckCircle className="w-4 h-4 text-green-400" />
-                              ) : item.assignment?.status === 'waived' ? (
-                                <CheckCircle className="w-4 h-4 text-purple-400" />
-                              ) : item.assignment?.status === 'blocked' ? (
-                                <XCircle className="w-4 h-4 text-red-400" />
-                              ) : item.assignment?.status === 'in_progress' ? (
-                                <Play className="w-4 h-4 text-blue-400" />
-                              ) : (
-                                <Clock className="w-4 h-4 text-gray-400" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
-                                {item.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground mb-2">
-                                {item.description}
-                              </p>
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <Badge 
-                                  variant="outline" 
-                                  className="text-xs capitalize"
-                                  data-testid={`roadmap-type-${item.id}`}
-                                >
-                                  {item.type.replace(/_/g, ' ')}
-                                </Badge>
-                                {item.assignment ? (
-                                  (() => {
-                                    const assignment = item.assignment;
-                                    if (!assignment?.id) return null;
-                                    if (isAssignmentDone(assignment.status)) {
-                                      return (
-                                        <Badge
-                                          className={`text-xs ${assignmentStatusClass(assignment.status)}`}
-                                          data-testid={`roadmap-status-${item.id}`}
-                                        >
-                                          {assignmentStatusLabel(assignment.status)}
-                                        </Badge>
-                                      );
-                                    }
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        {assignment.status === 'blocked' && (
-                                          <Badge className={`text-xs ${assignmentStatusClass('blocked')}`}>
-                                            {assignmentStatusLabel('blocked')}
-                                          </Badge>
-                                        )}
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={updateRoadmapStatusMutation.isPending}
-                                        onClick={() => handleRoadmapStatusUpdate(assignment.id as string, assignment.status as string)}
-                                        className="text-xs"
-                                        data-testid={`button-roadmap-${assignment.status}-${item.id}`}
-                                      >
-                                        {assignment.status === 'in_progress' ? (
-                                          updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
-                                        ) : (
-                                          updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
-                                        )}
-                                      </Button>
-                                      </div>
-                                    );
-                                  })()
-                                ) : (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Not Assigned
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
+                      <div key={item.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className={cn(
+                          "w-8 h-8 shrink-0 rounded-lg flex items-center justify-center",
+                          item.assignment?.status === 'blocked'
+                            ? 'bg-destructive/10 text-destructive'
+                            : 'bg-secondary text-primary',
+                        )}>
+                          {item.assignment?.status === 'completed' || item.assignment?.status === 'waived' ? (
+                            <CheckCircle className="w-4 h-4" />
+                          ) : item.assignment?.status === 'blocked' ? (
+                            <XCircle className="w-4 h-4" />
+                          ) : item.assignment?.status === 'in_progress' ? (
+                            <Play className="w-4 h-4 text-accent" />
+                          ) : (
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
+                            {item.title}
+                          </p>
+                          {item.description && (
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {item.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Badge
+                              variant="outline"
+                              className="text-xs capitalize"
+                              data-testid={`roadmap-type-${item.id}`}
+                            >
+                              {item.type.replace(/_/g, ' ')}
+                            </Badge>
+                            {item.assignment ? (
+                              (() => {
+                                const assignment = item.assignment;
+                                if (!assignment?.id) return null;
+                                if (isAssignmentDone(assignment.status)) {
+                                  return (
+                                    <span data-testid={`roadmap-status-${item.id}`}>
+                                      <StatusChip status={assignment.status} />
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    {assignment.status === 'blocked' && (
+                                      <StatusChip status="blocked" />
+                                    )}
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={updateRoadmapStatusMutation.isPending}
+                                    onClick={() => handleRoadmapStatusUpdate(assignment.id as string, assignment.status as string)}
+                                    className="text-xs"
+                                    data-testid={`button-roadmap-${assignment.status}-${item.id}`}
+                                  >
+                                    {assignment.status === 'in_progress' ? (
+                                      updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
+                                    ) : (
+                                      updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
+                                    )}
+                                  </Button>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">
+                                Not assigned
+                              </Badge>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -1353,51 +1375,26 @@ export default function CurriculumView() {
 
           {/* Quick Actions - participants only */}
           {user?.role === 'participant' && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
+                <CardTitle className="text-lg">Quick actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button className="w-full justify-start" variant="outline" asChild>
                   <Link href="/mentors" data-testid="button-schedule-session">
                     <Users className="w-4 h-4 mr-2" />
-                    Schedule Mentor Session
+                    Schedule a mentor session
                   </Link>
                 </Button>
                 <Button className="w-full justify-start" variant="outline" asChild>
                   <Link href="/roadmap" data-testid="button-view-assignments">
                     <ListTodo className="w-4 h-4 mr-2" />
-                    View Roadmap
+                    View roadmap
                   </Link>
                 </Button>
               </CardContent>
             </Card>
           )}
-
-          {/* Learning Path */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Learning Path</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((week) => (
-                  <div key={week} className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${
-                      week < selectedWeek ? 'bg-green-400' :
-                      week === selectedWeek ? 'bg-primary' :
-                      'bg-muted'
-                    }`}></div>
-                    <span className={`text-sm ${
-                      week === selectedWeek ? 'font-medium text-primary' : 'text-muted-foreground'
-                    }`}>
-                      Week {week}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
