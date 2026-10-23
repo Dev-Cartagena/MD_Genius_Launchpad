@@ -12,6 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BlockLoader } from "@/components/brand";
+import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -100,6 +103,47 @@ const sessionStatus = (session: { endTime?: string | Date | null }) =>
 
 type EditMentorProfileFormData = z.infer<typeof editMentorProfileSchema>;
 
+// Sentence-case label for any snake_case value (statuses, roles).
+const humanize = (value?: string | null) => {
+  const text = (value || "").replace(/_/g, " ").trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+};
+
+// Application status badges: draft = dashed, waiting = Mist, in review stages = Steel,
+// accepted = Navy, rejected = error tint.
+const applicationStatusClass = (status: string) => {
+  switch (status) {
+    case "draft":
+      return "border-dashed border-steel/60 bg-transparent text-muted-foreground";
+    case "accepted":
+      return "border-transparent bg-primary text-primary-foreground";
+    case "rejected":
+      return "border-transparent bg-destructive/10 text-destructive";
+    case "shortlisted":
+    case "interview":
+    case "offer":
+      return "border-transparent bg-accent text-accent-foreground";
+    default:
+      return "border-transparent bg-secondary text-foreground";
+  }
+};
+
+function ApplicationStatusBadge({ status, className, ...props }: { status: string; className?: string; "data-testid"?: string }) {
+  return (
+    <Badge variant="outline" className={cn(applicationStatusClass(status), className)} {...props}>
+      {humanize(status)}
+    </Badge>
+  );
+}
+
+// Active / live = Navy, inactive = muted, not yet started = dashed.
+const activeBadgeClass = (active: boolean) =>
+  active ? "border-transparent bg-primary text-primary-foreground" : "border-transparent bg-muted text-muted-foreground";
+const sessionBadgeClass = (status: string) =>
+  status === "Completed"
+    ? "border-transparent bg-primary text-primary-foreground"
+    : "border-dashed border-steel/60 bg-transparent text-muted-foreground";
+
 // Admin-specific types for processed data
 interface ProcessedApplication {
   id: string;
@@ -144,8 +188,8 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
   const handleStatusUpdate = () => {
     if (!selectedStatus) {
       toast({
-        title: "Error",
-        description: "Please select a status",
+        title: "Select a status",
+        description: "Choose the new status before saving.",
         variant: "destructive",
       });
       return;
@@ -174,46 +218,48 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
           size="sm"
           data-testid={`button-update-status-${application.id}`}
         >
-          Update Status
+          Update status
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Update Application Status</DialogTitle>
+          <DialogTitle>Update application status</DialogTitle>
           <div className="text-sm text-muted-foreground">
             Application by {application.applicant} for {application.project}
           </div>
         </DialogHeader>
         <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Current Status</label>
-            <p className="text-sm text-muted-foreground capitalize">
-              {application.status.replace('_', ' ')}
-            </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="font-display text-sm font-medium">Current status</label>
+              <div>
+                <ApplicationStatusBadge status={application.status} />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="font-display text-sm font-medium">New status</label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger data-testid={`select-new-status-${application.id}`}>
+                  <SelectValue placeholder="Select a status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="under_review">Under review</SelectItem>
+                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                  <SelectItem value="interview">Interview</SelectItem>
+                  <SelectItem value="offer">Offer</SelectItem>
+                  <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
-          <div>
-            <label className="text-sm font-medium">New Status</label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger data-testid={`select-new-status-${application.id}`}>
-                <SelectValue placeholder="Select new status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="under_review">Under Review</SelectItem>
-                <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                <SelectItem value="interview">Interview</SelectItem>
-                <SelectItem value="offer">Offer</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <label className="text-sm font-medium">Reviewer Notes</label>
+          <div className="space-y-2">
+            <label className="font-display text-sm font-medium">Reviewer notes</label>
             <Textarea 
-              placeholder="Add reviewer notes (optional)..."
+              placeholder="Add a note for the review record (optional)"
               value={reviewerNotes}
               onChange={(e) => setReviewerNotes(e.target.value)}
               data-testid={`textarea-reviewer-notes-${application.id}`}
@@ -221,11 +267,11 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
           </div>
           
           {application.reviewerNotes && application.reviewerNotes.length > 0 && (
-            <div>
-              <label className="text-sm font-medium">Previous Notes</label>
+            <div className="space-y-2">
+              <label className="font-display text-sm font-medium">Previous notes</label>
               <div className="space-y-1">
                 {application.reviewerNotes.map((note: string, index: number) => (
-                  <p key={index} className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                  <p key={index} className="rounded-md border bg-muted p-2 text-xs text-muted-foreground">
                     {note}
                   </p>
                 ))}
@@ -233,14 +279,16 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
             </div>
           )}
           
-          <Button 
-            className="w-full"
-            onClick={handleStatusUpdate}
-            disabled={updateStatus.isPending || !selectedStatus}
-            data-testid={`button-confirm-status-${application.id}`}
-          >
-            {updateStatus.isPending ? "Updating..." : "Update Status"}
-          </Button>
+          <div className="flex justify-end">
+            <Button 
+              className="w-full sm:w-auto"
+              onClick={handleStatusUpdate}
+              disabled={updateStatus.isPending || !selectedStatus}
+              data-testid={`button-confirm-status-${application.id}`}
+            >
+              {updateStatus.isPending ? "Updating..." : "Update status"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -334,7 +382,7 @@ export default function Admin() {
       
       return {
         id: app.id!,
-        applicant: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
+        applicant: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown user' : 'Unknown user',
         project: getApplicationTitle(app.answers),
         status: app.status || 'draft',
         submittedDays: daysDiff,
@@ -356,7 +404,7 @@ export default function Admin() {
       alerts.push({
         id: "pending-reviews",
         type: "warning",
-        title: "Applications Pending Review",
+        title: "Applications waiting for review",
         message: `${pendingReviews} application${pendingReviews > 1 ? 's' : ''} awaiting review`,
         priority: pendingReviews > 5 ? "high" : "medium"
       });
@@ -368,7 +416,7 @@ export default function Admin() {
       alerts.push({
         id: "active-cohorts",
         type: "info",
-        title: "Active Cohorts",
+        title: "Active cohorts",
         message: cohortMessage,
         priority: "low"
       });
@@ -385,7 +433,7 @@ export default function Admin() {
       alerts.push({
         id: "recent-accepted",
         type: "success",
-        title: "New Participants",
+        title: "New participants",
         message: `${recentAccepted} application${recentAccepted > 1 ? 's' : ''} accepted this week`,
         priority: "low"
       });
@@ -439,8 +487,8 @@ export default function Admin() {
   const handleMutationError = (error: unknown, fallback: string) => {
     if (isUnauthorizedError(error as Error)) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Signed out",
+        description: "Your session has ended. Taking you to sign in.",
         variant: "destructive",
       });
       setTimeout(() => {
@@ -449,7 +497,7 @@ export default function Admin() {
       return;
     }
     toast({
-      title: "Error",
+      title: "Something went wrong",
       description: getApiErrorMessage(error, fallback),
       variant: "destructive",
     });
@@ -463,14 +511,14 @@ export default function Admin() {
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: variables.isActive ? "Cohort Reactivated" : "Cohort Deactivated",
+        title: variables.isActive ? "Cohort reactivated" : "Cohort deactivated",
         description: variables.isActive
-          ? "The cohort is open to applicants again."
-          : "The cohort is hidden from applicants.",
+          ? "Applicants can see this cohort again."
+          : "This cohort is now hidden from applicants.",
       });
       invalidateCohorts();
     },
-    onError: (error) => handleMutationError(error, "Failed to update cohort. Please try again."),
+    onError: (error) => handleMutationError(error, "The cohort could not be updated. Please try again."),
   });
 
   // Create cohort mutation
@@ -481,8 +529,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Cohort Created!",
-        description: "New cohort has been created successfully.",
+        title: "Cohort created",
+        description: "The new cohort is saved.",
       });
       setIsCreateCohortOpen(false);
       invalidateCohorts();
@@ -491,8 +539,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -501,8 +549,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to create cohort. Please try again.",
+        title: "Something went wrong",
+        description: "The cohort could not be created. Please try again.",
         variant: "destructive",
       });
     }
@@ -517,8 +565,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Cohort Updated!",
-        description: "Cohort has been updated successfully.",
+        title: "Cohort updated",
+        description: "Your changes are saved.",
       });
       invalidateCohorts();
       setEditingCohort(null);
@@ -527,8 +575,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -537,8 +585,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to update cohort. Please try again.",
+        title: "Something went wrong",
+        description: "The cohort could not be updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -559,14 +607,14 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Mentor Profile Created!",
+        title: "Mentor profile created",
         description: "The mentor now appears to participants.",
       });
       setEditingMentor(null);
       editMentorForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
     },
-    onError: (error) => handleMutationError(error, "Failed to create mentor profile. Please try again."),
+    onError: (error) => handleMutationError(error, "The mentor profile could not be created. Please try again."),
   });
 
   // Update mentor profile mutation
@@ -577,8 +625,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Mentor Profile Updated!",
-        description: "Mentor profile has been updated successfully.",
+        title: "Mentor profile updated",
+        description: "Your changes are saved.",
       });
       setEditingMentor(null);
       editMentorForm.reset();
@@ -588,8 +636,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -598,8 +646,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to update mentor profile. Please try again.",
+        title: "Something went wrong",
+        description: "The mentor profile could not be updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -657,8 +705,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Application Updated!",
-        description: "Application status has been updated successfully.",
+        title: "Status updated",
+        description: "The application status is saved.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
       // Accepting an application can change the applicant's role
@@ -667,8 +715,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -677,8 +725,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to update application. Please try again.",
+        title: "Something went wrong",
+        description: "The application could not be updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -692,8 +740,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "User Updated!",
-        description: "User information has been updated successfully.",
+        title: "User updated",
+        description: "Your changes are saved.",
       });
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
@@ -701,8 +749,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -711,8 +759,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to update user. Please try again.",
+        title: "Something went wrong",
+        description: "The user could not be updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -726,13 +774,13 @@ export default function Admin() {
     onSuccess: (result: { inviteEmailSent?: boolean }) => {
       if (result?.inviteEmailSent) {
         toast({
-          title: "User Invited!",
+          title: "Invitation sent",
           description: "The invitation email has been sent.",
         });
       } else {
         toast({
-          title: "User Created",
-          description: "User created. Email is not configured, so no invite was sent.",
+          title: "User created",
+          description: "Email is not configured, so no invitation was sent.",
         });
       }
       setIsInviteUserOpen(false);
@@ -741,8 +789,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -754,10 +802,10 @@ export default function Admin() {
       // Handle specific error message from backend
       const errorMessage = error?.message?.includes("already exists")
         ? "A user with this email address already exists."
-        : getApiErrorMessage(error, "Failed to invite user. Please try again.");
+        : getApiErrorMessage(error, "The invitation could not be sent. Please try again.");
 
       toast({
-        title: "Error",
+        title: "Something went wrong",
         description: errorMessage,
         variant: "destructive",
       });
@@ -824,13 +872,13 @@ export default function Admin() {
       URL.revokeObjectURL(url);
 
       toast({
-        title: "Export Complete",
-        description: `Exported ${csvData.length} applications to CSV`,
+        title: "Export ready",
+        description: `${csvData.length} application${csvData.length === 1 ? "" : "s"} exported to CSV.`,
       });
     } catch (error) {
       toast({
-        title: "Export Failed",
-        description: "Failed to export applications. Please try again.",
+        title: "Export failed",
+        description: "The applications could not be exported. Please try again.",
         variant: "destructive",
       });
     }
@@ -844,7 +892,7 @@ export default function Admin() {
       <Dialog open={!!viewingApplication} onOpenChange={() => setViewingApplication(null)}>
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Application Details</DialogTitle>
+            <DialogTitle>Application details</DialogTitle>
             <div className="text-sm text-muted-foreground">
               Application by {application.applicant}
             </div>
@@ -852,49 +900,38 @@ export default function Admin() {
           
           <div className="space-y-6">
             {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Applicant Name</label>
-                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-applicant-name">
+            <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Applicant name</p>
+                <p className="text-sm" data-testid="view-app-applicant-name">
                   {application.applicant}
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Email</label>
-                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-email">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Email</p>
+                <p className="text-sm" data-testid="view-app-email">
                   {application.email || 'Not provided'}
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Project Name</label>
-                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-project-name">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Project name</p>
+                <p className="text-sm" data-testid="view-app-project-name">
                   {application.project}
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Status</label>
-                <Badge 
-                  variant={
-                    application.status === 'interview' ? 'default' :
-                    application.status === 'shortlisted' ? 'secondary' :
-                    application.status === 'accepted' ? 'default' :
-                    'outline'
-                  }
-                  className="mt-1"
-                  data-testid="view-app-status"
-                >
-                  {application.status.replace('_', ' ')}
-                </Badge>
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Status</p>
+                <ApplicationStatusBadge status={application.status} data-testid="view-app-status" />
               </div>
-              <div>
-                <label className="text-sm font-medium">Score</label>
-                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-score">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Score</p>
+                <p className="font-display text-xl font-medium" data-testid="view-app-score">
                   {application.score}%
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium">Submitted</label>
-                <p className="text-sm p-2 bg-muted rounded" data-testid="view-app-submitted">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Submitted</p>
+                <p className="text-sm" data-testid="view-app-submitted">
                   {application.submittedDays} days ago
                 </p>
               </div>
@@ -902,9 +939,9 @@ export default function Admin() {
 
             {/* Project Description */}
             {application.description && (
-              <div>
-                <label className="text-sm font-medium">Project Description</label>
-                <div className="mt-1 p-3 bg-muted rounded text-sm whitespace-pre-wrap" data-testid="view-app-description">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Project description</p>
+                <div className="rounded-xl border bg-card p-4 text-sm whitespace-pre-wrap" data-testid="view-app-description">
                   {application.description}
                 </div>
               </div>
@@ -912,13 +949,13 @@ export default function Admin() {
 
             {/* Reviewer Notes */}
             {application.reviewerNotes && application.reviewerNotes.length > 0 && (
-              <div>
-                <label className="text-sm font-medium">Reviewer Notes</label>
-                <div className="mt-1 space-y-2">
+              <div className="space-y-1">
+                <p className="font-display text-sm text-muted-foreground">Reviewer notes</p>
+                <div className="space-y-2">
                   {application.reviewerNotes.map((note: string, index: number) => (
                     <div 
                       key={index} 
-                      className="p-2 bg-muted rounded text-sm"
+                      className="rounded-md border bg-muted p-2 text-sm"
                       data-testid={`view-app-note-${index}`}
                     >
                       {note}
@@ -996,9 +1033,9 @@ export default function Admin() {
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
+            <DialogTitle>Edit user</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Update user information and role
+              Update this person's details and role.
             </div>
           </DialogHeader>
           
@@ -1010,10 +1047,10 @@ export default function Admin() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>First name</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter first name" 
+                          placeholder="First name" 
                           {...field}
                           data-testid="input-edit-user-first-name"
                         />
@@ -1028,10 +1065,10 @@ export default function Admin() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>Last name</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter last name" 
+                          placeholder="Last name" 
                           {...field}
                           data-testid="input-edit-user-last-name"
                         />
@@ -1042,51 +1079,53 @@ export default function Admin() {
                 />
               </div>
 
-              <FormField
-                control={editUserForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email"
-                        placeholder="Enter email address" 
-                        {...field}
-                        data-testid="input-edit-user-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={editUserForm.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editUserForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email address</FormLabel>
                       <FormControl>
-                        <SelectTrigger data-testid="select-edit-user-role">
-                          <SelectValue placeholder="Select user role" />
-                        </SelectTrigger>
+                        <Input 
+                          type="email"
+                          placeholder="name@example.com" 
+                          {...field}
+                          data-testid="input-edit-user-email"
+                        />
                       </FormControl>
-                      <SelectContent>
-                        {userRoles.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="flex justify-end space-x-2 pt-4">
+                <FormField
+                  control={editUserForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-edit-user-role">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {userRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {humanize(role)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -1100,7 +1139,7 @@ export default function Admin() {
                   disabled={updateUser.isPending}
                   data-testid="button-submit-edit-user"
                 >
-                  {updateUser.isPending ? "Updating..." : "Update User"}
+                  {updateUser.isPending ? "Saving..." : "Save changes"}
                 </Button>
               </div>
             </form>
@@ -1116,9 +1155,9 @@ export default function Admin() {
       <Dialog open={isInviteUserOpen} onOpenChange={setIsInviteUserOpen}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Invite New User</DialogTitle>
+            <DialogTitle>Invite user</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Send an invitation to join the platform
+              Create an account for this person. If email is set up, they also receive an invitation to sign in.
             </div>
           </DialogHeader>
           
@@ -1130,10 +1169,10 @@ export default function Admin() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>First name</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter first name" 
+                          placeholder="First name" 
                           {...field}
                           data-testid="input-invite-user-first-name"
                         />
@@ -1148,10 +1187,10 @@ export default function Admin() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>Last name</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter last name" 
+                          placeholder="Last name" 
                           {...field}
                           data-testid="input-invite-user-last-name"
                         />
@@ -1162,51 +1201,53 @@ export default function Admin() {
                 />
               </div>
 
-              <FormField
-                control={inviteUserForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email"
-                        placeholder="Enter email address" 
-                        {...field}
-                        data-testid="input-invite-user-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={inviteUserForm.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={inviteUserForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email address</FormLabel>
                       <FormControl>
-                        <SelectTrigger data-testid="select-invite-user-role">
-                          <SelectValue placeholder="Select user role" />
-                        </SelectTrigger>
+                        <Input 
+                          type="email"
+                          placeholder="name@example.com" 
+                          {...field}
+                          data-testid="input-invite-user-email"
+                        />
                       </FormControl>
-                      <SelectContent>
-                        {userRoles.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {role.charAt(0).toUpperCase() + role.slice(1).replace('_', ' ')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="flex justify-end space-x-2 pt-4">
+                <FormField
+                  control={inviteUserForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-invite-user-role">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {userRoles.map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {humanize(role)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -1220,7 +1261,7 @@ export default function Admin() {
                   disabled={inviteUser.isPending}
                   data-testid="button-submit-invite-user"
                 >
-                  {inviteUser.isPending ? "Inviting..." : "Send Invitation"}
+                  {inviteUser.isPending ? "Sending..." : "Send invitation"}
                 </Button>
               </div>
             </form>
@@ -1234,15 +1275,15 @@ export default function Admin() {
   const ViewMentorDialog = () => {
     if (!viewingMentor) return null;
 
-    const fullName = `${viewingMentor.firstName || ''} ${viewingMentor.lastName || ''}`.trim() || 'Unnamed Mentor';
+    const fullName = `${viewingMentor.firstName || ''} ${viewingMentor.lastName || ''}`.trim() || 'Unnamed mentor';
 
     return (
       <Dialog open={!!viewingMentor} onOpenChange={() => setViewingMentor(null)}>
         <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Mentor Profile - {fullName}</DialogTitle>
+            <DialogTitle>Mentor profile: {fullName}</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              View mentor information and profile details
+              Contact details and the profile participants see.
             </div>
           </DialogHeader>
           
@@ -1250,19 +1291,19 @@ export default function Admin() {
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Name</label>
+                <label className="font-display text-sm text-muted-foreground">Name</label>
                 <p className="text-sm" data-testid="mentor-name">{fullName}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                <label className="font-display text-sm text-muted-foreground">Email</label>
                 <p className="text-sm" data-testid="mentor-email">{viewingMentor.email}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Role</label>
-                <p className="text-sm" data-testid="mentor-role">{viewingMentor.role}</p>
+                <label className="font-display text-sm text-muted-foreground">Role</label>
+                <p className="text-sm" data-testid="mentor-role">{humanize(viewingMentor.role)}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
+                <label className="font-display text-sm text-muted-foreground">Status</label>
                 <p className="text-sm" data-testid="mentor-status">
                   {!viewingMentor.mentorProfile ? 'No profile yet' : viewingMentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
                 </p>
@@ -1273,19 +1314,19 @@ export default function Admin() {
             {viewingMentor.mentorProfile && (
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Bio</label>
+                  <label className="font-display text-sm text-muted-foreground">Bio</label>
                   <p className="text-sm" data-testid="mentor-bio">
                     {viewingMentor.mentorProfile.bio || 'No bio provided'}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Expertise</label>
+                  <label className="font-display text-sm text-muted-foreground">Expertise</label>
                   <p className="text-sm" data-testid="mentor-expertise">
                     {viewingMentor.mentorProfile.expertise?.join(', ') || 'No expertise listed'}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Industries</label>
+                  <label className="font-display text-sm text-muted-foreground">Industries</label>
                   <p className="text-sm" data-testid="mentor-industries">
                     {viewingMentor.mentorProfile.industries?.join(', ') || 'No industries listed'}
                   </p>
@@ -1294,7 +1335,7 @@ export default function Admin() {
             )}
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
+          <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
             <Button 
               variant="outline" 
               onClick={() => setViewingMentor(null)}
@@ -1309,7 +1350,7 @@ export default function Admin() {
               }}
               data-testid="button-edit-mentor-from-view"
             >
-              {viewingMentor.mentorProfile ? "Edit Profile" : "Create Profile"}
+              {viewingMentor.mentorProfile ? "Edit profile" : "Create profile"}
             </Button>
           </div>
         </DialogContent>
@@ -1321,7 +1362,7 @@ export default function Admin() {
   const EditMentorDialog = () => {
     if (!editingMentor) return null;
 
-    const fullName = `${editingMentor.firstName || ''} ${editingMentor.lastName || ''}`.trim() || 'Unnamed Mentor';
+    const fullName = `${editingMentor.firstName || ''} ${editingMentor.lastName || ''}`.trim() || 'Unnamed mentor';
     const isCreating = !editingMentor.mentorProfile;
     const isSaving = isCreating ? createMentorProfile.isPending : updateMentorProfile.isPending;
 
@@ -1329,26 +1370,26 @@ export default function Admin() {
       <Dialog open={!!editingMentor} onOpenChange={() => setEditingMentor(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isCreating ? "Create" : "Edit"} Mentor Profile - {fullName}</DialogTitle>
+            <DialogTitle>{isCreating ? "Create" : "Edit"} mentor profile: {fullName}</DialogTitle>
             <div className="text-sm text-muted-foreground">
               {isCreating
                 ? "This mentor has no profile yet. Create one so participants can find and book them."
-                : "Update mentor profile information"}
+                : "Update the profile participants see when they book."}
             </div>
           </DialogHeader>
           
           <Form {...editMentorForm}>
-            <form onSubmit={editMentorForm.handleSubmit(handleEditMentorSubmit)} className="space-y-4">
+            <form onSubmit={editMentorForm.handleSubmit(handleEditMentorSubmit)} className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={editMentorForm.control}
                 name="bio"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="md:col-span-2">
                     <FormLabel>Bio</FormLabel>
                     <FormControl>
                       <Textarea
                         className="min-h-[100px]"
-                        placeholder="Enter mentor bio"
+                        placeholder="A short introduction for participants"
                         {...field}
                         data-testid="input-edit-mentor-bio"
                       />
@@ -1400,11 +1441,11 @@ export default function Admin() {
                 control={editMentorForm.control}
                 name="isActive"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex flex-row items-center justify-between gap-4 rounded-xl border p-4 md:col-span-2">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active Status</FormLabel>
+                      <FormLabel>Active</FormLabel>
                       <p className="text-sm text-muted-foreground">
-                        Enable or disable this mentor profile
+                        Inactive mentors are hidden from participants.
                       </p>
                     </div>
                     <FormControl>
@@ -1418,7 +1459,7 @@ export default function Admin() {
                 )}
               />
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end md:col-span-2">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -1432,7 +1473,7 @@ export default function Admin() {
                   disabled={isSaving}
                   data-testid="button-submit-edit-mentor"
                 >
-                  {isSaving ? "Saving..." : isCreating ? "Create Profile" : "Update Profile"}
+                  {isSaving ? "Saving..." : isCreating ? "Create profile" : "Save changes"}
                 </Button>
               </div>
             </form>
@@ -1445,13 +1486,13 @@ export default function Admin() {
   // Check admin access (after all hooks so hook order stays stable)
   if (!isAdmin) {
     return (
-      <AppLayout title="Admin Panel" subtitle="Access denied">
-        <Card className="glass-card">
+      <AppLayout title="Admin" subtitle="Access restricted">
+        <Card>
           <CardContent className="p-8 text-center">
-            <Shield className="w-12 h-12 mx-auto text-destructive mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Access Denied</h3>
+            <Shield className="w-10 h-10 mx-auto text-primary mb-4" />
+            <h3 className="text-xl mb-2">Administrators only</h3>
             <p className="text-muted-foreground">
-              You don't have administrator privileges to access this page.
+              Your account doesn't have administrator access. If you need it, ask a Launchpad administrator.
             </p>
           </CardContent>
         </Card>
@@ -1460,82 +1501,84 @@ export default function Admin() {
   }
 
   return (
-    <AppLayout 
-      title="Admin Panel" 
-      subtitle="Manage the MD Genius AI Launchpad platform"
+    <AppLayout
+      title="Admin"
+      subtitle="Manage applications, cohorts, program content and people for MD Genius Launchpad"
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden flex-nowrap h-auto lg:grid lg:grid-cols-8">
-            <TabsTrigger value="overview" className="shrink-0" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="applications" className="shrink-0" data-testid="tab-applications">Applications</TabsTrigger>
-            <TabsTrigger value="cohorts" className="shrink-0" data-testid="tab-cohorts">Cohorts</TabsTrigger>
-            <TabsTrigger value="roadmap" className="shrink-0" data-testid="tab-roadmap">Roadmap</TabsTrigger>
-            <TabsTrigger value="curriculum" className="shrink-0" data-testid="tab-curriculum">Curriculum</TabsTrigger>
-            <TabsTrigger value="mentors" className="shrink-0" data-testid="tab-mentors">Mentors</TabsTrigger>
-            <TabsTrigger value="investors" className="shrink-0" data-testid="tab-investors">Investors</TabsTrigger>
-            <TabsTrigger value="users" className="shrink-0" data-testid="tab-users">Users</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto overflow-y-hidden">
+            <TabsList className="flex w-max min-w-full flex-nowrap">
+              <TabsTrigger value="overview" className="shrink-0" data-testid="tab-overview">Overview</TabsTrigger>
+              <TabsTrigger value="applications" className="shrink-0" data-testid="tab-applications">Applications</TabsTrigger>
+              <TabsTrigger value="cohorts" className="shrink-0" data-testid="tab-cohorts">Cohorts</TabsTrigger>
+              <TabsTrigger value="roadmap" className="shrink-0" data-testid="tab-roadmap">Roadmap</TabsTrigger>
+              <TabsTrigger value="curriculum" className="shrink-0" data-testid="tab-curriculum">Curriculum</TabsTrigger>
+              <TabsTrigger value="mentors" className="shrink-0" data-testid="tab-mentors">Mentors</TabsTrigger>
+              <TabsTrigger value="investors" className="shrink-0" data-testid="tab-investors">Investors</TabsTrigger>
+              <TabsTrigger value="users" className="shrink-0" data-testid="tab-users">Users</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Applications</p>
-                      <p className="text-2xl font-bold" data-testid="metric-total-applications">
+                      <p className="font-display text-sm text-muted-foreground">Total applications</p>
+                      <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-total-applications">
                         {adminMetrics.totalApplications}
                       </p>
-                      <p className="text-xs text-green-400 mt-1">All time</p>
+                      <p className="text-xs text-muted-foreground mt-1">All time</p>
                     </div>
-                    <FileText className="w-8 h-8 text-primary opacity-80" />
+                    <FileText className="w-5 h-5 text-primary" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Acceptance Rate</p>
-                      <p className="text-2xl font-bold" data-testid="metric-acceptance-rate">
+                      <p className="font-display text-sm text-muted-foreground">Acceptance rate</p>
+                      <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-acceptance-rate">
                         {adminMetrics.acceptanceRate}%
                       </p>
-                      <p className="text-xs text-accent mt-1">Of all applications</p>
+                      <p className="text-xs text-muted-foreground mt-1">Of all applications</p>
                     </div>
-                    <UserCheck className="w-8 h-8 text-accent opacity-80" />
+                    <UserCheck className="w-5 h-5 text-primary" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
-                      <p className="text-2xl font-bold" data-testid="metric-active-projects">
+                      <p className="font-display text-sm text-muted-foreground">Active projects</p>
+                      <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-active-projects">
                         {adminMetrics.totalProjects}
                       </p>
-                      <p className="text-xs text-primary mt-1">Across {adminMetrics.activeCohorts} running cohort{adminMetrics.activeCohorts === 1 ? '' : 's'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Across {adminMetrics.activeCohorts} running cohort{adminMetrics.activeCohorts === 1 ? '' : 's'}</p>
                     </div>
-                    <GraduationCap className="w-8 h-8 text-primary opacity-80" />
+                    <GraduationCap className="w-5 h-5 text-primary" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Users</p>
-                      <p className="text-2xl font-bold" data-testid="metric-total-users">
+                      <p className="font-display text-sm text-muted-foreground">Users</p>
+                      <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-total-users">
                         {adminMetrics.totalUsers}
                       </p>
-                      <p className="text-xs text-green-400 mt-1">All roles</p>
+                      <p className="text-xs text-muted-foreground mt-1">All roles</p>
                     </div>
-                    <Users className="w-8 h-8 text-green-400 opacity-80" />
+                    <Users className="w-5 h-5 text-primary" />
                   </div>
                 </CardContent>
               </Card>
@@ -1543,84 +1586,73 @@ export default function Admin() {
 
             {/* Recent Applications and System Alerts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="glass-card">
+              <Card>
                 <CardHeader>
-                  <CardTitle>Recent Applications</CardTitle>
+                  <CardTitle>Recent applications</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentApplications.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">No applications yet.</p>
-                    )}
+                <CardContent className="pt-0">
+                  {recentApplications.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No applications yet.</p>
+                  )}
+                  <div className="divide-y">
                     {recentApplications.slice(0, 5).map((application: ProcessedApplication) => (
-                      <Card key={application.id} className="bg-secondary/30">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-sm" data-testid={`application-name-${application.id}`}>
-                                {application.applicant}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {application.project} • Score: {application.score}%
-                              </p>
-                              <Badge 
-                                variant={
-                                  application.status === 'interview' ? 'default' :
-                                  application.status === 'shortlisted' ? 'secondary' :
-                                  'outline'
-                                }
-                                className="mt-1"
-                                data-testid={`application-status-${application.id}`}
-                              >
-                                {application.status.replace('_', ' ')}
-                              </Badge>
-                            </div>
-                            <ApplicationStatusDialog 
-                              application={application} 
-                              updateStatus={updateApplicationStatus}
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div key={application.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate" data-testid={`application-name-${application.id}`}>
+                            {application.applicant}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {application.project} · Score <span className="font-display">{application.score}%</span>
+                          </p>
+                          <ApplicationStatusBadge
+                            status={application.status}
+                            className="mt-1"
+                            data-testid={`application-status-${application.id}`}
+                          />
+                        </div>
+                        <ApplicationStatusDialog
+                          application={application}
+                          updateStatus={updateApplicationStatus}
+                        />
+                      </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="glass-card">
+              <Card>
                 <CardHeader>
-                  <CardTitle>System Alerts</CardTitle>
+                  <CardTitle>Needs attention</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="pt-0">
+                  <div className="space-y-3">
                     {systemAlerts.length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">Nothing needs attention right now.</p>
                     )}
                     {systemAlerts.map((alert: SystemAlert) => (
-                      <Card 
-                        key={alert.id} 
-                        className={`${
-                          alert.type === 'warning' ? 'bg-yellow-400/10 border-yellow-400/20' :
-                          alert.type === 'success' ? 'bg-green-400/10 border-green-400/20' :
-                          'bg-primary/10 border-primary/20'
-                        }`}
+                      <div
+                        key={alert.id}
+                        className={cn(
+                          "rounded-lg border p-4",
+                          alert.type === 'warning' ? 'bg-warning/10 border-warning/20' :
+                          alert.type === 'success' ? 'bg-success/10 border-success/20' :
+                          'bg-secondary border-border'
+                        )}
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-start space-x-2">
-                            {alert.type === 'warning' && <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5" />}
-                            {alert.type === 'success' && <CheckCircle className="w-4 h-4 text-green-400 mt-0.5" />}
-                            {alert.type === 'info' && <Clock className="w-4 h-4 text-primary mt-0.5" />}
-                            <div>
-                              <p className="text-sm font-medium" data-testid={`alert-title-${alert.id}`}>
-                                {alert.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground" data-testid={`alert-message-${alert.id}`}>
-                                {alert.message}
-                              </p>
-                            </div>
+                        <div className="flex items-start gap-2">
+                          {alert.type === 'warning' && <AlertCircle className="w-4 h-4 shrink-0 text-warning mt-0.5" />}
+                          {alert.type === 'success' && <CheckCircle className="w-4 h-4 shrink-0 text-success mt-0.5" />}
+                          {alert.type === 'info' && <Clock className="w-4 h-4 shrink-0 text-accent mt-0.5" />}
+                          <div>
+                            <p className="font-display text-sm font-medium" data-testid={`alert-title-${alert.id}`}>
+                              {alert.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground" data-testid={`alert-message-${alert.id}`}>
+                              {alert.message}
+                            </p>
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </CardContent>
@@ -1630,300 +1662,312 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="applications" className="space-y-6">
-            {/* Application Filters */}
-            <Card className="glass-card">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Select value={selectedApplicationStatus} onValueChange={setSelectedApplicationStatus}>
-                      <SelectTrigger className="w-48" data-testid="select-application-status">
-                        <SelectValue placeholder="Application Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Applications</SelectItem>
-                        <SelectItem value="submitted">Submitted</SelectItem>
-                        <SelectItem value="under_review">Under Review</SelectItem>
-                        <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                        <SelectItem value="interview">Interview</SelectItem>
-                        <SelectItem value="offer">Offer</SelectItem>
-                        <SelectItem value="accepted">Accepted</SelectItem>
-                        <SelectItem value="rejected">Rejected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Button
-                      variant="outline"
-                      onClick={exportApplicationsCSV}
-                      disabled={filteredApplications.length === 0}
-                      data-testid="button-export-applications"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Export
-                    </Button>
-                  </div>
-                  
-                  <div className="text-sm text-muted-foreground">
-                    {filteredApplications.length} applications
-                  </div>
+            <Card>
+              <CardHeader className="gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Applications</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <span className="font-display">{filteredApplications.length}</span> application{filteredApplications.length === 1 ? '' : 's'}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+                {/* Application Filters */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Select value={selectedApplicationStatus} onValueChange={setSelectedApplicationStatus}>
+                    <SelectTrigger className="w-full sm:w-48" data-testid="select-application-status">
+                      <SelectValue placeholder="Application status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All applications</SelectItem>
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="under_review">Under review</SelectItem>
+                      <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                      <SelectItem value="interview">Interview</SelectItem>
+                      <SelectItem value="offer">Offer</SelectItem>
+                      <SelectItem value="accepted">Accepted</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-            {/* Applications List */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Application Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {filteredApplications.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">No applications match this filter.</p>
-                  )}
-                  {filteredApplications.map((application: ProcessedApplication) => (
-                    <Card key={application.id} className="bg-secondary/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-4">
-                              <div>
-                                <p className="font-medium" data-testid={`app-applicant-${application.id}`}>
-                                  {application.applicant}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {application.project}
-                                </p>
-                              </div>
-                              <Badge 
-                                variant={
-                                  application.status === 'interview' ? 'default' :
-                                  application.status === 'shortlisted' ? 'secondary' :
-                                  'outline'
-                                }
-                                data-testid={`app-status-${application.id}`}
-                              >
-                                {application.status.replace('_', ' ')}
-                              </Badge>
-                              <div className="text-sm text-muted-foreground">
-                                Score: <span className="font-medium">{application.score}%</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => setViewingApplication(application)}
-                              data-testid={`button-view-app-${application.id}`}
-                            >
-                              <Eye className="w-3 h-3 mr-1" />
-                              View
-                            </Button>
-                            
-                            <ApplicationStatusDialog 
-                              application={application}
-                              updateStatus={updateApplicationStatus}
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={exportApplicationsCSV}
+                    disabled={filteredApplications.length === 0}
+                    data-testid="button-export-applications"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
                 </div>
+              </CardHeader>
+
+              {/* Applications List */}
+              <CardContent className="p-0">
+                {filteredApplications.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8 border-t">No applications match this filter.</p>
+                ) : (
+                  <Table className="border-t">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Applicant</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Score</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredApplications.map((application: ProcessedApplication) => (
+                        <TableRow key={application.id}>
+                          <TableCell className="min-w-[10rem]">
+                            <p className="font-medium" data-testid={`app-applicant-${application.id}`}>
+                              {application.applicant}
+                            </p>
+                            {application.email && (
+                              <p className="text-xs text-muted-foreground">{application.email}</p>
+                            )}
+                          </TableCell>
+                          <TableCell className="min-w-[10rem] text-muted-foreground">
+                            {application.project}
+                          </TableCell>
+                          <TableCell>
+                            <ApplicationStatusBadge
+                              status={application.status}
+                              className="whitespace-nowrap"
+                              data-testid={`app-status-${application.id}`}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right font-display">
+                            {application.score}%
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setViewingApplication(application)}
+                                data-testid={`button-view-app-${application.id}`}
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                View
+                              </Button>
+
+                              <ApplicationStatusDialog
+                                application={application}
+                                updateStatus={updateApplicationStatus}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="cohorts" className="space-y-6">
             {/* Create Cohort */}
-            <Card className="glass-card">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Cohort Management</CardTitle>
-                  <Dialog open={isCreateCohortOpen} onOpenChange={setIsCreateCohortOpen}>
-                    <DialogTrigger asChild>
-                      <Button data-testid="button-create-cohort">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Cohort
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create New Cohort</DialogTitle>
-                      </DialogHeader>
-                      <Form {...cohortForm}>
-                        <form onSubmit={cohortForm.handleSubmit((data) => createCohort.mutate(data))} className="space-y-4">
-                          <FormField
-                            control={cohortForm.control}
-                            name="name"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Cohort Name</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    {...field} 
-                                    placeholder="e.g., Spring Cohort"
-                                    data-testid="input-cohort-name"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={cohortForm.control}
-                            name="description"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Description</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    {...field}
-                                    placeholder="Describe the cohort focus and goals..."
-                                    data-testid="textarea-cohort-description"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <FormField
-                              control={cohortForm.control}
-                              name="startDate"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Start Date</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      {...field} 
-                                      type="date"
-                                      data-testid="input-cohort-start-date"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={cohortForm.control}
-                              name="endDate"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>End Date</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      {...field} 
-                                      type="date"
-                                      data-testid="input-cohort-end-date"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          
-                          <FormField
-                            control={cohortForm.control}
-                            name="capacity"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Capacity</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    {...field} 
-                                    type="number"
-                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                                    data-testid="input-cohort-capacity"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <Button 
-                            type="submit" 
-                            className="w-full"
+            <Card>
+              <CardHeader className="gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Cohorts</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Applicants can only apply to active cohorts.
+                  </p>
+                </div>
+                <Dialog open={isCreateCohortOpen} onOpenChange={setIsCreateCohortOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-create-cohort">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add cohort
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Add cohort</DialogTitle>
+                    </DialogHeader>
+                    <Form {...cohortForm}>
+                      <form onSubmit={cohortForm.handleSubmit((data) => createCohort.mutate(data))} className="grid gap-4 md:grid-cols-2">
+                        <FormField
+                          control={cohortForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Cohort name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="e.g., Spring Cohort"
+                                  data-testid="input-cohort-name"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={cohortForm.control}
+                          name="capacity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Capacity</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="number"
+                                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                  data-testid="input-cohort-capacity"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={cohortForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                              <FormLabel>Description</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  placeholder="The cohort's focus and goals"
+                                  data-testid="textarea-cohort-description"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={cohortForm.control}
+                          name="startDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Start date</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="date"
+                                  data-testid="input-cohort-start-date"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={cohortForm.control}
+                          name="endDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>End date</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="date"
+                                  data-testid="input-cohort-end-date"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="flex justify-end pt-2 md:col-span-2">
+                          <Button
+                            type="submit"
+                            className="w-full sm:w-auto"
                             disabled={createCohort.isPending}
                             data-testid="button-submit-cohort"
                           >
-                            {createCohort.isPending ? "Creating..." : "Create Cohort"}
+                            {createCohort.isPending ? "Creating..." : "Add cohort"}
                           </Button>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {cohortsLoading ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Loading cohorts...</p>
-                  ) : cohorts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No cohorts yet. Create one to open applications.</p>
-                  ) : null}
-                  {cohorts.map((cohort: Cohort) => (
-                    <Card key={cohort.id} className="bg-secondary/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold" data-testid={`cohort-name-${cohort.id}`}>
+              <CardContent className="p-0">
+                {cohortsLoading ? (
+                  <BlockLoader label="Loading cohorts" className="py-8 border-t" />
+                ) : cohorts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8 border-t">No cohorts yet. Add one to open applications.</p>
+                ) : (
+                  <Table className="border-t">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cohort</TableHead>
+                        <TableHead>Dates</TableHead>
+                        <TableHead className="text-right">Capacity</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {cohorts.map((cohort: Cohort) => (
+                        <TableRow key={cohort.id}>
+                          <TableCell className="min-w-[14rem]">
+                            <p className="font-display font-medium" data-testid={`cohort-name-${cohort.id}`}>
                               {cohort.name}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
+                            </p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
                               {cohort.description}
                             </p>
-                            <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
-                              <span>
-                                {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
-                              </span>
-                              <span>Capacity: {cohort.capacity}</span>
-                              <Badge variant={cohort.isActive ? "default" : "secondary"}>
-                                {cohort.isActive ? "Active" : "Inactive"}
-                              </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {formatCohortDate(cohort.startDate)} – {formatCohortDate(cohort.endDate)}
+                          </TableCell>
+                          <TableCell className="text-right font-display">{cohort.capacity}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={activeBadgeClass(!!cohort.isActive)}>
+                              {cohort.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditCohort(cohort)}
+                                data-testid={`button-edit-cohort-${cohort.id}`}
+                              >
+                                <Edit className="w-3 h-3 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setCohortActive.mutate({ id: cohort.id, isActive: !cohort.isActive })}
+                                disabled={setCohortActive.isPending}
+                                data-testid={`button-toggle-cohort-${cohort.id}`}
+                              >
+                                {cohort.isActive ? "Deactivate" : "Reactivate"}
+                              </Button>
                             </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleEditCohort(cohort)}
-                              data-testid={`button-edit-cohort-${cohort.id}`}
-                            >
-                              <Edit className="w-3 h-3 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setCohortActive.mutate({ id: cohort.id, isActive: !cohort.isActive })}
-                              disabled={setCohortActive.isPending}
-                              data-testid={`button-toggle-cohort-${cohort.id}`}
-                            >
-                              {cohort.isActive ? "Deactivate" : "Reactivate"}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="roadmap" className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Program Roadmap Management</CardTitle>
+                <CardTitle>Program roadmap</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Create and manage roadmap templates for participant programs
+                  Create and manage the roadmap templates assigned to participant projects.
                 </p>
               </CardHeader>
               <CardContent>
@@ -1933,11 +1977,11 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="curriculum" className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Curriculum Management</CardTitle>
+                <CardTitle>Curriculum</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Manage educational modules, lessons, and assessments for your accelerator program
+                  Manage the modules, lessons and assessments for each cohort.
                 </p>
               </CardHeader>
               <CardContent>
@@ -1950,18 +1994,19 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="mentors" className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Mentor Management</CardTitle>
+                <CardTitle>Mentors</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Manage mentor profiles, sessions, and program participation
+                  Manage mentor profiles and see who participants can book.
                 </p>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between mb-6">
+              <CardContent className="p-0">
+                <div className="flex flex-col gap-3 px-6 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <Input
-                    placeholder="Search mentors..."
-                    className="max-w-sm"
+                    placeholder="Search mentors"
+                    aria-label="Search mentors"
+                    className="w-full sm:max-w-sm"
                     value={mentorSearch}
                     onChange={(e) => setMentorSearch(e.target.value)}
                     data-testid="input-search-mentors"
@@ -1974,73 +2019,82 @@ export default function Admin() {
                     data-testid="button-invite-mentor"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Invite Mentor
+                    Invite mentor
                   </Button>
                 </div>
-                
-                <div className="space-y-4">
-                  {mentorsLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground mt-2">Loading mentors...</p>
-                    </div>
-                  ) : filteredMentors.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No mentors found</p>
-                    </div>
-                  ) : (
-                    filteredMentors.map((mentor) => {
-                      const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || 'Unnamed Mentor';
-                      const initials = mentor.firstName && mentor.lastName 
-                        ? `${mentor.firstName[0]}${mentor.lastName[0]}`
-                        : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
-                      
-                      return (
-                        <Card key={mentor.id} className="bg-secondary/30">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-accent to-primary rounded-full flex items-center justify-center text-white font-semibold">
+
+                {mentorsLoading ? (
+                  <BlockLoader label="Loading mentors" className="py-8 border-t" />
+                ) : filteredMentors.length === 0 ? (
+                  <div className="text-center py-8 border-t">
+                    <MessageCircle className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">No mentors found.</p>
+                  </div>
+                ) : (
+                  <Table className="border-t">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mentor</TableHead>
+                        <TableHead>Expertise</TableHead>
+                        <TableHead>Industries</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMentors.map((mentor) => {
+                        const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || 'Unnamed mentor';
+                        const initials = mentor.firstName && mentor.lastName
+                          ? `${mentor.firstName[0]}${mentor.lastName[0]}`
+                          : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
+
+                        return (
+                          <TableRow key={mentor.id}>
+                            <TableCell className="min-w-[14rem]">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary font-display text-sm font-medium text-primary">
                                   {initials.toUpperCase()}
                                 </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <p className="font-medium" data-testid={`mentor-name-${mentor.id}`}>
                                       {fullName}
                                     </p>
                                     <Badge variant="outline" className="text-xs">
-                                      {mentor.role}
+                                      {humanize(mentor.role)}
                                     </Badge>
                                   </div>
-                                  <p className="text-sm text-muted-foreground">
+                                  <p className="text-xs text-muted-foreground">
                                     {mentor.email}
                                   </p>
-                                  {!mentor.mentorProfile && (
-                                    <p className="mt-2 text-xs text-yellow-400">
-                                      No mentor profile yet, so participants can't see or book this mentor.
-                                    </p>
-                                  )}
-                                  {mentor.mentorProfile && (
-                                    <div className="mt-2 space-y-1">
-                                      <p className="text-sm font-medium">
-                                        {mentor.mentorProfile.expertise?.join(', ') || 'No expertise listed'}
-                                      </p>
-                                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                                        <span className="flex items-center">
-                                          <Star className="w-3 h-3 mr-1" />
-                                          Industries: {mentor.mentorProfile.industries?.join(', ') || 'None listed'}
-                                        </span>
-                                        <span className="flex items-center">
-                                          <MessageCircle className="w-3 h-3 mr-1" />
-                                          {mentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
-                              <div className="flex items-center space-x-2">
+                            </TableCell>
+                            <TableCell className="min-w-[10rem]">
+                              {mentor.mentorProfile ? (
+                                mentor.mentorProfile.expertise?.join(', ') || <span className="text-muted-foreground">None listed</span>
+                              ) : (
+                                <span className="text-xs text-warning">
+                                  No mentor profile yet, so participants can't see or book this mentor.
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="min-w-[8rem] text-muted-foreground">
+                              {mentor.mentorProfile ? (mentor.mentorProfile.industries?.join(', ') || 'None listed') : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {mentor.mentorProfile ? (
+                                <Badge variant="outline" className={activeBadgeClass(mentor.mentorProfile.isActive !== false)}>
+                                  {mentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="whitespace-nowrap border-dashed border-steel/60 bg-transparent text-muted-foreground">
+                                  No profile
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-end gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -2065,6 +2119,7 @@ export default function Admin() {
                                 ) : (
                                   <Button
                                     size="sm"
+                                    className="whitespace-nowrap"
                                     onClick={() => handleEditMentor(mentor)}
                                     data-testid={`button-create-mentor-profile-${mentor.id}`}
                                   >
@@ -2085,71 +2140,78 @@ export default function Admin() {
                                   </Button>
                                 )}
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  )}
-                </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
 
             {/* Mentor Sessions Overview */}
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Recent Sessions</CardTitle>
+                <CardTitle>Recent sessions</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Overview of recent mentoring sessions across the platform
+                  Recent mentoring sessions across all cohorts.
                 </p>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {sessionsLoading ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground mt-2 text-sm">Loading sessions...</p>
-                    </div>
-                  ) : recentSessions.length === 0 ? (
-                    <div className="text-center py-4">
-                      <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground text-sm">No recent sessions</p>
-                    </div>
-                  ) : (
-                    recentSessions.map((session) => (
-                      <div key={session.id} className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{session.title}</p>
-                          <p className="text-xs text-muted-foreground">
+              <CardContent className="p-0">
+                {sessionsLoading ? (
+                  <BlockLoader label="Loading sessions" className="py-6 border-t" />
+                ) : recentSessions.length === 0 ? (
+                  <div className="text-center py-6 border-t">
+                    <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground text-sm">No recent sessions.</p>
+                  </div>
+                ) : (
+                  <Table className="border-t">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Session</TableHead>
+                        <TableHead>When</TableHead>
+                        <TableHead className="text-right">Participants</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentSessions.map((session) => (
+                        <TableRow key={session.id}>
+                          <TableCell className="min-w-[10rem] font-medium">{session.title}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
                             {new Date(session.startTime).toLocaleDateString()} at {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            {" - "}
+                            {" – "}
                             {new Date(session.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {session.participantIds?.length || 0} participant(s)
-                          </p>
-                        </div>
-                        <Badge
-                          variant={sessionStatus(session) === 'Completed' ? 'default' : 'outline'}
-                          className="text-xs"
-                          data-testid={`session-status-${session.id}`}
-                        >
-                          {sessionStatus(session)}
-                        </Badge>
-                      </div>
-                    ))
-                  )}
-                </div>
+                          </TableCell>
+                          <TableCell className="text-right font-display">
+                            {session.participantIds?.length || 0}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={sessionBadgeClass(sessionStatus(session))}
+                              data-testid={`session-status-${session.id}`}
+                            >
+                              {sessionStatus(session)}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="investors" className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Investor Management</CardTitle>
+                <CardTitle>Investors</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Manage investor profiles, sessions, and cohort participation
+                  Manage investor profiles, sessions and cohort participation.
                 </p>
               </CardHeader>
               <CardContent>
@@ -2159,15 +2221,19 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>User Management</CardTitle>
+                <CardTitle>Users</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Everyone with a Launchpad account, across all roles.
+                </p>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between mb-6">
+              <CardContent className="p-0">
+                <div className="flex flex-col gap-3 px-6 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <Input
-                    placeholder="Search users..."
-                    className="max-w-sm"
+                    placeholder="Search users"
+                    aria-label="Search users"
+                    className="w-full sm:max-w-sm"
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     data-testid="input-search-users"
@@ -2180,54 +2246,56 @@ export default function Admin() {
                     data-testid="button-invite-user"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Invite User
+                    Invite user
                   </Button>
                 </div>
-                
-                <div className="space-y-4">
-                  {usersLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground mt-2">Loading users...</p>
-                    </div>
-                  ) : filteredUsers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No users found</p>
-                    </div>
-                  ) : (
-                    filteredUsers.map((user) => {
-                      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unnamed User';
-                      const initials = user.firstName && user.lastName 
-                        ? `${user.firstName[0]}${user.lastName[0]}`
-                        : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
-                      
-                      return (
-                        <Card key={user.id} className="bg-secondary/30">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white font-semibold">
+
+                {usersLoading ? (
+                  <BlockLoader label="Loading users" className="py-8 border-t" />
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-center py-8 border-t">
+                    <Users className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">No users found.</p>
+                  </div>
+                ) : (
+                  <Table className="border-t">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.map((user) => {
+                        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unnamed user';
+                        const initials = user.firstName && user.lastName
+                          ? `${user.firstName[0]}${user.lastName[0]}`
+                          : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
+
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell className="min-w-[12rem]">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary font-display text-sm font-medium text-primary">
                                   {initials.toUpperCase()}
                                 </div>
-                                <div>
-                                  <p className="font-medium" data-testid={`user-name-${user.id}`}>
-                                    {fullName}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ')}
-                                  </p>
-                                  {user.email && (
-                                    <p className="text-xs text-muted-foreground">
-                                      {user.email}
-                                    </p>
-                                  )}
-                                </div>
+                                <p className="font-medium" data-testid={`user-name-${user.id}`}>
+                                  {fullName}
+                                </p>
                               </div>
-                              
-                              <div className="flex items-center space-x-2">
-                                <Button 
-                                  size="sm" 
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <Badge variant="outline">{humanize(user.role)}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {user.email || '—'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   onClick={() => handleEditUser(user)}
                                   data-testid={`button-edit-user-${user.id}`}
@@ -2249,13 +2317,13 @@ export default function Admin() {
                                   </Button>
                                 )}
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })
-                  )}
-                </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -2280,16 +2348,16 @@ export default function Admin() {
       <Dialog open={!!editingCohort} onOpenChange={() => setEditingCohort(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Cohort</DialogTitle>
+            <DialogTitle>Edit cohort</DialogTitle>
           </DialogHeader>
           <Form {...editCohortForm}>
-            <form onSubmit={editCohortForm.handleSubmit((data) => updateCohort.mutate(data))} className="space-y-4">
+            <form onSubmit={editCohortForm.handleSubmit((data) => updateCohort.mutate(data))} className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={editCohortForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cohort Name</FormLabel>
+                    <FormLabel>Cohort name</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -2301,63 +2369,7 @@ export default function Admin() {
                   </FormItem>
                 )}
               />
-              
-              <FormField
-                control={editCohortForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field}
-                        placeholder="Describe the cohort focus and goals..."
-                        data-testid="textarea-edit-cohort-description"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={editCohortForm.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Date</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="date"
-                          data-testid="input-edit-cohort-start-date"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editCohortForm.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Date</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="date"
-                          data-testid="input-edit-cohort-end-date"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
+
               <FormField
                 control={editCohortForm.control}
                 name="capacity"
@@ -2377,8 +2389,62 @@ export default function Admin() {
                   </FormItem>
                 )}
               />
-              
-              <div className="flex justify-end space-x-2">
+
+              <FormField
+                control={editCohortForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field}
+                        placeholder="The cohort's focus and goals"
+                        data-testid="textarea-edit-cohort-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editCohortForm.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start date</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="date"
+                        data-testid="input-edit-cohort-start-date"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editCohortForm.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End date</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        type="date"
+                        data-testid="input-edit-cohort-end-date"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end md:col-span-2">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -2392,7 +2458,7 @@ export default function Admin() {
                   disabled={updateCohort.isPending}
                   data-testid="button-submit-edit-cohort"
                 >
-                  {updateCohort.isPending ? "Updating..." : "Update Cohort"}
+                  {updateCohort.isPending ? "Saving..." : "Save changes"}
                 </Button>
               </div>
             </form>

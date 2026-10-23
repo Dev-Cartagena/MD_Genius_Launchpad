@@ -23,7 +23,7 @@ import {
 } from "@shared/schema";
 
 // UI Components
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // Form handling
 import { useForm } from "react-hook-form";
@@ -100,8 +101,22 @@ const interestLevelOptions = [
 
 type InterestLevel = typeof interestLevelOptions[number];
 
+// Badge tone per pipeline level: early = neutral, in progress = Steel, committed = Navy
+const interestLevelClass = (level: string | null | undefined) => {
+  switch (level) {
+    case "meeting_scheduled":
+    case "diligence":
+      return "border-transparent bg-accent text-accent-foreground";
+    case "soft_commit":
+    case "commit":
+      return "border-transparent bg-primary text-primary-foreground";
+    default:
+      return "border-transparent bg-secondary text-secondary-foreground";
+  }
+};
+
 const formatLevel = (level: string | null | undefined) =>
-  (level || "viewed").replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  (level || "viewed").replace(/_/g, " ").replace(/^\w/, (l) => l.toUpperCase());
 
 type AdminProject = { id: string; name: string; cohortId: string | null; ownerId: string };
 type AdminInterest = InvestorInterest & { projectName?: string };
@@ -252,10 +267,10 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       setIsCreateInvestorOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Success", description: "Investor created successfully" });
+      toast({ title: "Investor added" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to create investor"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -267,10 +282,10 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       setEditingInvestor(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Success", description: "Investor updated successfully" });
+      toast({ title: "Investor updated" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to update investor"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -281,10 +296,10 @@ export default function AdminInvestorManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Success", description: "Investor deactivated successfully" });
+      toast({ title: "Investor deactivated" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to deactivate investor"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -295,10 +310,10 @@ export default function AdminInvestorManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Success", description: "Investor reactivated" });
+      toast({ title: "Investor reactivated" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to reactivate investor"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -316,10 +331,10 @@ export default function AdminInvestorManager() {
       setIsCreateInterestOpen(false);
       setNewInterest({ investorId: "", projectId: "", level: "viewed", notes: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
-      toast({ title: "Success", description: "Investor interest saved" });
+      toast({ title: "Interest saved" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to save investor interest"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -334,10 +349,10 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       setEditingInterest(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
-      toast({ title: "Success", description: "Investor interest updated" });
+      toast({ title: "Interest updated" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to update investor interest"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -360,10 +375,10 @@ export default function AdminInvestorManager() {
       sessionForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
-      toast({ title: "Success", description: "Session created successfully" });
+      toast({ title: "Session scheduled" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to create session"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -381,10 +396,10 @@ export default function AdminInvestorManager() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohort-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohorts"] });
-      toast({ title: "Success", description: "Investor assigned to cohort successfully" });
+      toast({ title: "Investor assigned" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to assign investor to cohort"), variant: "destructive" });
+      toast({ title: "Something went wrong", description: getApiErrorMessage(error, "Please try again."), variant: "destructive" });
     },
   });
 
@@ -584,7 +599,7 @@ export default function AdminInvestorManager() {
               </SelectContent>
             </Select>
             {investorUsers.length === 0 && (
-              <p className="text-xs text-muted-foreground">No users with the investor role yet. Invite one from the Users tab.</p>
+              <p className="text-xs text-muted-foreground">No users have the investor role yet. Invite one from the Users tab.</p>
             )}
             <FormMessage />
           </FormItem>
@@ -613,22 +628,28 @@ export default function AdminInvestorManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Investor Management</h2>
-        <div className="flex space-x-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="font-display text-2xl font-medium text-foreground">Investors</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage investor records, sessions, cohort assignments and interest in projects.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <Dialog open={isCreateSessionOpen} onOpenChange={setIsCreateSessionOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-create-session">
                 <Calendar className="w-4 h-4 mr-2" />
-                Schedule Session
+                Schedule session
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Schedule Investor Session</DialogTitle>
+                <DialogTitle>Schedule investor session</DialogTitle>
               </DialogHeader>
               <Form {...sessionForm}>
                 <form onSubmit={sessionForm.handleSubmit(handleCreateSession)} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
                   <FormField
                     control={sessionForm.control}
                     name="investorId"
@@ -653,27 +674,13 @@ export default function AdminInvestorManager() {
                       </FormItem>
                     )}
                   />
-                  
-                  <FormField
-                    control={sessionForm.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Session Title</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Enter session title" data-testid="input-session-title" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
 
                   <FormField
                     control={sessionForm.control}
                     name="sessionType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Session Type</FormLabel>
+                        <FormLabel>Session type</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-session-type">
@@ -688,6 +695,21 @@ export default function AdminInvestorManager() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  </div>
+
+                  <FormField
+                    control={sessionForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Session title</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter session title" data-testid="input-session-title" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -745,7 +767,7 @@ export default function AdminInvestorManager() {
                           
                           return (
                             <FormItem>
-                              <FormLabel>Start Time</FormLabel>
+                              <FormLabel>Start time</FormLabel>
                               <Select 
                                 onValueChange={(time) => {
                                   const date = dateValue || dateOptions[0]?.value;
@@ -818,14 +840,14 @@ export default function AdminInvestorManager() {
                         name="endTime"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>End Time</FormLabel>
+                            <FormLabel>End time</FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
                                 type="datetime-local" 
                                 data-testid="input-end-time"
                                 readOnly
-                                className="bg-muted"
+                                className="bg-muted text-muted-foreground"
                               />
                             </FormControl>
                             <FormMessage />
@@ -854,7 +876,7 @@ export default function AdminInvestorManager() {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={createSessionMutation.isPending} data-testid="button-submit-session">
-                      {createSessionMutation.isPending ? "Creating..." : "Create Session"}
+                      {createSessionMutation.isPending ? "Creating..." : "Schedule session"}
                     </Button>
                   </div>
                 </form>
@@ -866,12 +888,12 @@ export default function AdminInvestorManager() {
             <DialogTrigger asChild>
               <Button data-testid="button-create-investor">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Investor
+                Add investor
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Create New Investor</DialogTitle>
+                <DialogTitle>Add investor</DialogTitle>
               </DialogHeader>
               <Form {...investorForm}>
                 <form onSubmit={investorForm.handleSubmit(handleCreateInvestor)} className="space-y-4">
@@ -895,7 +917,7 @@ export default function AdminInvestorManager() {
                       name="contactEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contact Email</FormLabel>
+                          <FormLabel>Contact email</FormLabel>
                           <FormControl>
                             <Input {...field} type="email" placeholder="contact@example.com" data-testid="input-contact-email" />
                           </FormControl>
@@ -910,12 +932,13 @@ export default function AdminInvestorManager() {
                     name="sectors"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Investment Sectors</FormLabel>
+                        <FormLabel>Sectors</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
                           {sectorOptions.map((sector) => (
                             <div key={sector} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
+                                className="h-4 w-4 rounded border-border accent-primary"
                                 id={`sector-${sector}`}
                                 checked={field.value.includes(sector)}
                                 onChange={(e) => {
@@ -943,12 +966,13 @@ export default function AdminInvestorManager() {
                     name="stages"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Investment Stages</FormLabel>
+                        <FormLabel>Stages</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {stageOptions.map((stage) => (
                             <div key={stage} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
+                                className="h-4 w-4 rounded border-border accent-primary"
                                 id={`stage-${stage}`}
                                 checked={field.value.includes(stage)}
                                 onChange={(e) => {
@@ -976,12 +1000,13 @@ export default function AdminInvestorManager() {
                     name="geography"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Geographic Focus</FormLabel>
+                        <FormLabel>Geographic focus</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {geographyOptions.map((geo) => (
                             <div key={geo} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
+                                className="h-4 w-4 rounded border-border accent-primary"
                                 id={`geo-${geo}`}
                                 checked={field.value.includes(geo)}
                                 onChange={(e) => {
@@ -1009,7 +1034,7 @@ export default function AdminInvestorManager() {
                     name="checkSize"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Check Size</FormLabel>
+                        <FormLabel>Check size</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-check-size">
@@ -1039,12 +1064,13 @@ export default function AdminInvestorManager() {
                         <FormControl>
                           <input
                             type="checkbox"
+                            className="h-4 w-4 rounded border-border accent-primary"
                             checked={field.value}
                             onChange={field.onChange}
                             data-testid="checkbox-nda-status"
                           />
                         </FormControl>
-                        <FormLabel>NDA Signed</FormLabel>
+                        <FormLabel>NDA signed</FormLabel>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1055,7 +1081,7 @@ export default function AdminInvestorManager() {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={createInvestorMutation.isPending} data-testid="button-submit-investor">
-                      {createInvestorMutation.isPending ? "Creating..." : "Create Investor"}
+                      {createInvestorMutation.isPending ? "Adding..." : "Add investor"}
                     </Button>
                   </div>
                 </form>
@@ -1066,20 +1092,20 @@ export default function AdminInvestorManager() {
       </div>
 
       <Tabs defaultValue="investors" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex w-full justify-start overflow-x-auto overflow-y-hidden h-auto">
           <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
           <TabsTrigger value="sessions" data-testid="tab-sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohort Assignments</TabsTrigger>
-          <TabsTrigger value="interests" data-testid="tab-interests">Investor Interests</TabsTrigger>
+          <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohort assignments</TabsTrigger>
+          <TabsTrigger value="interests" data-testid="tab-interests">Interests</TabsTrigger>
         </TabsList>
 
         <TabsContent value="investors" className="space-y-6">
           {/* Search and Filters */}
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search investors..."
+                placeholder="Search by organization or email"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -1087,11 +1113,11 @@ export default function AdminInvestorManager() {
               />
             </div>
             <Select value={filterSector} onValueChange={setFilterSector}>
-              <SelectTrigger className="w-48" data-testid="select-filter-sector">
+              <SelectTrigger className="w-full sm:w-48" data-testid="select-filter-sector">
                 <SelectValue placeholder="Filter by sector" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Sectors</SelectItem>
+                <SelectItem value="all">All sectors</SelectItem>
                 {sectorOptions.map(sector => (
                   <SelectItem key={sector} value={sector}>{sector}</SelectItem>
                 ))}
@@ -1099,245 +1125,239 @@ export default function AdminInvestorManager() {
             </Select>
           </div>
 
-          {/* Investors Grid */}
+          {/* Investors table */}
           {investorsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card className="space-y-3 p-4">
               {[...Array(6)].map((_, i) => (
-                <Card key={i} className="glass-card">
-                  <CardContent className="p-6">
-                    <Skeleton className="h-6 w-3/4 mb-4" />
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
-                </Card>
+                <Skeleton key={i} className="h-10 w-full" />
               ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredInvestors.map((investor: Investor) => (
-                <Card key={investor.id} className={`glass-card hover:shadow-lg transition-shadow duration-200 max-w-sm ${investor.isActive === false ? "opacity-70" : ""}`}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3 min-w-0 flex-1">
-                        <Avatar className="w-10 h-10 flex-shrink-0">
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white font-medium text-sm">
-                            {(investor.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <CardTitle className="text-base font-semibold truncate leading-tight" data-testid={`investor-name-${investor.id}`}>
-                            {investor.organization}
-                          </CardTitle>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {investor.contactEmail}
-                          </p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {investor.isActive === false && (
-                              <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5" data-testid={`badge-inactive-${investor.id}`}>
-                                Inactive
-                              </Badge>
-                            )}
-                            {(() => {
-                              const linked = investor.userId ? allUsers.find((u) => u.id === investor.userId) : undefined;
-                              return investor.userId ? (
-                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 max-w-full truncate">
-                                  User: {linked ? (linked.email || linked.id) : "linked"}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 text-muted-foreground">
-                                  No linked user
-                                </Badge>
-                              );
-                            })()}
+            </Card>
+          ) : filteredInvestors.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Organization</TableHead>
+                    <TableHead>Sectors</TableHead>
+                    <TableHead>Stages</TableHead>
+                    <TableHead>Check size</TableHead>
+                    <TableHead>NDA</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInvestors.map((investor: Investor) => {
+                    const linked = investor.userId ? allUsers.find((u) => u.id === investor.userId) : undefined;
+                    return (
+                      <TableRow key={investor.id} className={investor.isActive === false ? "text-muted-foreground" : ""}>
+                        <TableCell className="min-w-[16rem]">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 shrink-0">
+                              <AvatarFallback className="bg-secondary font-display text-xs font-medium text-primary">
+                                {(investor.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="truncate font-medium text-foreground" data-testid={`investor-name-${investor.id}`}>
+                                {investor.organization}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground">{investor.contactEmail}</div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {investor.userId ? `User: ${linked ? (linked.email || linked.id) : "linked"}` : "No linked user"}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                      <div className="flex space-x-1 flex-shrink-0">
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => openEditDialog(investor)}
-                          aria-label="Edit investor"
-                          title="Edit investor"
-                          data-testid={`button-edit-${investor.id}`}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        {investor.isActive === false ? (
-                          <Button 
-                            size="icon" 
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => reactivateInvestorMutation.mutate(investor.id)}
-                            disabled={reactivateInvestorMutation.isPending}
-                            aria-label="Reactivate investor"
-                            title="Reactivate investor"
-                            data-testid={`button-reactivate-${investor.id}`}
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                          </Button>
-                        ) : (
-                          <Button 
-                            size="icon" 
-                            variant="ghost"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => deactivateInvestorMutation.mutate(investor.id)}
-                            disabled={deactivateInvestorMutation.isPending}
-                            aria-label="Deactivate investor"
-                            title="Deactivate investor"
-                            data-testid={`button-deactivate-${investor.id}`}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-2">
-                    <div>
-                      <h4 className="text-xs font-medium mb-1 text-muted-foreground">Sectors</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {(investor.sectors || []).map((sector: string, index: number) => (
-                          <Badge key={index} variant="secondary" className="text-xs px-2 py-0.5 h-5">
-                            {sector}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-xs font-medium mb-1 text-muted-foreground">Stages</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {(investor.stages || []).map((stage: string, index: number) => (
-                          <Badge key={index} variant="outline" className="text-xs px-2 py-0.5 h-5">
-                            {stage}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <div className="flex items-center space-x-1 text-xs">
-                        <Building className="w-3 h-3 text-muted-foreground" />
-                        <span className="font-medium">{investor.checkSize || "Not specified"}</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="h-7 text-xs"
-                        disabled={!investor.contactEmail}
-                        onClick={() => { if (investor.contactEmail) window.location.href = `mailto:${investor.contactEmail}`; }}
-                        data-testid={`button-contact-${investor.id}`}
-                      >
-                        <Mail className="w-3 h-3 mr-1" />
-                        Contact
-                      </Button>
-                    </div>
-                    
-                    {investor.ndaStatus && (
-                      <div className="flex items-center space-x-1 text-green-600">
-                        <CheckCircle className="w-3 h-3" />
-                        <span className="text-xs font-medium">NDA Signed</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                        </TableCell>
+                        <TableCell className="min-w-[10rem]">
+                          <div className="flex flex-wrap gap-1">
+                            {(investor.sectors || []).map((sector: string, index: number) => (
+                              <Badge key={index} variant="secondary">{sector}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="min-w-[8rem]">
+                          <div className="flex flex-wrap gap-1">
+                            {(investor.stages || []).map((stage: string, index: number) => (
+                              <Badge key={index} variant="outline">{stage}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap font-display">
+                          {investor.checkSize || "Not specified"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {investor.ndaStatus ? (
+                            <span className="flex items-center gap-1 font-display text-xs text-success">
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              Signed
+                            </span>
+                          ) : (
+                            <span className="font-display text-xs text-muted-foreground">Not signed</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {investor.isActive === false ? (
+                            <Badge variant="secondary" data-testid={`badge-inactive-${investor.id}`}>
+                              Inactive
+                            </Badge>
+                          ) : (
+                            <Badge>Active</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!investor.contactEmail}
+                              onClick={() => { if (investor.contactEmail) window.location.href = `mailto:${investor.contactEmail}`; }}
+                              data-testid={`button-contact-${investor.id}`}
+                            >
+                              <Mail className="h-4 w-4 mr-1.5" />
+                              Contact
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => openEditDialog(investor)}
+                              aria-label="Edit investor"
+                              title="Edit investor"
+                              data-testid={`button-edit-${investor.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            {investor.isActive === false ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={() => reactivateInvestorMutation.mutate(investor.id)}
+                                disabled={reactivateInvestorMutation.isPending}
+                                aria-label="Reactivate investor"
+                                title="Reactivate investor"
+                                data-testid={`button-reactivate-${investor.id}`}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => deactivateInvestorMutation.mutate(investor.id)}
+                                disabled={deactivateInvestorMutation.isPending}
+                                aria-label="Deactivate investor"
+                                title="Deactivate investor"
+                                data-testid={`button-deactivate-${investor.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : null}
 
           {filteredInvestors.length === 0 && !investorsLoading && (
-            <Card className="glass-card">
-              <CardContent className="p-8 text-center">
-                <Building className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No investors found</h3>
-                <p className="text-muted-foreground">
-                  {searchTerm || filterSector !== "all" 
-                    ? "Try adjusting your search criteria or filters."
-                    : "Get started by adding your first investor to the platform."
-                  }
-                </p>
-              </CardContent>
-            </Card>
+            <div className="dashed-zone bg-card p-8 text-center">
+              <Building className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <h3 className="mb-1 text-base">No investors found</h3>
+              <p className="text-sm text-muted-foreground">
+                {searchTerm || filterSector !== "all" 
+                  ? "Try a different search or sector filter."
+                  : "Add the first investor to get started."
+                }
+              </p>
+            </div>
           )}
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sessionsLoading ? (
-              [...Array(3)].map((_, i) => (
-                <Card key={i} className="glass-card">
-                  <CardContent className="p-6">
-                    <Skeleton className="h-6 w-3/4 mb-4" />
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : sessions.length > 0 ? (
-              sessions.map((session: any) => (
-                <Card key={session.id} className="glass-card">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center space-x-2">
-                      <Calendar className="w-5 h-5" />
-                      <span data-testid={`session-title-${session.id}`}>{session.title}</span>
-                    </CardTitle>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">
-                        {session.sessionType?.charAt(0).toUpperCase() + session.sessionType?.slice(1).replace('_', ' ')}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
+          {sessionsLoading ? (
+            <Card className="space-y-3 p-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </Card>
+          ) : sessions.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Session</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Investor</TableHead>
+                    <TableHead>Date and time</TableHead>
+                    <TableHead>Participants</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sessions.map((session: any) => (
+                    <TableRow key={session.id}>
+                      <TableCell className="min-w-[14rem]">
+                        <div className="font-medium" data-testid={`session-title-${session.id}`}>{session.title}</div>
+                        {session.agenda && (
+                          <p className="line-clamp-2 text-xs text-muted-foreground">{session.agenda}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="whitespace-nowrap">
+                          {session.sessionType?.charAt(0).toUpperCase() + session.sessionType?.slice(1).replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
                         {session.investorOrganization}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4 mr-2" />
-                        {new Date(session.startTime).toLocaleDateString()} at {new Date(session.startTime).toLocaleTimeString()}
-                      </div>
-                      {session.agenda && (
-                        <p className="text-sm">{session.agenda}</p>
-                      )}
-                      {session.participantIds && session.participantIds.length > 0 && (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Users className="w-4 h-4 mr-2" />
-                          {session.participantIds.length} participant{session.participantIds.length !== 1 ? 's' : ''}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card className="glass-card col-span-full">
-                <CardContent className="p-8 text-center">
-                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No sessions scheduled</h3>
-                  <p className="text-muted-foreground">
-                    Schedule your first investor session to get started.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-display text-sm">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                          {new Date(session.startTime).toLocaleDateString()} at {new Date(session.startTime).toLocaleTimeString()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-display text-sm text-muted-foreground">
+                        {session.participantIds && session.participantIds.length > 0 && (
+                          <span className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5" />
+                            {session.participantIds.length} participant{session.participantIds.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <div className="dashed-zone bg-card p-8 text-center">
+              <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <h3 className="mb-1 text-base">No sessions scheduled</h3>
+              <p className="text-sm text-muted-foreground">
+                Schedule the first investor session to get started.
+              </p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="cohorts" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Cohort Assignments</h3>
+            <h3 className="text-lg">Cohort assignments</h3>
             <Dialog open={isAssignCohortOpen} onOpenChange={setIsAssignCohortOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-assign-cohort">
                   <Plus className="w-4 h-4 mr-2" />
-                  Assign to Cohort
+                  Assign to cohort
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Assign Investor to Cohort</DialogTitle>
+                  <DialogTitle>Assign investor to cohort</DialogTitle>
                 </DialogHeader>
                 <Form {...cohortForm}>
                   <form onSubmit={cohortForm.handleSubmit(handleAssignCohort)} className="space-y-4">
@@ -1430,114 +1450,109 @@ export default function AdminInvestorManager() {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {assignmentsLoading ? (
-              [...Array(3)].map((_, i) => (
-                <Card key={i} className="glass-card">
-                  <CardContent className="p-6">
-                    <Skeleton className="h-6 w-3/4 mb-4" />
-                    <Skeleton className="h-4 w-full mb-2" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : cohortAssignments.length > 0 ? (
-              cohortAssignments.map((assignment: InvestorCohortParticipation) => {
-                const investor = investors.find((inv: Investor) => inv.id === assignment.investorId);
-                const cohort = cohorts.find((coh: Cohort) => coh.id === assignment.cohortId);
-                return (
-                  <Card key={assignment.id} className="glass-card">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-                              {(investor?.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <CardTitle className="text-base" data-testid={`assignment-investor-${assignment.id}`}>
-                              {investor?.organization ?? "Unknown Investor"}
-                            </CardTitle>
-                            <p className="text-sm text-muted-foreground">
-                              {cohort?.name ?? "Unknown Cohort"}
-                              {cohort?.isActive === false ? " (Inactive)" : ""}
-                            </p>
-                            {cohort && (
-                              <p className="text-xs text-muted-foreground">
-                                {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
-                              </p>
-                            )}
+          {assignmentsLoading ? (
+            <Card className="space-y-3 p-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </Card>
+          ) : cohortAssignments.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Investor</TableHead>
+                    <TableHead>Cohort</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Assigned</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cohortAssignments.map((assignment: InvestorCohortParticipation) => {
+                    const investor = investors.find((inv: Investor) => inv.id === assignment.investorId);
+                    const cohort = cohorts.find((coh: Cohort) => coh.id === assignment.cohortId);
+                    return (
+                      <TableRow key={assignment.id}>
+                        <TableCell className="min-w-[12rem]">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 shrink-0">
+                              <AvatarFallback className="bg-secondary font-display text-xs font-medium text-primary">
+                                {(investor?.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium" data-testid={`assignment-investor-${assignment.id}`}>
+                              {investor?.organization ?? "Unknown investor"}
+                            </span>
                           </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div>
-                          <Badge variant="outline" className="text-xs">
-                            {assignment.role ? assignment.role.charAt(0).toUpperCase() + assignment.role.slice(1).replace('_', ' ') : "Unknown Role"}
+                        </TableCell>
+                        <TableCell className="min-w-[10rem]">
+                          <div>
+                            {cohort?.name ?? "Unknown cohort"}
+                            {cohort?.isActive === false ? " (Inactive)" : ""}
+                          </div>
+                          {cohort && (
+                            <div className="font-display text-xs text-muted-foreground">
+                              {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="whitespace-nowrap">
+                            {assignment.role ? assignment.role.charAt(0).toUpperCase() + assignment.role.slice(1).replace('_', ' ') : "Unknown role"}
                           </Badge>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant={assignment.status === "active" ? "default" : "secondary"}
-                            className="text-xs"
-                          >
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={assignment.status === "active" ? "default" : "secondary"}>
                             {assignment.status ? assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1) : "Unknown"}
                           </Badge>
-                        </div>
-                        {assignment.assignedAt && (
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            Assigned {new Date(assignment.assignedAt).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            ) : (
-              <Card className="glass-card col-span-full">
-                <CardContent className="p-8 text-center">
-                  <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No cohort assignments</h3>
-                  <p className="text-muted-foreground">
-                    Assign investors to cohorts to get started.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap font-display text-sm text-muted-foreground">
+                          {assignment.assignedAt && new Date(assignment.assignedAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <div className="dashed-zone bg-card p-8 text-center">
+              <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <h3 className="mb-1 text-base">No cohort assignments</h3>
+              <p className="text-sm text-muted-foreground">
+                Assign investors to cohorts to get started.
+              </p>
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="interests" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Investor Interests</h3>
+            <h3 className="text-lg">Investor interests</h3>
             <Dialog open={isCreateInterestOpen} onOpenChange={setIsCreateInterestOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-interest">
                   <Plus className="w-4 h-4 mr-2" />
-                  Record Interest
+                  Record interest
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Record Investor Interest</DialogTitle>
+                  <DialogTitle>Record investor interest</DialogTitle>
                 </DialogHeader>
                 <form
                   className="space-y-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!newInterest.investorId || !newInterest.projectId) {
-                      toast({ title: "Missing fields", description: "Pick an investor and a project.", variant: "destructive" });
+                      toast({ title: "Missing details", description: "Choose an investor and a project.", variant: "destructive" });
                       return;
                     }
                     createInterestMutation.mutate(newInterest);
                   }}
                 >
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Investor</label>
+                    <label className="font-display text-sm font-medium">Investor</label>
                     <Select value={newInterest.investorId} onValueChange={(v) => setNewInterest((p) => ({ ...p, investorId: v }))}>
                       <SelectTrigger data-testid="select-interest-investor">
                         <SelectValue placeholder="Select investor" />
@@ -1550,7 +1565,7 @@ export default function AdminInvestorManager() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Project</label>
+                    <label className="font-display text-sm font-medium">Project</label>
                     <Select value={newInterest.projectId} onValueChange={(v) => setNewInterest((p) => ({ ...p, projectId: v }))}>
                       <SelectTrigger data-testid="select-interest-project">
                         <SelectValue placeholder={projects.length === 0 ? "No projects yet" : "Select project"} />
@@ -1563,7 +1578,7 @@ export default function AdminInvestorManager() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Level</label>
+                    <label className="font-display text-sm font-medium">Level</label>
                     <Select value={newInterest.level} onValueChange={(v) => setNewInterest((p) => ({ ...p, level: v as InterestLevel }))}>
                       <SelectTrigger data-testid="select-interest-level">
                         <SelectValue />
@@ -1576,7 +1591,7 @@ export default function AdminInvestorManager() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Notes</label>
+                    <label className="font-display text-sm font-medium">Notes</label>
                     <Textarea
                       value={newInterest.notes}
                       onChange={(e) => setNewInterest((p) => ({ ...p, notes: e.target.value }))}
@@ -1600,79 +1615,84 @@ export default function AdminInvestorManager() {
             </Dialog>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {interestsLoading ? (
-              [...Array(3)].map((_, i) => (
-                <Card key={i} className="glass-card">
-                  <CardContent className="p-6">
-                    <Skeleton className="h-6 w-3/4 mb-4" />
-                    <Skeleton className="h-4 w-full mb-2" />
-                  </CardContent>
-                </Card>
-              ))
-            ) : interests.length > 0 ? (
-              interests.map((interest) => {
-                const investor = investors.find((inv) => inv.id === interest.investorId);
-                const projectName = interest.projectName || projects.find((p) => p.id === interest.projectId)?.name || "Unknown project";
-                return (
-                  <Card key={interest.id} className="glass-card">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0">
-                          <CardTitle className="text-base truncate" data-testid={`interest-project-${interest.id}`}>
-                            {projectName}
-                          </CardTitle>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {investor?.organization ?? "Unknown investor"}
-                            {investor?.isActive === false ? " (Inactive)" : ""}
-                          </p>
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => openEditInterest(interest)}
-                          aria-label="Edit investor interest"
-                          title="Edit investor interest"
-                          data-testid={`button-edit-interest-${interest.id}`}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <Badge variant="outline" className="text-xs">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        {formatLevel(interest.level)}
-                      </Badge>
-                      {interest.notes && <p className="text-sm line-clamp-3">{interest.notes}</p>}
-                      {interest.questions && interest.questions.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {interest.questions.length} question{interest.questions.length !== 1 ? "s" : ""}
-                        </p>
-                      )}
-                      {(interest.updatedAt || interest.createdAt) && (
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Updated {new Date((interest.updatedAt || interest.createdAt) as unknown as string).toLocaleDateString()}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })
-            ) : (
-              <Card className="glass-card col-span-full">
-                <CardContent className="p-8 text-center">
-                  <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No investor interests yet</h3>
-                  <p className="text-muted-foreground">
-                    Record an investor's interest in a project to track the pipeline.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {interestsLoading ? (
+            <Card className="space-y-3 p-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </Card>
+          ) : interests.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Project</TableHead>
+                    <TableHead>Investor</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead>Updated</TableHead>
+                    <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {interests.map((interest) => {
+                    const investor = investors.find((inv) => inv.id === interest.investorId);
+                    const projectName = interest.projectName || projects.find((p) => p.id === interest.projectId)?.name || "Unknown project";
+                    return (
+                      <TableRow key={interest.id}>
+                        <TableCell className="min-w-[10rem] font-medium" data-testid={`interest-project-${interest.id}`}>
+                          {projectName}
+                        </TableCell>
+                        <TableCell className="min-w-[10rem] text-muted-foreground">
+                          {investor?.organization ?? "Unknown investor"}
+                          {investor?.isActive === false ? " (Inactive)" : ""}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`whitespace-nowrap ${interestLevelClass(interest.level)}`}>
+                            <TrendingUp className="w-3 h-3 mr-1" />
+                            {formatLevel(interest.level)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="min-w-[14rem] max-w-sm">
+                          {interest.notes && <p className="line-clamp-2 text-sm">{interest.notes}</p>}
+                          {interest.questions && interest.questions.length > 0 && (
+                            <p className="font-display text-xs text-muted-foreground">
+                              {interest.questions.length} question{interest.questions.length !== 1 ? "s" : ""}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap font-display text-sm text-muted-foreground">
+                          {(interest.updatedAt || interest.createdAt) &&
+                            new Date((interest.updatedAt || interest.createdAt) as unknown as string).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => openEditInterest(interest)}
+                            aria-label="Edit investor interest"
+                            title="Edit investor interest"
+                            data-testid={`button-edit-interest-${interest.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <div className="dashed-zone bg-card p-8 text-center">
+              <TrendingUp className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <h3 className="mb-1 text-base">No investor interest recorded yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Record an investor's interest in a project to track the pipeline.
+              </p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -1680,7 +1700,7 @@ export default function AdminInvestorManager() {
       <Dialog open={editingInterest !== null} onOpenChange={(open) => { if (!open) setEditingInterest(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Investor Interest</DialogTitle>
+            <DialogTitle>Edit investor interest</DialogTitle>
           </DialogHeader>
           <form
             className="space-y-4"
@@ -1692,7 +1712,7 @@ export default function AdminInvestorManager() {
             }}
           >
             <div className="space-y-2">
-              <label className="text-sm font-medium">Level</label>
+              <label className="font-display text-sm font-medium">Level</label>
               <Select value={editInterestLevel} onValueChange={(v) => setEditInterestLevel(v as InterestLevel)}>
                 <SelectTrigger data-testid="select-edit-interest-level">
                   <SelectValue />
@@ -1705,7 +1725,7 @@ export default function AdminInvestorManager() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Notes</label>
+              <label className="font-display text-sm font-medium">Notes</label>
               <Textarea
                 value={editInterestNotes}
                 onChange={(e) => setEditInterestNotes(e.target.value)}
@@ -1728,7 +1748,7 @@ export default function AdminInvestorManager() {
       <Dialog open={editingInvestor !== null} onOpenChange={() => setEditingInvestor(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Investor</DialogTitle>
+            <DialogTitle>Edit investor</DialogTitle>
           </DialogHeader>
           <Form {...investorForm}>
             <form onSubmit={investorForm.handleSubmit(handleUpdateInvestor)} className="space-y-4">
@@ -1753,7 +1773,7 @@ export default function AdminInvestorManager() {
                   name="contactEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contact Email</FormLabel>
+                      <FormLabel>Contact email</FormLabel>
                       <FormControl>
                         <Input {...field} type="email" placeholder="contact@example.com" data-testid="input-edit-contact-email" />
                       </FormControl>
@@ -1768,7 +1788,7 @@ export default function AdminInvestorManager() {
                 name="checkSize"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Check Size</FormLabel>
+                    <FormLabel>Check size</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-check-size">
@@ -1795,7 +1815,7 @@ export default function AdminInvestorManager() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={updateInvestorMutation.isPending} data-testid="button-update-investor">
-                  {updateInvestorMutation.isPending ? "Updating..." : "Update Investor"}
+                  {updateInvestorMutation.isPending ? "Saving..." : "Save changes"}
                 </Button>
               </div>
             </form>
