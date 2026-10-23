@@ -4,24 +4,29 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import { Progress } from "@/components/ui/progress";
+import { MistPanel, DropZone } from "@/components/brand";
+import {
   TrendingUp,
-  Eye,
   Calendar,
-  DollarSign,
   Building,
-  Users,
   Star,
   FileText,
   Video,
-  MessageSquare,
-  Filter,
-  Search
+  Search,
+  type LucideIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Project, InvestorInterest } from "@shared/schema";
+
+const STAGE_LABELS: Record<string, string> = {
+  ideation: "Ideation",
+  validation: "Validation",
+  mvp_build: "MVP build",
+  pilot_traction: "Pilot and traction",
+  pitch_ready: "Pitch ready",
+};
 
 export default function InvestorDashboard() {
   // Fetch startup directory and interests
@@ -83,7 +88,7 @@ export default function InvestorDashboard() {
   // Use real project data only, no synthetic values
   const featuredStartups = filteredProjects.slice(0, 6).map((project) => ({
     id: project.id,
-    name: project.name || "Untitled Project",
+    name: project.name || "Untitled project",
     stage: project.stage || "ideation",
     sector: project.aiComponents?.[0],
     description: project.summary,
@@ -92,7 +97,7 @@ export default function InvestorDashboard() {
   }));
 
   const formatLevel = (level: string | null | undefined) =>
-    (level || "viewed").replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    (level || "viewed").replace(/_/g, " ").replace(/^\w/, (l) => l.toUpperCase());
 
   // Recent activity comes from this investor's recorded interests
   const recentActivity = [...interests]
@@ -102,278 +107,75 @@ export default function InvestorDashboard() {
   return (
     <div className="space-y-6">
       {/* Investor Stats Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Startups Viewed</p>
-                <p className="text-2xl font-bold" data-testid="metric-viewed">{investorStats.startupsViewed}</p>
-              </div>
-              <Eye className="w-6 h-6 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Meetings Scheduled</p>
-                <p className="text-2xl font-bold" data-testid="metric-meetings">{investorStats.meetingsScheduled}</p>
-              </div>
-              <Calendar className="w-6 h-6 text-accent opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Due Diligence</p>
-                <p className="text-2xl font-bold" data-testid="metric-diligence">{investorStats.activeDiligence}</p>
-              </div>
-              <FileText className="w-6 h-6 text-yellow-400 opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Portfolio Interest</p>
-                <p className="text-2xl font-bold" data-testid="metric-portfolio">{investorStats.portfolioInterest}</p>
-              </div>
-              <Star className="w-6 h-6 text-yellow-400 opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Startups in directory" value={investorStats.startupsViewed} icon={Building} testId="metric-viewed" />
+        <KpiCard label="Meetings scheduled" value={investorStats.meetingsScheduled} icon={Calendar} testId="metric-meetings" />
+        <KpiCard label="Due diligence" value={investorStats.activeDiligence} icon={FileText} testId="metric-diligence" />
+        <KpiCard label="Startups of interest" value={investorStats.portfolioInterest} icon={Star} testId="metric-portfolio" />
       </section>
 
-      {/* Search and Filters */}
-      <section>
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search startups by name, sector, or technology..." 
-                    className="pl-10 bg-secondary border-border"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    data-testid="input-search-startups"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Select value={selectedSector} onValueChange={setSelectedSector}>
-                  <SelectTrigger className="w-40 bg-secondary border-border" data-testid="select-sector-filter">
-                    <SelectValue placeholder="Sector" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sectors</SelectItem>
-                    {sectorOptions.map((sector) => (
-                      <SelectItem key={sector} value={sector}>{sector}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Select value={selectedStage} onValueChange={setSelectedStage}>
-                  <SelectTrigger className="w-40 bg-secondary border-border" data-testid="select-stage-filter">
-                    <SelectValue placeholder="Stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stages</SelectItem>
-                    <SelectItem value="ideation">Ideation</SelectItem>
-                    <SelectItem value="validation">Validation</SelectItem>
-                    <SelectItem value="mvp_build">MVP Build</SelectItem>
-                    <SelectItem value="pilot_traction">Pilot / Traction</SelectItem>
-                    <SelectItem value="pitch_ready">Pitch Ready</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Featured Startups */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Featured Startups</h2>
-          <Button variant="outline" asChild data-testid="button-view-all-startups">
-            <Link href="/investors">View All Directory</Link>
-          </Button>
+      {/* Scheduled Sessions (next step) */}
+      <MistPanel>
+        <div className="mb-5">
+          <p className="font-display text-sm text-muted-foreground">Your next meetings</p>
+          <h2 className="font-display text-xl font-medium">Scheduled sessions</h2>
         </div>
 
-        {featuredStartups.length === 0 && (
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <Building className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                {projects.length === 0 ? "No startups yet" : "No startups match your filters"}
-              </h3>
-              <p className="text-muted-foreground">
-                {projects.length === 0
-                  ? "Startups will appear here once participants create their projects."
-                  : "Try adjusting your search or filters."}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {featuredStartups.map((startup) => (
-            <Card key={startup.id} className="glass-card hover:scale-105 transition-transform duration-200">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-                        {startup.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-lg" data-testid={`startup-name-${startup.id}`}>
-                        {startup.name}
-                      </CardTitle>
-                      {startup.founded && (
-                        <p className="text-sm text-muted-foreground">
-                          Since {startup.founded}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end space-y-1">
-                    {startup.sector && (
-                      <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
-                        {startup.sector}
-                      </Badge>
-                    )}
-                    <Badge 
-                      className={`${
-                        startup.stage === 'pitch_ready' ? 'bg-green-400/20 text-green-400' :
-                        startup.stage === 'mvp_build' ? 'bg-primary/20 text-primary' :
-                        'bg-accent/20 text-accent'
-                      }`}
-                      data-testid={`startup-stage-${startup.id}`}
-                    >
-                      {startup.stage.replace(/_/g, ' ')}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-3" data-testid={`startup-description-${startup.id}`}>
-                  {startup.description}
-                </p>
-                
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Readiness:</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-12 h-2 bg-secondary rounded-full">
-                        <div 
-                          className="h-2 bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
-                          style={{ width: `${startup.readinessScore}%` }}
-                        ></div>
-                      </div>
-                      <span className="font-medium" data-testid={`startup-readiness-${startup.id}`}>
-                        {startup.readinessScore}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div />
-                  <div className="flex space-x-2">
-                    <Button 
-                      size="sm"
-                      asChild
-                      data-testid={`button-request-meeting-${startup.id}`}
-                    >
-                      <Link href="/investors">Request Meeting</Link>
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Scheduled Sessions */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Scheduled Sessions</h2>
-        </div>
-        
         {sessions.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {sessions.slice(0, 4).map((session: any) => (
-              <Card key={session.id} className="glass-card">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg" data-testid={`session-title-${session.id}`}>
+              <Card key={session.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle className="text-base" data-testid={`session-title-${session.id}`}>
                         {session.title}
                       </CardTitle>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 font-display text-sm text-muted-foreground">
                         {session.sessionType && (
-                          <Badge variant="outline" className="mr-2 capitalize">
+                          <Badge variant="outline" className="capitalize">
                             {session.sessionType.replace(/_/g, ' ')}
                           </Badge>
                         )}
-                        {new Date(session.startTime).toLocaleDateString('en-US', { 
-                          weekday: 'long', 
-                          month: 'short', 
+                        {new Date(session.startTime).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'short',
                           day: 'numeric',
                           hour: 'numeric',
                           minute: '2-digit'
                         })}
                       </div>
                     </div>
-                    <Badge 
-                      className={`${
-                        new Date(session.startTime) > new Date() ? 'bg-primary/20 text-primary' : 'bg-muted/20 text-muted-foreground'
-                      }`}
-                    >
+                    <Badge variant={new Date(session.startTime) > new Date() ? 'secondary' : 'outline'}>
                       {new Date(session.startTime) > new Date() ? 'Upcoming' : 'Past'}
                     </Badge>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent>
                   <div className="space-y-3">
                     <div className="text-sm">
-                      <span className="text-muted-foreground">Participants:</span>
+                      <span className="font-display text-muted-foreground">Participants</span>
                       <p className="font-medium">{session.participantIds?.length || 0} participant(s)</p>
                     </div>
-                    
+
                     {session.agenda && (
                       <div className="text-sm">
-                        <span className="text-muted-foreground">Agenda:</span>
-                        <p className="font-medium line-clamp-2" data-testid={`session-agenda-${session.id}`}>
+                        <span className="font-display text-muted-foreground">Agenda</span>
+                        <p className="line-clamp-2" data-testid={`session-agenda-${session.id}`}>
                           {session.agenda}
                         </p>
                       </div>
                     )}
-                    
-                    <div className="flex items-center justify-between pt-3 border-t border-border">
-                      <div className="text-xs text-muted-foreground">
-                        Duration: {Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / (1000 * 60))} minutes
+
+                    <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
+                      <div className="font-display text-xs text-muted-foreground">
+                        {Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / (1000 * 60))} minutes
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="flex gap-2">
                         {new Date(session.startTime) > new Date() && session.meetingLink && (
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={() => window.open(session.meetingLink, '_blank')}
                             data-testid={`button-join-${session.id}`}
@@ -390,56 +192,185 @@ export default function InvestorDashboard() {
             ))}
           </div>
         ) : (
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Sessions Scheduled</h3>
-              <p className="text-muted-foreground">
-                You don't have any upcoming sessions yet. Participants will request sessions with you through the platform.
-              </p>
-            </CardContent>
-          </Card>
+          <DropZone className="bg-card/60 py-8">
+            <p className="text-sm">Sessions will appear here when participants request time with you.</p>
+          </DropZone>
         )}
+      </MistPanel>
+
+      {/* Search and Filters */}
+      <section>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search startups by name, sector or technology"
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    data-testid="input-search-startups"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:flex">
+                <Select value={selectedSector} onValueChange={setSelectedSector}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-sector-filter">
+                    <SelectValue placeholder="Sector" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All sectors</SelectItem>
+                    {sectorOptions.map((sector) => (
+                      <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedStage} onValueChange={setSelectedStage}>
+                  <SelectTrigger className="w-full md:w-40" data-testid="select-stage-filter">
+                    <SelectValue placeholder="Stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All stages</SelectItem>
+                    <SelectItem value="ideation">Ideation</SelectItem>
+                    <SelectItem value="validation">Validation</SelectItem>
+                    <SelectItem value="mvp_build">MVP build</SelectItem>
+                    <SelectItem value="pilot_traction">Pilot and traction</SelectItem>
+                    <SelectItem value="pitch_ready">Pitch ready</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Featured Startups */}
+      <section>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="font-display text-xl font-medium">Featured startups</h2>
+          <Button variant="outline" asChild data-testid="button-view-all-startups">
+            <Link href="/investors">View all</Link>
+          </Button>
+        </div>
+
+        {featuredStartups.length === 0 && (
+          <DropZone className="py-10">
+            <p className="text-sm">
+              {projects.length === 0
+                ? "Startups will appear here once participants create their projects."
+                : "No startups match your search. Try adjusting the filters."}
+            </p>
+          </DropZone>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {featuredStartups.map((startup) => (
+            <Card key={startup.id} className="flex flex-col transition-colors hover:border-accent/50">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-base font-medium text-primary-foreground" aria-hidden="true">
+                      {startup.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <CardTitle className="text-lg" data-testid={`startup-name-${startup.id}`}>
+                        {startup.name}
+                      </CardTitle>
+                      {startup.founded && (
+                        <p className="font-display text-sm text-muted-foreground">
+                          Since {startup.founded}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {startup.sector && (
+                      <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
+                        {startup.sector}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" data-testid={`startup-stage-${startup.id}`}>
+                      {STAGE_LABELS[startup.stage] ?? startup.stage.replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="flex flex-1 flex-col">
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-3" data-testid={`startup-description-${startup.id}`}>
+                  {startup.description}
+                </p>
+
+                <div className="mb-4 mt-auto flex items-center justify-between gap-3 text-sm">
+                  <span className="font-display text-muted-foreground">Readiness</span>
+                  <div className="flex items-center gap-2">
+                    <Progress value={startup.readinessScore} className="h-1.5 w-16" />
+                    <span className="font-display font-medium" data-testid={`startup-readiness-${startup.id}`}>
+                      {startup.readinessScore}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end pt-4 border-t border-border">
+                  <Button
+                    size="sm"
+                    asChild
+                    data-testid={`button-request-meeting-${startup.id}`}
+                  >
+                    <Link href="/investors">Request meeting</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </section>
 
       {/* Upcoming Events and Activity */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming Events */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-              <Calendar className="w-5 h-5" />
-              <span>Upcoming Events</span>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span>Upcoming events</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground" data-testid="events-empty">
-              No demo days or events have been announced yet.
-            </p>
+            <DropZone className="py-6">
+              <p className="text-sm" data-testid="events-empty">
+                No demo days or events have been announced yet.
+              </p>
+            </DropZone>
           </CardContent>
         </Card>
 
         {/* Recent Activity */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
+            <CardTitle className="text-xl">Recent activity</CardTitle>
           </CardHeader>
           <CardContent>
             {recentActivity.length === 0 ? (
-              <p className="text-sm text-muted-foreground" data-testid="activity-empty">
-                No activity yet. Request a meeting with a startup to start your pipeline.
-              </p>
+              <DropZone className="py-6">
+                <p className="text-sm" data-testid="activity-empty">
+                  Request a meeting with a startup to start your pipeline.
+                </p>
+              </DropZone>
             ) : (
               <div className="space-y-4">
                 {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-3" data-testid={`activity-${activity.id}`}>
-                    <div className="w-2 h-2 rounded-full bg-primary"></div>
-                    <div className="flex-1">
+                  <div key={activity.id} className="flex items-center gap-3" data-testid={`activity-${activity.id}`}>
+                    <div className="h-2 w-2 shrink-0 rounded-full bg-accent"></div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm">
-                        <span className="font-medium">{formatLevel(activity.level)}</span> {activity.projectName || "a startup"}
+                        <span className="font-display font-medium">{formatLevel(activity.level)}</span> {activity.projectName || "a startup"}
                       </p>
                       {(activity.updatedAt || activity.createdAt) && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="font-display text-xs text-muted-foreground">
                           {new Date((activity.updatedAt || activity.createdAt) as any).toLocaleDateString()}
                         </p>
                       )}
@@ -454,46 +385,54 @@ export default function InvestorDashboard() {
 
       {/* Investment Pipeline */}
       <section>
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5" />
-              <span>Investment Pipeline</span>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <span>Investment pipeline</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="bg-blue-400/10 border-blue-400/20">
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-blue-400" data-testid="pipeline-initial">{pipeline.initial}</p>
-                  <p className="text-sm text-muted-foreground">Initial Interest</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-accent/10 border-accent/20">
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-accent" data-testid="pipeline-meetings">{pipeline.meetings}</p>
-                  <p className="text-sm text-muted-foreground">Meetings Scheduled</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-yellow-400/10 border-yellow-400/20">
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-yellow-400" data-testid="pipeline-diligence">{pipeline.diligence}</p>
-                  <p className="text-sm text-muted-foreground">Due Diligence</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-green-400/10 border-green-400/20">
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-green-400" data-testid="pipeline-decisions">{pipeline.decisions}</p>
-                  <p className="text-sm text-muted-foreground">Investment Decisions</p>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Initial interest", value: pipeline.initial, testId: "pipeline-initial" },
+                { label: "Meetings scheduled", value: pipeline.meetings, testId: "pipeline-meetings" },
+                { label: "Due diligence", value: pipeline.diligence, testId: "pipeline-diligence" },
+                { label: "Investment decisions", value: pipeline.decisions, testId: "pipeline-decisions" },
+              ].map((stage, index) => (
+                <div key={stage.testId} className="rounded-lg border border-border p-4">
+                  <p className="font-display text-xs text-muted-foreground">Stage {index + 1}</p>
+                  <p className="mt-1 font-display text-3xl font-medium text-foreground" data-testid={stage.testId}>{stage.value}</p>
+                  <p className="font-display text-sm text-muted-foreground">{stage.label}</p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </section>
     </div>
+  );
+}
+
+function KpiCard({ label, value, icon: Icon, testId }: {
+  label: string;
+  value: number | string;
+  icon: LucideIcon;
+  testId: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-display text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 font-display text-3xl font-medium text-foreground" data-testid={testId}>{value}</p>
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
