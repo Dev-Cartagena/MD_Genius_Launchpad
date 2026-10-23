@@ -1,1 +1,140 @@
-{}
+{
+  "translationNote": "This translation is provided for convenience; the English version prevails.",
+  "lastUpdated": "Last updated: {{date}}",
+  "terms": {
+    "pageTitle": "Terms and conditions",
+    "documentTitle": "MD Genius AI Startup Launchpad - Terms of Service",
+    "sections": {
+      "1": {
+        "title": "1. Acceptance of terms",
+        "body": "By applying to and participating in the MD Genius AI Startup Launchpad (\"Program\"), you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not apply or participate in the Program."
+      },
+      "2": {
+        "title": "2. Program description",
+        "body": "The MD Genius AI Startup Launchpad is an 8-week intensive accelerator program designed to help entrepreneurs develop AI-powered startups. The Program includes mentorship, curriculum, networking opportunities, and potential funding opportunities."
+      },
+      "3": {
+        "title": "3. Eligibility and application",
+        "items": {
+          "1": "Applicants must be at least 18 years old",
+          "2": "All application information must be accurate and truthful",
+          "3": "MD Genius reserves the right to verify all submitted information",
+          "4": "Admission to the Program is competitive and at the sole discretion of MD Genius"
+        }
+      },
+      "4": {
+        "title": "4. Intellectual property",
+        "body": "Participants retain ownership of their intellectual property developed prior to the Program. Any IP developed during the Program remains with the participant, however MD Genius may request a right of first refusal for investment opportunities."
+      },
+      "5": {
+        "title": "5. Confidentiality and non-disclosure",
+        "body": "Participants may be exposed to confidential information during the Program. You agree to maintain the confidentiality of all proprietary information shared by MD Genius, mentors, and other participants."
+      },
+      "6": {
+        "title": "6. Code of conduct",
+        "items": {
+          "1": "Treat all participants, mentors, and staff with respect",
+          "2": "Maintain professional behavior at all times",
+          "3": "No harassment, discrimination, or inappropriate conduct will be tolerated",
+          "4": "Follow all Program guidelines and deadlines"
+        }
+      },
+      "7": {
+        "title": "7. Commitment requirements",
+        "body": "Participants are expected to dedicate significant time and effort to the Program. Failure to meet participation requirements may result in removal from the Program without refund of any fees or forfeiture of any benefits."
+      },
+      "8": {
+        "title": "8. Limitation of liability",
+        "body": "MD Genius provides the Program \"as is\" and makes no guarantees regarding outcomes, funding, or business success. Participation is at your own risk."
+      },
+      "9": {
+        "title": "9. Termination",
+        "body": "MD Genius reserves the right to terminate any participant's involvement in the Program for violation of these terms, failure to meet Program requirements, or any other reason deemed appropriate."
+      },
+      "10": {
+        "title": "10. Contact information",
+        "body": "For questions regarding these Terms and Conditions, please contact us at:",
+        "email": "Email: legal@mdgenius.ai",
+        "address": "Address: MD Genius AI Launchpad, 123 Innovation Drive, San Francisco, CA 94105"
+      }
+    }
+  },
+  "privacy": {
+    "pageTitle": "Privacy policy",
+    "documentTitle": "MD Genius AI Startup Launchpad - Privacy Policy",
+    "sections": {
+      "1": {
+        "title": "1. Information we collect",
+        "subtitle": "Personal information",
+        "body": "We collect personal information that you provide to us, including:",
+        "items": {
+          "1": "Name, email address, phone number, and location",
+          "2": "Educational background and professional experience",
+          "3": "Business ideas and project information",
+          "4": "Resume, portfolio, and other application documents",
+          "5": "Communications with our team and other participants"
+        }
+      },
+      "2": {
+        "title": "2. How we use your information",
+        "body": "We use the information we collect to:",
+        "items": {
+          "1": "Evaluate your application for the Program",
+          "2": "Provide and improve our services",
+          "3": "Communicate with you about the Program",
+          "4": "Connect you with mentors and other participants",
+          "5": "Analyze and improve our Program effectiveness",
+          "6": "Comply with legal obligations"
+        }
+      },
+      "3": {
+        "title": "3. Information sharing",
+        "body": "We may share your information in the following circumstances:",
+        "items": {
+          "1": { "label": "With Mentors:", "text": "We share relevant information to facilitate mentorship" },
+          "2": { "label": "With Participants:", "text": "Limited information for networking and collaboration" },
+          "3": { "label": "With Investors:", "text": "With your explicit consent, for funding opportunities" },
+          "4": { "label": "Service Providers:", "text": "Third-party services that help us operate the Program" },
+          "5": { "label": "Legal Requirements:", "text": "When required by law or to protect our rights" }
+        }
+      },
+      "4": {
+        "title": "4. Data security",
+        "body": "We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure."
+      },
+      "5": {
+        "title": "5. Data retention",
+        "body": "We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, comply with legal obligations, resolve disputes, and enforce our agreements."
+      },
+      "6": {
+        "title": "6. Your rights",
+        "body": "You have the right to:",
+        "items": {
+          "1": "Access and review your personal information",
+          "2": "Request correction of inaccurate information",
+          "3": "Request deletion of your information (subject to legal obligations)",
+          "4": "Object to or restrict processing of your information",
+          "5": "Data portability (receive your information in a structured format)"
+        }
+      },
+      "7": {
+        "title": "7. Cookies and tracking",
+        "body": "We use cookies and similar tracking technologies to enhance your experience on our platform, analyze usage patterns, and improve our services. You can control cookie preferences through your browser settings."
+      },
+      "8": {
+        "title": "8. Third-party services",
+        "body": "Our platform may integrate with third-party services (like cloud storage, analytics, or communication tools). These services have their own privacy policies, which we encourage you to review."
+      },
+      "9": {
+        "title": "9. Changes to this policy",
+        "body": "We may update this Privacy Policy from time to time. We will notify you of any material changes by posting the updated policy on our platform and updating the \"Last updated\" date."
+      },
+      "10": {
+        "title": "10. Contact us",
+        "body": "If you have questions about this Privacy Policy or our data practices, please contact us at:",
+        "email": "Email: privacy@mdgenius.ai",
+        "address": "Address: MD Genius AI Launchpad, 123 Innovation Drive, San Francisco, CA 94105"
+      }
+    }
+  }
+}

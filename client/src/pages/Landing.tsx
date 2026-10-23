@@ -1,6 +1,9 @@
 import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
+import { useLocalized } from "@/lib/localized";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import type { Cohort } from "@shared/schema";
 import { formatCohortDate } from "@/lib/dates";
@@ -20,6 +23,8 @@ import {
 } from "lucide-react";
 
 export default function Landing() {
+  const { t } = useTranslation("landing");
+  const localized = useLocalized();
   // Public endpoint: active cohorts open to applicants
   const { data: openCohorts = [] } = useQuery<Cohort[]>({
     queryKey: ["/api/cohorts"],
@@ -32,57 +37,46 @@ export default function Landing() {
   const stats: any[] = [];
 
   const modules = [
-    { icon: BookOpen, title: "Curriculum", description: "Eight weeks of lessons and assignments." },
-    { icon: Map, title: "Roadmap", description: "Weekly milestones for your startup." },
-    { icon: Users, title: "Mentors", description: "One-to-one sessions with practitioners." },
-    { icon: TrendingUp, title: "Investors", description: "Introductions when you are ready." },
-    { icon: MessageSquare, title: "AI coach", description: "Answers between sessions." },
-  ];
+    { key: "curriculum", icon: BookOpen },
+    { key: "roadmap", icon: Map },
+    { key: "mentors", icon: Users },
+    { key: "investors", icon: TrendingUp },
+    { key: "coach", icon: MessageSquare },
+  ] as const;
 
   const features = [
-    {
-      icon: Lightbulb,
-      title: "AI-first curriculum",
-      description: "An 8-week program covering AI and machine learning fundamentals, business strategy and the essentials of starting a company.",
-    },
-    {
-      icon: Users,
-      title: "Mentorship",
-      description: "One-to-one guidance from industry practitioners, experienced founders and AI specialists.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Investor network",
-      description: "Access to venture capital firms and angel investors who focus on AI startups.",
-    },
-    {
-      icon: Calendar,
-      title: "Demo Day",
-      description: "Present your startup to investors at the end of the program.",
-    },
-  ];
+    { key: "curriculum", icon: Lightbulb },
+    { key: "mentorship", icon: Users },
+    { key: "investors", icon: TrendingUp },
+    { key: "demoDay", icon: Calendar },
+  ] as const;
 
   // Alumni testimonials will be populated with real testimonials when available
   const testimonials: any[] = [];
 
   const cohortTimeline = [
-    { week: "1-2", title: "Foundation", description: "AI fundamentals, problem definition and team formation." },
-    { week: "3-4", title: "Validation", description: "Market research, customer discovery and MVP planning." },
-    { week: "5-6", title: "Development", description: "Technical build, product development and testing." },
-    { week: "7-8", title: "Launch", description: "Go-to-market strategy, investor preparation and Demo Day." },
-  ];
+    { key: "foundation", week: "1-2" },
+    { key: "validation", week: "3-4" },
+    { key: "development", week: "5-6" },
+    { key: "launch", week: "7-8" },
+  ] as const;
+
+  const highlights = ["noFee", "rolling", "global"] as const;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 h-16">
-          <Link href="/" aria-label="MD Genius Launchpad home">
+          <Link href="/" aria-label={t("nav.home")}>
             <Logo layout="compact" className="h-7" />
           </Link>
-          <Button variant="ghost" size="sm" onClick={() => (window.location.href = "/login")}>
-            Sign in
-          </Button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <Button variant="ghost" size="sm" onClick={() => (window.location.href = "/login")}>
+              {t("nav.signIn")}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -92,15 +86,17 @@ export default function Landing() {
           <div>
             {nextCohort && (
               <Badge variant="secondary" className="mb-6" data-testid="hero-badge">
-                Applications open: {nextCohort.name} (starts {formatCohortDate(nextCohort.startDate)})
+                {t("hero.badge", {
+                  name: localized.text(nextCohort, "name"),
+                  date: formatCohortDate(nextCohort.startDate),
+                })}
               </Badge>
             )}
             <h1 className="font-display text-4xl md:text-[46px] font-medium leading-tight tracking-[-0.01em] mb-5">
-              Build your AI startup with MD Genius Launchpad
+              {t("hero.title")}
             </h1>
             <p className="font-display text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 max-w-xl">
-              An 8-week accelerator from MDGeniusAI that pairs a structured curriculum with mentors and
-              introductions to investors.
+              {t("hero.lead")}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
@@ -108,7 +104,7 @@ export default function Landing() {
                 onClick={() => (window.location.href = "/login")}
                 data-testid="button-apply-now"
               >
-                Apply to the program
+                {t("hero.apply")}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
               <Button
@@ -117,7 +113,7 @@ export default function Landing() {
                 onClick={() => (window.location.href = "/login")}
                 data-testid="button-login"
               >
-                Sign in
+                {t("hero.signIn")}
               </Button>
             </div>
           </div>
@@ -146,12 +142,12 @@ export default function Landing() {
       <section className="px-4 sm:px-6 py-12 md:py-16">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <h2 className="text-2xl md:text-[28px] mb-3">Program modules</h2>
+            <h2 className="text-2xl md:text-[28px] mb-3">{t("modules.title")}</h2>
             <NodeRule />
           </div>
           <div className="flex flex-col md:flex-row md:items-stretch">
             {modules.map((module, index) => (
-              <Fragment key={module.title}>
+              <Fragment key={module.key}>
                 {index > 0 && (
                   <div aria-hidden="true" className="flex justify-center md:items-center">
                     <div className="h-6 w-0 border-l border-dashed border-steel/50 md:h-0 md:w-6 md:border-l-0 md:border-t" />
@@ -161,8 +157,8 @@ export default function Landing() {
                   <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-secondary text-primary">
                     <module.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="font-display text-base font-medium mb-1">{module.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{module.description}</p>
+                  <h3 className="font-display text-base font-medium mb-1">{t(`modules.${module.key}.title`)}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{t(`modules.${module.key}.description`)}</p>
                 </div>
               </Fragment>
             ))}
@@ -174,10 +170,9 @@ export default function Landing() {
       <section className="px-4 sm:px-6 py-12 md:py-16">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <h2 className="text-2xl md:text-[28px] mb-3">What the program includes</h2>
+            <h2 className="text-2xl md:text-[28px] mb-3">{t("features.title")}</h2>
             <p className="text-muted-foreground max-w-2xl leading-relaxed">
-              Technical depth and business practice, so an AI idea can become a company that customers and
-              investors take seriously.
+              {t("features.lead")}
             </p>
           </div>
 
@@ -188,9 +183,9 @@ export default function Landing() {
                   <div className="mb-5 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-primary">
                     <feature.icon className="w-5 h-5" />
                   </div>
-                  <h3 className="text-xl mb-3" data-testid={`feature-title-${index}`}>{feature.title}</h3>
+                  <h3 className="text-xl mb-3" data-testid={`feature-title-${index}`}>{t(`features.${feature.key}.title`)}</h3>
                   <p className="text-muted-foreground leading-relaxed" data-testid={`feature-description-${index}`}>
-                    {feature.description}
+                    {t(`features.${feature.key}.description`)}
                   </p>
                 </CardContent>
               </Card>
@@ -203,10 +198,9 @@ export default function Landing() {
       <section className="px-4 sm:px-6 py-12 md:py-16 border-y border-border bg-card">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <h2 className="text-2xl md:text-[28px] mb-3">Eight weeks, four stages</h2>
+            <h2 className="text-2xl md:text-[28px] mb-3">{t("timeline.title")}</h2>
             <p className="text-muted-foreground max-w-2xl leading-relaxed">
-              A structured schedule takes you from an idea to a startup that is ready to meet investors, with
-              steady progress each week.
+              {t("timeline.lead")}
             </p>
           </div>
 
@@ -214,11 +208,11 @@ export default function Landing() {
             {cohortTimeline.map((phase, index) => (
               <div key={index} className="panel p-6">
                 <div className="font-display text-sm font-medium text-accent mb-2" data-testid={`phase-week-${index}`}>
-                  Week {phase.week}
+                  {t("timeline.weeks", { weeks: phase.week })}
                 </div>
-                <h3 className="text-lg mb-2" data-testid={`phase-title-${index}`}>{phase.title}</h3>
+                <h3 className="text-lg mb-2" data-testid={`phase-title-${index}`}>{t(`timeline.${phase.key}.title`)}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed" data-testid={`phase-description-${index}`}>
-                  {phase.description}
+                  {t(`timeline.${phase.key}.description`)}
                 </p>
               </div>
             ))}
@@ -230,7 +224,7 @@ export default function Landing() {
       {testimonials.length > 0 && (
         <section className="px-4 sm:px-6 py-12 md:py-16">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl md:text-[28px] mb-8">From our alumni</h2>
+            <h2 className="text-2xl md:text-[28px] mb-8">{t("testimonials.title")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {testimonials.map((testimonial, index) => (
                 <Card key={index}>
@@ -254,15 +248,15 @@ export default function Landing() {
       <section className="px-4 sm:px-6 py-12 md:py-20">
         <div className="max-w-6xl mx-auto panel p-6 md:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
-            <h2 className="text-2xl md:text-[28px] mb-3">Apply for the next cohort</h2>
+            <h2 className="text-2xl md:text-[28px] mb-3">{t("cta.title")}</h2>
             <p className="text-muted-foreground max-w-xl leading-relaxed">
-              We review applications on a rolling basis, and each cohort has a limited number of places.
+              {t("cta.lead")}
             </p>
             <ul className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-muted-foreground">
-              {["No application fee", "Rolling admissions", "Global cohorts"].map((item) => (
+              {highlights.map((item) => (
                 <li key={item} className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-success" />
-                  <span>{item}</span>
+                  <span>{t(`cta.${item}`)}</span>
                 </li>
               ))}
             </ul>
@@ -273,7 +267,7 @@ export default function Landing() {
             onClick={() => (window.location.href = "/login")}
             data-testid="button-start-application"
           >
-            Start your application
+            {t("cta.start")}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
@@ -284,14 +278,14 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-3">
             <Logo layout="symbol" className="h-6" />
-            <span>MD Genius Launchpad · an MDGeniusAI program</span>
+            <span>{t("footer.brand")}</span>
           </div>
           <nav className="flex gap-6">
             <Link href="/terms" className="hover:text-accent hover:underline">
-              Terms
+              {t("footer.terms")}
             </Link>
             <Link href="/privacy" className="hover:text-accent hover:underline">
-              Privacy
+              {t("footer.privacy")}
             </Link>
           </nav>
         </div>

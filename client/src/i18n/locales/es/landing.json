@@ -1,1 +1,66 @@
-{}
+{
+  "nav": {
+    "home": "Inicio de MD Genius Launchpad",
+    "signIn": "Iniciar sesión"
+  },
+  "hero": {
+    "badge": "Postulaciones abiertas: {{name}} (inicia el {{date}})",
+    "title": "Construye tu startup de IA con MD Genius Launchpad",
+    "lead": "Una aceleradora de 8 semanas de MDGeniusAI que combina un currículo estructurado con mentores y presentaciones a inversionistas.",
+    "apply": "Postúlate al programa",
+    "signIn": "Iniciar sesión"
+  },
+  "modules": {
+    "title": "Módulos del programa",
+    "curriculum": { "title": "Currículo", "description": "Ocho semanas de lecciones y asignaciones." },
+    "roadmap": { "title": "Hoja de ruta", "description": "Hitos semanales para tu startup." },
+    "mentors": { "title": "Mentores", "description": "Sesiones individuales con profesionales del sector." },
+    "investors": { "title": "Inversionistas", "description": "Presentaciones cuando llegue el momento." },
+    "coach": { "title": "AI Coach", "description": "Respuestas entre sesiones." }
+  },
+  "features": {
+    "title": "Qué incluye el programa",
+    "lead": "Profundidad técnica y práctica de negocio, para que una idea de IA se convierta en una empresa que clientes e inversionistas tomen en serio.",
+    "curriculum": {
+      "title": "Currículo centrado en IA",
+      "description": "Un programa de 8 semanas que cubre los fundamentos de la IA y el machine learning, la estrategia de negocio y lo esencial para crear una empresa."
+    },
+    "mentorship": {
+      "title": "Mentoría",
+      "description": "Acompañamiento individual de profesionales de la industria, fundadores con experiencia y especialistas en IA."
+    },
+    "investors": {
+      "title": "Red de inversionistas",
+      "description": "Acceso a fondos de capital de riesgo e inversionistas ángeles enfocados en startups de IA."
+    },
+    "demoDay": {
+      "title": "Demo Day",
+      "description": "Presenta tu startup a inversionistas al final del programa."
+    }
+  },
+  "timeline": {
+    "title": "Ocho semanas, cuatro etapas",
+    "lead": "Un calendario estructurado te lleva de una idea a una startup lista para reunirse con inversionistas, con avances constantes cada semana.",
+    "weeks": "Semanas {{weeks}}",
+    "foundation": { "title": "Fundamentos", "description": "Fundamentos de IA, definición del problema y formación del equipo." },
+    "validation": { "title": "Validación", "description": "Investigación de mercado, descubrimiento de clientes y planificación del MVP." },
+    "development": { "title": "Desarrollo", "description": "Desarrollo técnico, construcción del producto y pruebas." },
+    "launch": { "title": "Lanzamiento", "description": "Estrategia de salida al mercado, preparación para inversionistas y Demo Day." }
+  },
+  "testimonials": {
+    "title": "Lo que dicen nuestros egresados"
+  },
+  "cta": {
+    "title": "Postúlate a la próxima cohorte",
+    "lead": "Revisamos las postulaciones de forma continua y cada cohorte tiene cupos limitados.",
+    "noFee": "Sin costo de postulación",
+    "rolling": "Admisión continua",
+    "global": "Cohortes globales",
+    "start": "Comienza tu postulación"
+  },
+  "footer": {
+    "brand": "MD Genius Launchpad · un programa de MDGeniusAI",
+    "terms": "Términos",
+    "privacy": "Privacidad"
+  }
+}

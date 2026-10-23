@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocalized } from "@/lib/localized";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,54 +37,74 @@ import type { Cohort } from "@shared/schema";
 import { formatCohortDate } from "@/lib/dates";
 import { ConnectorBadge } from "@/components/brand";
 
-const applicationSchema = z.object({
-  // Personal Information
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  location: z.string().min(2, "Location is required"),
-  timezone: z.string().min(2, "Timezone is required"),
-  
-  // Education & Experience
-  education: z.string().min(10, "Education background must be at least 10 characters"),
-  experience: z.string().min(10, "Professional experience must be at least 10 characters"),
-  skills: z.array(z.string()).min(3, "Please select at least 3 skills"),
-  
-  // Project & Idea
-  hasIdea: z.boolean(),
-  ideaDescription: z.string().optional(),
-  problemStatement: z.string().optional(),
-  targetMarket: z.string().optional(),
-  
-  // Availability & Commitment
-  availability: z.enum(["full-time", "part-time", "weekends"]),
-  commitmentReason: z.string().min(50, "Please explain your commitment in at least 50 characters"),
-  
-  // Documents
-  resumeUrl: z.string().optional(),
-  portfolioUrl: z.string().optional(),
-  githubUrl: z.string().optional(),
-  linkedinUrl: z.string().optional(),
-  
-  // Agreements
-  termsAccepted: z.boolean().refine(val => val === true, "You must accept the terms and conditions"),
-  privacyAccepted: z.boolean().refine(val => val === true, "You must accept the privacy policy"),
-  
-  // Cohort selection
-  cohortId: z.string().min(1, "Please select a cohort"),
-});
+function makeApplicationSchema(t: TFunction<"application">) {
+  return z.object({
+    // Personal Information
+    firstName: z.string().min(2, t("form.validation.firstNameMin")),
+    lastName: z.string().min(2, t("form.validation.lastNameMin")),
+    email: z.string().email(t("form.validation.invalidEmail")),
+    phone: z.string().min(10, t("form.validation.phoneMin")),
+    location: z.string().min(2, t("form.validation.locationRequired")),
+    timezone: z.string().min(2, t("form.validation.timezoneRequired")),
 
-type ApplicationFormData = z.infer<typeof applicationSchema>;
+    // Education & Experience
+    education: z.string().min(10, t("form.validation.educationMin")),
+    experience: z.string().min(10, t("form.validation.experienceMin")),
+    skills: z.array(z.string()).min(3, t("form.validation.skillsMin")),
 
+    // Project & Idea
+    hasIdea: z.boolean(),
+    ideaDescription: z.string().optional(),
+    problemStatement: z.string().optional(),
+    targetMarket: z.string().optional(),
+
+    // Availability & Commitment
+    availability: z.enum(["full-time", "part-time", "weekends"]),
+    commitmentReason: z.string().min(50, t("form.validation.commitmentMin")),
+
+    // Documents
+    resumeUrl: z.string().optional(),
+    portfolioUrl: z.string().optional(),
+    githubUrl: z.string().optional(),
+    linkedinUrl: z.string().optional(),
+
+    // Agreements
+    termsAccepted: z.boolean().refine(val => val === true, t("form.validation.termsRequired")),
+    privacyAccepted: z.boolean().refine(val => val === true, t("form.validation.privacyRequired")),
+
+    // Cohort selection
+    cohortId: z.string().min(1, t("form.validation.cohortRequired")),
+  });
+}
+
+type ApplicationFormData = z.infer<ReturnType<typeof makeApplicationSchema>>;
+
+/** Stored skill values (sent to the server as is) and the catalog key for each label. */
 const skillOptions = [
-  "Artificial Intelligence", "AI Agents", "LLMs", "Machine Learning", "Deep Learning", 
-  "Computer Vision", "Natural Language Processing", "Data Science", "Software Engineering", 
-  "Product Management", "UI/UX Design", "Business Development", "Marketing", "Finance", 
-  "Operations", "Research", "Entrepreneurship", "Leadership", "Project Management"
-];
+  { value: "Artificial Intelligence", key: "ai" },
+  { value: "AI Agents", key: "aiAgents" },
+  { value: "LLMs", key: "llms" },
+  { value: "Machine Learning", key: "ml" },
+  { value: "Deep Learning", key: "deepLearning" },
+  { value: "Computer Vision", key: "computerVision" },
+  { value: "Natural Language Processing", key: "nlp" },
+  { value: "Data Science", key: "dataScience" },
+  { value: "Software Engineering", key: "softwareEngineering" },
+  { value: "Product Management", key: "productManagement" },
+  { value: "UI/UX Design", key: "design" },
+  { value: "Business Development", key: "businessDevelopment" },
+  { value: "Marketing", key: "marketing" },
+  { value: "Finance", key: "finance" },
+  { value: "Operations", key: "operations" },
+  { value: "Research", key: "research" },
+  { value: "Entrepreneurship", key: "entrepreneurship" },
+  { value: "Leadership", key: "leadership" },
+  { value: "Project Management", key: "projectManagement" },
+] as const;
 
-const stepLabels = ["Personal details", "Experience", "Idea", "Commitment", "Documents", "Review"];
+const stepKeys = ["personal", "experience", "idea", "commitment", "documents", "review"] as const;
+
+const timezoneOptions = ["PST", "MST", "CST", "EST", "GMT", "CET"] as const;
 
 interface ApplicationFormProps {
   onComplete?: () => void;
@@ -95,6 +118,13 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { t } = useTranslation("application");
+  const localized = useLocalized();
+  const applicationSchema = useMemo(() => makeApplicationSchema(t), [t]);
+  const skillLabel = (value: string) => {
+    const option = skillOptions.find((o) => o.value === value);
+    return option ? t(`form.skills.${option.key}`) : value;
+  };
 
   // Fetch available cohorts
   const { data: cohorts = [] } = useQuery<Cohort[]>({
@@ -179,8 +209,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Application submitted",
-        description: "Thank you for applying. You will receive a confirmation email shortly.",
+        title: t("form.toast.submitted.title"),
+        description: t("form.toast.submitted.description"),
       });
       onComplete?.();
       queryClient.invalidateQueries({ queryKey: ["/api/applications/my"] });
@@ -189,8 +219,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in...",
+          title: t("form.toast.signedOut.title"),
+          description: t("form.toast.signedOut.description"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -199,8 +229,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
         return;
       }
       toast({
-        title: "Could not submit application",
-        description: "Please try again.",
+        title: t("form.toast.submitFailed.title"),
+        description: t("form.toast.submitFailed.description"),
         variant: "destructive",
       });
     }
@@ -218,8 +248,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     }
 
     toast({
-      title: "File uploaded",
-      description: `${file.fileName} is attached to your application.`,
+      title: t("form.toast.uploaded.title"),
+      description: t("form.toast.uploaded.description", { fileName: file.fileName }),
     });
   };
 
@@ -245,28 +275,28 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     const errorMessages: string[] = [];
     
     // Check specific field errors and provide helpful messages
-    if (errors.firstName) errorMessages.push("First name is required");
-    if (errors.lastName) errorMessages.push("Last name is required");
-    if (errors.email) errorMessages.push("Valid email address is required");
-    if (errors.education) errorMessages.push("Education background must be at least 10 characters");
-    if (errors.experience) errorMessages.push("Professional experience must be at least 10 characters");
-    if (errors.skills) errorMessages.push("Please select at least 3 skills");
-    if (errors.commitmentReason) errorMessages.push("Commitment explanation must be at least 50 characters");
-    if (errors.termsAccepted) errorMessages.push("You must accept the terms and conditions");
-    if (errors.privacyAccepted) errorMessages.push("You must accept the privacy policy");
-    if (errors.cohortId) errorMessages.push("Please select a cohort");
+    if (errors.firstName) errorMessages.push(t("form.errors.firstName"));
+    if (errors.lastName) errorMessages.push(t("form.errors.lastName"));
+    if (errors.email) errorMessages.push(t("form.errors.email"));
+    if (errors.education) errorMessages.push(t("form.errors.education"));
+    if (errors.experience) errorMessages.push(t("form.errors.experience"));
+    if (errors.skills) errorMessages.push(t("form.errors.skills"));
+    if (errors.commitmentReason) errorMessages.push(t("form.errors.commitment"));
+    if (errors.termsAccepted) errorMessages.push(t("form.errors.terms"));
+    if (errors.privacyAccepted) errorMessages.push(t("form.errors.privacy"));
+    if (errors.cohortId) errorMessages.push(t("form.errors.cohort"));
     
     // Handle idea validation
     if (errors.ideaDescription || errors.problemStatement || errors.targetMarket) {
-      errorMessages.push("If you have an idea, please fill in all idea-related fields");
+      errorMessages.push(t("form.errors.idea"));
     }
     
     const message = errorMessages.length > 0 
       ? errorMessages.join(" • ") 
-      : "Please check all required fields are filled correctly.";
+      : t("form.errors.generic");
     
     toast({
-      title: "Some required fields need attention",
+      title: t("form.toast.invalid.title"),
       description: message,
       variant: "destructive",
     });
@@ -280,17 +310,18 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
       <Card>
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-display text-base font-medium">Your application</h2>
+            <h2 className="font-display text-base font-medium">{t("form.header")}</h2>
             <span className="font-display text-sm text-muted-foreground">
-              Step {currentStep} of {totalSteps}
+              {t("form.stepCounter", { current: currentStep, total: totalSteps })}
             </span>
           </div>
-          <ol className="flex items-start" aria-label="Application steps">
-            {stepLabels.map((label, index) => {
+          <ol className="flex items-start" aria-label={t("form.stepsLabel")}>
+            {stepKeys.map((stepKey, index) => {
               const step = index + 1;
+              const label = t(`form.steps.${stepKey}`);
               const state = step < currentStep ? "done" : step === currentStep ? "current" : "upcoming";
               return (
-                <li key={label} className="flex flex-1 items-start last:flex-none">
+                <li key={stepKey} className="flex flex-1 items-start last:flex-none">
                   <div className="flex flex-col items-center gap-2">
                     <ConnectorBadge state={state}>{step}</ConnectorBadge>
                     <span
@@ -301,8 +332,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       {label}
                     </span>
                     <span className="sr-only">
-                      {label}
-                      {state === "done" ? " (completed)" : state === "current" ? " (current step)" : ""}
+                      {state === "done"
+                        ? t("form.stepDone", { label })
+                        : state === "current"
+                          ? t("form.stepCurrent", { label })
+                          : label}
                     </span>
                   </div>
                   {step < totalSteps && (
@@ -327,7 +361,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <User className="w-5 h-5" />
-                  <span>Personal details</span>
+                  <span>{t("form.personal.title")}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -337,13 +371,13 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First name</FormLabel>
+                        <FormLabel>{t("form.personal.firstName")}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
                             data-testid="input-first-name"
                             readOnly
-                            title="Auto-populated from your profile"
+                            title={t("form.autoPopulated")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -356,13 +390,13 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last name</FormLabel>
+                        <FormLabel>{t("form.personal.lastName")}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
                             data-testid="input-last-name"
                             readOnly
-                            title="Auto-populated from your profile"
+                            title={t("form.autoPopulated")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -376,14 +410,14 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email address</FormLabel>
+                      <FormLabel>{t("form.personal.email")}</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="email"
                           data-testid="input-email"
                           readOnly
-                          title="Auto-populated from your profile"
+                          title={t("form.autoPopulated")}
                         />
                       </FormControl>
                       <FormMessage />
@@ -397,7 +431,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone number</FormLabel>
+                        <FormLabel>{t("form.personal.phone")}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -415,11 +449,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="location"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Location</FormLabel>
+                        <FormLabel>{t("form.personal.location")}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
-                            placeholder="City, State/Country"
+                            placeholder={t("form.personal.locationPlaceholder")}
                             data-testid="input-location"
                           />
                         </FormControl>
@@ -434,20 +468,19 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="timezone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Timezone</FormLabel>
+                      <FormLabel>{t("form.personal.timezone")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-timezone">
-                            <SelectValue placeholder="Select your timezone" />
+                            <SelectValue placeholder={t("form.personal.timezonePlaceholder")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="PST">Pacific Time (PST)</SelectItem>
-                          <SelectItem value="MST">Mountain Time (MST)</SelectItem>
-                          <SelectItem value="CST">Central Time (CST)</SelectItem>
-                          <SelectItem value="EST">Eastern Time (EST)</SelectItem>
-                          <SelectItem value="GMT">Greenwich Mean Time (GMT)</SelectItem>
-                          <SelectItem value="CET">Central European Time (CET)</SelectItem>
+                          {timezoneOptions.map((zone) => (
+                            <SelectItem key={zone} value={zone}>
+                              {t(`form.personal.timezones.${zone}`)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -464,7 +497,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <GraduationCap className="w-5 h-5" />
-                  <span>Education and experience</span>
+                  <span>{t("form.experience.title")}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -473,17 +506,17 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="education"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Educational background</FormLabel>
+                      <FormLabel>{t("form.experience.education")}</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
-                          placeholder="Describe your educational background, including degree(s), institutions, and relevant coursework..."
+                          placeholder={t("form.experience.educationPlaceholder")}
                           className="min-h-[100px]"
                           data-testid="textarea-education"
                         />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Minimum 10 characters required ({field.value?.length || 0}/10)
+                        {t("form.minChars", { min: 10, length: field.value?.length || 0 })}
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -495,17 +528,17 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="experience"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Professional experience</FormLabel>
+                      <FormLabel>{t("form.experience.experience")}</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
-                          placeholder="Describe your professional experience, including roles, companies, and key achievements..."
+                          placeholder={t("form.experience.experiencePlaceholder")}
                           className="min-h-[100px]"
                           data-testid="textarea-experience"
                         />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Minimum 10 characters required ({field.value?.length || 0}/10)
+                        {t("form.minChars", { min: 10, length: field.value?.length || 0 })}
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -517,14 +550,14 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="skills"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Skills and expertise</FormLabel>
+                      <FormLabel>{t("form.experience.skills")}</FormLabel>
                       <FormControl>
                         <div className="space-y-2">
                           <p className="text-sm text-muted-foreground">
-                            Select at least 3 skills that best describe your expertise.
+                            {t("form.experience.skillsHint")}
                           </p>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {skillOptions.map((skill) => (
+                            {skillOptions.map(({ value: skill, key: skillKey }) => (
                               <div key={skill} className="flex items-center space-x-2">
                                 <Checkbox
                                   id={skill}
@@ -538,7 +571,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                                   data-testid={`checkbox-skill-${skill.toLowerCase().replace(/\s+/g, '-')}`}
                                 />
                                 <Label htmlFor={skill} className="text-sm">
-                                  {skill}
+                                  {t(`form.skills.${skillKey}`)}
                                 </Label>
                               </div>
                             ))}
@@ -547,7 +580,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                             <div className="flex flex-wrap gap-2 mt-2">
                               {field.value.map((skill) => (
                                 <Badge key={skill} variant="secondary">
-                                  {skill}
+                                  {skillLabel(skill)}
                                 </Badge>
                               ))}
                             </div>
@@ -568,7 +601,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Lightbulb className="w-5 h-5" />
-                  <span>Project and idea</span>
+                  <span>{t("form.idea.title")}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -585,7 +618,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           data-testid="checkbox-has-idea"
                         />
                         <Label htmlFor="hasIdea" className="text-base font-medium">
-                          I have a startup idea I would like to develop
+                          {t("form.idea.hasIdea")}
                         </Label>
                       </div>
                     </FormItem>
@@ -599,11 +632,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="ideaDescription"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Idea description</FormLabel>
+                          <FormLabel>{t("form.idea.description")}</FormLabel>
                           <FormControl>
                             <Textarea 
                               {...field}
-                              placeholder="Briefly describe your startup idea, including the AI/technology components..."
+                              placeholder={t("form.idea.descriptionPlaceholder")}
                               className="min-h-[100px]"
                               data-testid="textarea-idea-description"
                             />
@@ -618,11 +651,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="problemStatement"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Problem statement</FormLabel>
+                          <FormLabel>{t("form.idea.problem")}</FormLabel>
                           <FormControl>
                             <Textarea 
                               {...field}
-                              placeholder="What specific problem does your idea solve? Who experiences this problem?"
+                              placeholder={t("form.idea.problemPlaceholder")}
                               className="min-h-[80px]"
                               data-testid="textarea-problem-statement"
                             />
@@ -637,11 +670,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="targetMarket"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Target market</FormLabel>
+                          <FormLabel>{t("form.idea.market")}</FormLabel>
                           <FormControl>
                             <Textarea 
                               {...field}
-                              placeholder="Who is your target customer? What market are you addressing?"
+                              placeholder={t("form.idea.marketPlaceholder")}
                               className="min-h-[80px]"
                               data-testid="textarea-target-market"
                             />
@@ -659,9 +692,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       <div className="flex items-start space-x-2">
                         <CheckCircle className="w-5 h-5 text-primary mt-0.5" />
                         <div>
-                          <p className="text-sm font-medium">That is fine</p>
+                          <p className="text-sm font-medium">{t("form.idea.noIdeaTitle")}</p>
                           <p className="text-sm text-muted-foreground">
-                            The program includes ideation workshops and will help you develop and validate startup ideas throughout the cohort.
+                            {t("form.idea.noIdeaBody")}
                           </p>
                         </div>
                       </div>
@@ -678,7 +711,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Clock className="w-5 h-5" />
-                  <span>Availability and commitment</span>
+                  <span>{t("form.commitment.title")}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -687,22 +720,22 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="availability"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Time commitment</FormLabel>
+                      <FormLabel>{t("form.commitment.time")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-availability">
-                            <SelectValue placeholder="Select your availability" />
+                            <SelectValue placeholder={t("form.commitment.timePlaceholder")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="full-time">
-                            Full-time (40+ hours a week), recommended
+                            {t("form.commitment.availability.full-time")}
                           </SelectItem>
                           <SelectItem value="part-time">
-                            Part-time (20–30 hours a week)
+                            {t("form.commitment.availability.part-time")}
                           </SelectItem>
                           <SelectItem value="weekends">
-                            Weekends only (10–15 hours a week)
+                            {t("form.commitment.availability.weekends")}
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -716,17 +749,17 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="commitmentReason"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Why MD Genius Launchpad?</FormLabel>
+                      <FormLabel>{t("form.commitment.why")}</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
-                          placeholder="Why are you applying to this program? What do you hope to achieve? How does this align with your career goals?"
+                          placeholder={t("form.commitment.whyPlaceholder")}
                           className="min-h-[120px]"
                           data-testid="textarea-commitment-reason"
                         />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Minimum 50 characters required ({field.value?.length || 0}/50)
+                        {t("form.minChars", { min: 50, length: field.value?.length || 0 })}
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -738,17 +771,17 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="cohortId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Preferred cohort</FormLabel>
+                      <FormLabel>{t("form.commitment.cohort")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-cohort">
-                            <SelectValue placeholder="Select a cohort" />
+                            <SelectValue placeholder={t("form.commitment.cohortPlaceholder")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {cohorts.length === 0 ? (
                             <div className="p-2 text-sm text-muted-foreground">
-                              No active cohorts available
+                              {t("form.commitment.noCohorts")}
                             </div>
                           ) : (
                             cohorts.map((cohort: any) => (
@@ -757,7 +790,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                                 value={cohort.id}
                                 data-testid={`select-item-cohort-${cohort.id}`}
                               >
-                                {cohort.name} - Starts {formatCohortDate(cohort.startDate)}
+                                {t("form.commitment.cohortOption", {
+                                  name: localized.text(cohort, "name"),
+                                  date: formatCohortDate(cohort.startDate),
+                                })}
                               </SelectItem>
                             ))
                           )}
@@ -777,15 +813,15 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <FileText className="w-5 h-5" />
-                  <span>Documents and links</span>
+                  <span>{t("form.documents.title")}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-base font-medium">Resume or CV (required)</Label>
+                    <Label className="text-base font-medium">{t("form.documents.resume")}</Label>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Upload your current resume or CV.
+                      {t("form.documents.resumeHint")}
                     </p>
                     <ObjectUploader
                       maxFileSize={10 * 1024 * 1024}
@@ -793,7 +829,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       onUploaded={(file) => handleUploadComplete(file, 'resume')}
                     >
                       <Upload className="w-4 h-4 mr-2" />
-                      Upload resume
+                      {t("form.documents.uploadResume")}
                     </ObjectUploader>
                     {uploadedFiles.filter(f => f.type === 'resume').map(f => (
                       <div key={f.path} className="flex items-center space-x-2 mt-3">
@@ -817,7 +853,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="portfolioUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Portfolio URL (optional)</FormLabel>
+                          <FormLabel>{t("form.documents.portfolio")}</FormLabel>
                           <FormControl>
                             <Input 
                               {...field}
@@ -835,7 +871,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="githubUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>GitHub profile (optional)</FormLabel>
+                          <FormLabel>{t("form.documents.github")}</FormLabel>
                           <FormControl>
                             <Input 
                               {...field}
@@ -854,7 +890,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="linkedinUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>LinkedIn profile (optional)</FormLabel>
+                        <FormLabel>{t("form.documents.linkedin")}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field}
@@ -875,7 +911,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
           {currentStep === 6 && (
             <Card>
               <CardHeader>
-                <CardTitle>Review and submit</CardTitle>
+                <CardTitle>{t("form.review.title")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
@@ -893,19 +929,24 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           />
                           <div className="space-y-1">
                             <Label htmlFor="termsAccepted" className="text-sm font-medium">
-                              I agree to the{" "}
-                              <a 
-                                href="/terms" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-accent hover:underline"
-                                data-testid="link-terms"
-                              >
-                                terms and conditions
-                              </a>
+                              <Trans
+                                t={t}
+                                i18nKey="form.review.terms"
+                                components={{
+                                  link: (
+                                    <a
+                                      href="/terms"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-accent hover:underline"
+                                      data-testid="link-terms"
+                                    />
+                                  ),
+                                }}
+                              />
                             </Label>
                             <p className="text-xs text-muted-foreground">
-                              By checking this box, you agree to our program terms, intellectual property policies, and code of conduct.
+                              {t("form.review.termsHint")}
                             </p>
                           </div>
                         </div>
@@ -928,19 +969,24 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           />
                           <div className="space-y-1">
                             <Label htmlFor="privacyAccepted" className="text-sm font-medium">
-                              I agree to the{" "}
-                              <a 
-                                href="/privacy" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-accent hover:underline"
-                                data-testid="link-privacy"
-                              >
-                                privacy policy
-                              </a>
+                              <Trans
+                                t={t}
+                                i18nKey="form.review.privacy"
+                                components={{
+                                  link: (
+                                    <a
+                                      href="/privacy"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-accent hover:underline"
+                                      data-testid="link-privacy"
+                                    />
+                                  ),
+                                }}
+                              />
                             </Label>
                             <p className="text-xs text-muted-foreground">
-                              We will handle your personal data in accordance with our privacy policy and applicable data protection laws.
+                              {t("form.review.privacyHint")}
                             </p>
                           </div>
                         </div>
@@ -955,10 +1001,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     <div className="flex items-start space-x-2">
                       <AlertCircle className="w-5 h-5 text-accent mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium">How we review applications</p>
+                        <p className="text-sm font-medium">{t("form.review.howTitle")}</p>
                         <p className="text-sm text-muted-foreground">
-                          After you submit, our admissions team reviews your application and invites selected
-                          candidates to an interview. We will keep you updated by email.
+                          {t("form.review.howBody")}
                         </p>
                       </div>
                     </div>
@@ -979,7 +1024,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   disabled={currentStep === 1}
                   data-testid="button-previous"
                 >
-                  Previous
+                  {t("form.nav.previous")}
                 </Button>
                 
                 {currentStep < totalSteps ? (
@@ -988,7 +1033,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     onClick={nextStep}
                     data-testid="button-next"
                   >
-                    Next step
+                    {t("form.nav.next")}
                   </Button>
                 ) : (
                   <Button 
@@ -996,7 +1041,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     disabled={submitApplication.isPending}
                     data-testid="button-submit-application"
                   >
-                    {submitApplication.isPending ? "Submitting..." : "Submit application"}
+                    {submitApplication.isPending ? t("form.nav.submitting") : t("form.nav.submit")}
                   </Button>
                 )}
               </div>

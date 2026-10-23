@@ -1,1 +1,140 @@
-{}
+{
+  "translationNote": "Esta traducción se ofrece para tu conveniencia; en caso de diferencia, prevalece la versión en inglés.",
+  "lastUpdated": "Última actualización: {{date}}",
+  "terms": {
+    "pageTitle": "Términos y condiciones",
+    "documentTitle": "MD Genius AI Startup Launchpad - Términos del servicio",
+    "sections": {
+      "1": {
+        "title": "1. Aceptación de los términos",
+        "body": "Al postularte y participar en MD Genius AI Startup Launchpad (el \"Programa\"), aceptas regirte por estos Términos y Condiciones. Si no estás de acuerdo con estos términos, no te postules ni participes en el Programa."
+      },
+      "2": {
+        "title": "2. Descripción del programa",
+        "body": "MD Genius AI Startup Launchpad es un programa de aceleración intensivo de 8 semanas diseñado para ayudar a emprendedores a desarrollar startups basadas en IA. El Programa incluye mentoría, currículo, oportunidades de networking y posibles oportunidades de financiamiento."
+      },
+      "3": {
+        "title": "3. Elegibilidad y postulación",
+        "items": {
+          "1": "Los postulantes deben tener al menos 18 años",
+          "2": "Toda la información de la postulación debe ser precisa y veraz",
+          "3": "MD Genius se reserva el derecho de verificar toda la información enviada",
+          "4": "La admisión al Programa es competitiva y queda a criterio exclusivo de MD Genius"
+        }
+      },
+      "4": {
+        "title": "4. Propiedad intelectual",
+        "body": "Los participantes conservan la titularidad de la propiedad intelectual que hayan desarrollado antes del Programa. Toda propiedad intelectual desarrollada durante el Programa sigue perteneciendo al participante; sin embargo, MD Genius puede solicitar un derecho de preferencia para oportunidades de inversión."
+      },
+      "5": {
+        "title": "5. Confidencialidad y no divulgación",
+        "body": "Durante el Programa, los participantes pueden tener acceso a información confidencial. Te comprometes a mantener la confidencialidad de toda la información reservada que compartan MD Genius, los mentores y los demás participantes."
+      },
+      "6": {
+        "title": "6. Código de conducta",
+        "items": {
+          "1": "Trata con respeto a todos los participantes, mentores y miembros del equipo",
+          "2": "Mantén un comportamiento profesional en todo momento",
+          "3": "No se tolerará el acoso, la discriminación ni ninguna conducta inapropiada",
+          "4": "Cumple todas las pautas y plazos del Programa"
+        }
+      },
+      "7": {
+        "title": "7. Requisitos de compromiso",
+        "body": "Se espera que los participantes dediquen un tiempo y un esfuerzo significativos al Programa. El incumplimiento de los requisitos de participación puede dar lugar a la exclusión del Programa sin reembolso de ninguna tarifa o a la pérdida de cualquier beneficio."
+      },
+      "8": {
+        "title": "8. Limitación de responsabilidad",
+        "body": "MD Genius ofrece el Programa \"tal cual\" y no garantiza resultados, financiamiento ni éxito empresarial. La participación es bajo tu propio riesgo."
+      },
+      "9": {
+        "title": "9. Terminación",
+        "body": "MD Genius se reserva el derecho de dar por terminada la participación de cualquier participante en el Programa por incumplimiento de estos términos, por no cumplir los requisitos del Programa o por cualquier otro motivo que considere apropiado."
+      },
+      "10": {
+        "title": "10. Información de contacto",
+        "body": "Si tienes preguntas sobre estos Términos y Condiciones, contáctanos en:",
+        "email": "Correo electrónico: legal@mdgenius.ai",
+        "address": "Dirección: MD Genius AI Launchpad, 123 Innovation Drive, San Francisco, CA 94105"
+      }
+    }
+  },
+  "privacy": {
+    "pageTitle": "Política de privacidad",
+    "documentTitle": "MD Genius AI Startup Launchpad - Política de privacidad",
+    "sections": {
+      "1": {
+        "title": "1. Información que recopilamos",
+        "subtitle": "Información personal",
+        "body": "Recopilamos la información personal que nos proporcionas, incluida:",
+        "items": {
+          "1": "Nombre, correo electrónico, número de teléfono y ubicación",
+          "2": "Formación académica y experiencia profesional",
+          "3": "Ideas de negocio e información del proyecto",
+          "4": "Currículum, portafolio y otros documentos de la postulación",
+          "5": "Comunicaciones con nuestro equipo y con otros participantes"
+        }
+      },
+      "2": {
+        "title": "2. Cómo usamos tu información",
+        "body": "Usamos la información que recopilamos para:",
+        "items": {
+          "1": "Evaluar tu postulación al Programa",
+          "2": "Prestar y mejorar nuestros servicios",
+          "3": "Comunicarnos contigo sobre el Programa",
+          "4": "Conectarte con mentores y otros participantes",
+          "5": "Analizar y mejorar la eficacia de nuestro Programa",
+          "6": "Cumplir con nuestras obligaciones legales"
+        }
+      },
+      "3": {
+        "title": "3. Información que compartimos",
+        "body": "Podemos compartir tu información en las siguientes circunstancias:",
+        "items": {
+          "1": { "label": "Con mentores:", "text": "compartimos información relevante para facilitar la mentoría" },
+          "2": { "label": "Con participantes:", "text": "información limitada para networking y colaboración" },
+          "3": { "label": "Con inversionistas:", "text": "con tu consentimiento explícito, para oportunidades de financiamiento" },
+          "4": { "label": "Proveedores de servicios:", "text": "servicios de terceros que nos ayudan a operar el Programa" },
+          "5": { "label": "Requisitos legales:", "text": "cuando lo exija la ley o para proteger nuestros derechos" }
+        }
+      },
+      "4": {
+        "title": "4. Seguridad de los datos",
+        "body": "Aplicamos medidas técnicas y organizativas adecuadas para proteger tu información personal contra el acceso, la alteración, la divulgación o la destrucción no autorizados. Sin embargo, ningún método de transmisión por internet es 100% seguro."
+      },
+      "5": {
+        "title": "5. Conservación de los datos",
+        "body": "Conservamos tu información personal durante el tiempo necesario para cumplir los fines descritos en esta Política de privacidad, cumplir con obligaciones legales, resolver disputas y hacer valer nuestros acuerdos."
+      },
+      "6": {
+        "title": "6. Tus derechos",
+        "body": "Tienes derecho a:",
+        "items": {
+          "1": "Acceder a tu información personal y revisarla",
+          "2": "Solicitar la corrección de información inexacta",
+          "3": "Solicitar la eliminación de tu información (sujeto a obligaciones legales)",
+          "4": "Oponerte al tratamiento de tu información o restringirlo",
+          "5": "La portabilidad de los datos (recibir tu información en un formato estructurado)"
+        }
+      },
+      "7": {
+        "title": "7. Cookies y seguimiento",
+        "body": "Usamos cookies y tecnologías de seguimiento similares para mejorar tu experiencia en nuestra plataforma, analizar patrones de uso y mejorar nuestros servicios. Puedes controlar tus preferencias de cookies desde la configuración de tu navegador."
+      },
+      "8": {
+        "title": "8. Servicios de terceros",
+        "body": "Nuestra plataforma puede integrarse con servicios de terceros (como almacenamiento en la nube, analítica o herramientas de comunicación). Estos servicios tienen sus propias políticas de privacidad, que te recomendamos revisar."
+      },
+      "9": {
+        "title": "9. Cambios en esta política",
+        "body": "Podemos actualizar esta Política de privacidad periódicamente. Te notificaremos cualquier cambio importante publicando la política actualizada en nuestra plataforma y actualizando la fecha de \"Última actualización\"."
+      },
+      "10": {
+        "title": "10. Contáctanos",
+        "body": "Si tienes preguntas sobre esta Política de privacidad o sobre nuestras prácticas de manejo de datos, contáctanos en:",
+        "email": "Correo electrónico: privacy@mdgenius.ai",
+        "address": "Dirección: MD Genius AI Launchpad, 123 Innovation Drive, San Francisco, CA 94105"
+      }
+    }
+  }
+}
