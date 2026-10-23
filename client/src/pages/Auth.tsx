@@ -17,7 +17,7 @@ import { Logo } from "@/components/brand";
 function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background md:grid md:grid-cols-2">
-      <div className="hidden md:flex bg-brand-gradient flex-col items-center justify-center gap-8 p-12">
+      <div className="hidden md:flex hero-surface flex-col items-center justify-center gap-8 p-12">
         <Logo layout="vertical" tone="reversed" className="h-36" />
         <p className="font-display text-lg text-white/85 text-center max-w-xs leading-relaxed">
           Your work in the program is saved to your account, so you can pick up where you left off.

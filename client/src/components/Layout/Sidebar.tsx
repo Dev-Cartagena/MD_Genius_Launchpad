@@ -12,7 +12,8 @@ import {
   Settings,
   Bot,
   Map,
-  UserCircle
+  UserCircle,
+  LayoutGrid
 } from "lucide-react";
 import ChatModal from "@/components/AICoach/ChatModal";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -37,7 +38,8 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
   const closeMobile = () => onMobileOpenChange?.(false);
 
   const navigationItems = [
-    { href: "/dashboard", icon: Home, label: "Dashboard", roles: ["participant", "mentor", "investor", "administrator"] },
+    { href: "/", icon: Home, label: "Home", roles: ["participant", "mentor", "investor", "administrator", "applicant", "public_visitor"] },
+    { href: "/dashboard", icon: LayoutGrid, label: "Dashboard", roles: ["participant", "mentor", "investor", "administrator"] },
     { href: "/curriculum", icon: BookOpen, label: "Curriculum", roles: ["participant"] },
     { href: "/roadmap", icon: Map, label: "Roadmap", roles: ["participant"] },
     { href: "/project", icon: Lightbulb, label: "My Project", roles: ["participant"] },
@@ -51,20 +53,21 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
     !item.roles || item.roles.includes(user?.role || "")
   );
 
-  const isActive = (href: string) => location === href || location.startsWith(href + "/");
+  const isActive = (href: string) =>
+    href === "/" ? location === "/" : location === href || location.startsWith(href + "/");
 
   const renderContent = (isMobile: boolean) => (
     <>
         {/* Logo Section */}
         <div className="px-6 pt-6 pb-5">
-          <Link href="/dashboard" aria-label="MD Genius Launchpad home" data-testid="app-title">
+          <Link href="/" aria-label="MD Genius Launchpad home" data-testid="app-title">
             <Logo layout="compact" className="h-7" />
           </Link>
         </div>
 
         {/* User Profile */}
-        <div className="mx-4 mb-2 flex items-center gap-3 rounded-lg border border-border px-3 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-medium text-primary-foreground">
+        <div className="mx-4 mb-2 flex items-center gap-3 rounded-2xl bg-card px-3 py-3 shadow-card">
+          <div className="btn-brand flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-display text-sm font-medium text-primary-foreground">
             {(user?.firstName?.[0] || user?.email?.[0] || "U").toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -87,10 +90,10 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex items-center gap-3 rounded-md px-3 py-2 font-display text-sm transition-colors ${
+                className={`relative flex items-center gap-3 rounded-full px-3.5 py-2.5 font-display text-sm transition-[background-color,color,box-shadow] duration-150 ${
                   active
-                    ? "active bg-secondary font-medium text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-accent"
-                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                    ? "active bg-card font-medium text-foreground shadow-[0_1px_2px_hsl(var(--navy)/0.06),0_4px_12px_-6px_hsl(var(--navy)/0.18)]"
+                    : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
                 }`}
                 onClick={isMobile ? closeMobile : undefined}
                 data-testid={`${isMobile ? 'mobile-' : ''}link-${item.label.toLowerCase().replace(/ /g, '-')}`}
@@ -103,7 +106,7 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
         </nav>
 
         {/* AI Coach Quick Access */}
-        <div className="border-t border-border p-4">
+        <div className="p-4">
           <Button
             onClick={() => {
               if (isMobile) closeMobile();
@@ -121,12 +124,12 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
 
   return (
     <>
-      <aside className="hidden md:flex w-64 shrink-0 bg-card border-r border-border flex-col overflow-y-auto">
+      <aside className="hidden md:flex w-64 shrink-0 bg-primary/[0.035] border-r border-primary/[0.06] flex-col overflow-y-auto">
         {renderContent(false)}
       </aside>
 
       <Sheet open={mobileOpen} onOpenChange={(open) => onMobileOpenChange?.(open)}>
-        <SheetContent side="left" className="w-72 max-w-[85vw] p-0 flex flex-col overflow-y-auto bg-card">
+        <SheetContent side="left" className="w-72 max-w-[85vw] p-0 flex flex-col overflow-y-auto bg-background">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SheetDescription className="sr-only">Main navigation menu</SheetDescription>
           {renderContent(true)}

@@ -122,7 +122,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="bg-brand-gradient rounded-xl flex items-center justify-center p-10 min-h-[260px] md:min-h-[380px]">
+          <div className="hero-surface rounded-3xl flex items-center justify-center p-10 min-h-[260px] md:min-h-[380px]">
             <Logo layout="vertical" tone="reversed" className="h-32 md:h-40" />
           </div>
         </div>
