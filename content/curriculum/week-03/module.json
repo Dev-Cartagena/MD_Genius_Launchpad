@@ -1,0 +1,50 @@
+{
+  "week": 3,
+  "stage": "validation",
+  "orderIndex": 3,
+  "title": "Customer discovery",
+  "description": "Leave the building and replace your assumptions with evidence. You will run honest customer interviews, synthesize what you hear and choose the segment where your problem is sharpest.",
+  "objectives": [
+    "Rewrite your riskiest assumptions as hypotheses with fail lines set in advance",
+    "Write an interview guide based on the Mom Test that asks about past behavior, not opinions",
+    "Run at least 10 customer interviews and ask each serious prospect for a concrete commitment",
+    "Build a synthesis board that counts and grades findings by segment",
+    "Write an evidence-based ideal customer profile and name your early adopters",
+    "Decide whether to persevere, adjust or pivot, and explain the evidence behind the decision"
+  ],
+  "resources": [
+    "Steve Blank, What's a Startup? First Principles — https://steveblank.com/2010/01/25/whats-a-startup-first-principles/",
+    "Steve Blank, How to Build a Startup (Udacity) — https://www.udacity.com/course/how-to-build-a-startup--ep245",
+    "Rob Fitzpatrick, The Mom Test — https://www.momtestbook.com/",
+    "Eric Migicovsky, How to Talk to Users (YC Startup School) — https://www.youtube.com/watch?v=MT4Ig2uqjTc",
+    "Gustaf Alströmer, How to Talk to Users (YC Startup Library) — https://www.ycombinator.com/library/Iq-how-to-talk-to-users",
+    "YC's Group Partners share their favorite pivot stories — https://www.ycombinator.com/library/Iy-yc-s-group-partners-share-their-favorite-pivot-stories"
+  ],
+  "translations": {
+    "es": {
+      "title": "Descubrimiento de clientes",
+      "description": "Sal del edificio y reemplaza tus supuestos con evidencia. Harás entrevistas honestas con clientes, sintetizarás lo que escuches y elegirás el segmento donde tu problema es más agudo.",
+      "objectives": [
+        "Reescribir tus supuestos más riesgosos como hipótesis con criterios de fracaso definidos de antemano",
+        "Escribir una guía de entrevista basada en The Mom Test que pregunte por comportamientos pasados, no por opiniones",
+        "Hacer al menos 10 entrevistas con clientes y pedir a cada prospecto serio un compromiso concreto",
+        "Construir un tablero de síntesis que cuente y califique los hallazgos por segmento",
+        "Escribir un perfil de cliente ideal basado en evidencia y nombrar a tus primeros adoptantes",
+        "Decidir si perseverar, ajustar o pivotar, y explicar la evidencia detrás de la decisión"
+      ],
+      "resources": [
+        "Steve Blank, What's a Startup? First Principles (qué es una startup) — https://steveblank.com/2010/01/25/whats-a-startup-first-principles/",
+        "Steve Blank, How to Build a Startup (curso en Udacity) — https://www.udacity.com/course/how-to-build-a-startup--ep245",
+        "Rob Fitzpatrick, The Mom Test (sitio del libro) — https://www.momtestbook.com/",
+        "Eric Migicovsky, cómo hablar con usuarios (YC Startup School) — https://www.youtube.com/watch?v=MT4Ig2uqjTc",
+        "Gustaf Alströmer, cómo hablar con usuarios (YC Startup Library) — https://www.ycombinator.com/library/Iq-how-to-talk-to-users",
+        "Socios de YC comparten sus historias favoritas de pivotes — https://www.ycombinator.com/library/Iy-yc-s-group-partners-share-their-favorite-pivot-stories"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "Get out of the building", "es": "Sal del edificio", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Interviews that tell the truth", "es": "Entrevistas que dicen la verdad", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Turning interviews into evidence", "es": "De las entrevistas a la evidencia", "minutes": 15 }
+  ]
+}

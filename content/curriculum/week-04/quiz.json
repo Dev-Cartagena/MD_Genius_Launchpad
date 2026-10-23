@@ -1,0 +1,182 @@
+{
+  "title": "Week 4 quiz: Market and MVP",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "A founder tells an investor: 'Field-service software is a multi-billion-dollar market, and we only need 1 percent.' What is the main weakness of this argument?",
+      "options": [
+        "It shows no path to one customer, and the 1 percent figure is a guess",
+        "The market figure is far too small to interest serious venture investors",
+        "Investors only care about TAM, so quoting a percentage is irrelevant",
+        "It should have claimed 10 percent of the market to look more ambitious"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Top-down figures do not show who the customers are or how you reach them. A bottom-up estimate built from customers, units and price can be checked."
+    },
+    {
+      "question": "Fieldnote estimates 4,000 beachhead contractors with an average of 50 technicians, at a placeholder price of 720 dollars per technician per year. What is the beachhead SAM?",
+      "options": [
+        "About 2.9 million dollars a year",
+        "About 14.4 million dollars a year",
+        "About 144 million dollars a year",
+        "About 1.44 billion dollars a year"
+      ],
+      "correctAnswer": 2,
+      "explanation": "4,000 times 50 is 200,000 technicians, and 200,000 times 720 dollars is about 144 million dollars a year."
+    },
+    {
+      "question": "Which beachhead is the strongest choice for Fieldnote?",
+      "options": [
+        "All trade contractors worldwide, to make the addressable market as large as possible",
+        "HVAC contractors with 20 to 200 technicians, reachable through an association",
+        "Very large contractors with in-house tools, big budgets and long procurement cycles",
+        "One-person shops, because they are the most numerous type of contractor"
+      ],
+      "correctAnswer": 1,
+      "explanation": "A good beachhead has sharp pain, reachable and connected customers, and a product you can deliver now. Week 3's evidence pointed to mid-size HVAC contractors."
+    },
+    {
+      "question": "Fieldnote's interviews show that most technicians who cannot identify a part call a senior colleague after hours. In positioning terms, what is that?",
+      "options": [
+        "Not a competitor, because no software product is involved in the workaround",
+        "A direct competitor that Fieldnote should name in its pitch deck",
+        "A sign that there is no real market, since a free option already exists",
+        "A competitive alternative, and likely the main one Fieldnote must beat"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Manual workarounds and doing nothing are real alternatives. The most common one in your interviews is the one your positioning must beat first."
+    },
+    {
+      "question": "An investor asks Fieldnote what happens when a large field-service-management suite adds an AI assistant. Which answer is strongest?",
+      "options": [
+        "We will simply move faster and ship new features every week, before they can react",
+        "They are too slow and too focused on scheduling to ever build anything like it",
+        "Our answers improve with each shop's job history, inside an on-site workflow the suites miss",
+        "We use a newer and more capable foundation model than the one they use"
+      ],
+      "correctAnswer": 2,
+      "explanation": "A strong answer rests on a moat such as proprietary data that compounds with use or deep workflow embedding. Speed alone or a model anyone can call is not a moat."
+    },
+    {
+      "question": "Which statement best reflects Peter Thiel's idea of a secret?",
+      "options": [
+        "Information you keep from competitors through NDAs and careful hiring",
+        "An important truth few people agree with you on, which explains the opportunity",
+        "A feature that no competitor has shipped yet but that customers keep requesting",
+        "A large, fast-growing market that analysts and investors have already identified"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Thiel asks founders for an important truth that others do not yet see. Fieldnote's is that first-visit knowledge is trapped in a few senior technicians' heads and unsearchable manuals."
+    },
+    {
+      "question": "Fieldnote's technicians send photos over WhatsApp and are told that the Fieldnote team answers them personally while the product is being built. What kind of MVP is this?",
+      "options": [
+        "A concierge MVP",
+        "A Wizard-of-Oz MVP",
+        "A smoke test",
+        "A single-feature MVP"
+      ],
+      "correctAnswer": 0,
+      "explanation": "In a concierge MVP the service is delivered by hand and the customer knows it. In a Wizard-of-Oz MVP the customer believes the product is automated."
+    },
+    {
+      "question": "Which success line is best for Fieldnote's four-week concierge test of the hypothesis that technicians will use on-demand help repeatedly?",
+      "options": [
+        "Technicians say in a final survey that they like the service and would recommend it",
+        "At least 50 people from across the industry sign up for the waitlist",
+        "The founders feel the test went well and the shops seem happy with it",
+        "6 of 10 techs use it twice a week by week three, and 2 shops agree to a paid pilot"
+      ],
+      "correctAnswer": 3,
+      "explanation": "The hypothesis is about repeated use and willingness to pay, so the success line measures those behaviors, with a threshold and a date set in advance."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la semana 4: Mercado y MVP",
+      "questions": [
+        {
+          "question": "Una persona fundadora le dice a un inversionista: \"El software para servicios de campo es un mercado de miles de millones de dólares y solo necesitamos el 1 por ciento\". ¿Cuál es la principal debilidad de este argumento?",
+          "options": [
+            "No muestra cómo ganar un solo cliente, y el 1 por ciento es una suposición",
+            "La cifra de mercado es demasiado pequeña para interesar a inversionistas serios",
+            "A los inversionistas solo les importa el TAM, así que citar un porcentaje es irrelevante",
+            "Debió afirmar el 10 por ciento del mercado para verse más ambiciosa"
+          ],
+          "explanation": "Las cifras de arriba hacia abajo no muestran quiénes son los clientes ni cómo llegarás a ellos. Una estimación de abajo hacia arriba, hecha con clientes, unidades y precio, se puede verificar."
+        },
+        {
+          "question": "Fieldnote estima 4,000 contratistas en la cabeza de playa, con un promedio de 50 técnicos, a un precio provisional de 720 dólares por técnico al año. ¿Cuál es el SAM de la cabeza de playa?",
+          "options": [
+            "Unos 2.9 millones de dólares al año",
+            "Unos 14.4 millones de dólares al año",
+            "Unos 144 millones de dólares al año",
+            "Unos 1,440 millones de dólares al año"
+          ],
+          "explanation": "4,000 por 50 son 200,000 técnicos, y 200,000 por 720 dólares son unos 144 millones de dólares al año."
+        },
+        {
+          "question": "¿Cuál es la cabeza de playa más sólida para Fieldnote?",
+          "options": [
+            "Todos los contratistas de oficios del mundo, para que el mercado sea lo más grande posible",
+            "Contratistas de HVAC con 20 a 200 técnicos, alcanzables a través de una asociación",
+            "Contratistas muy grandes con herramientas internas, presupuestos altos y compras lentas",
+            "Talleres de una sola persona, porque son el tipo de contratista más numeroso"
+          ],
+          "explanation": "Una buena cabeza de playa tiene un dolor agudo, clientes alcanzables y conectados, y un producto que puedes entregar ya. La evidencia de la semana 3 apuntó a los contratistas medianos de HVAC."
+        },
+        {
+          "question": "Las entrevistas de Fieldnote muestran que la mayoría de los técnicos que no pueden identificar una pieza llaman a un colega senior fuera de horario. En términos de posicionamiento, ¿qué es eso?",
+          "options": [
+            "No es un competidor, porque la solución no involucra ningún producto de software",
+            "Un competidor directo que Fieldnote debería nombrar en su pitch deck",
+            "Una señal de que no hay un mercado real, porque ya existe una opción gratuita",
+            "Una alternativa competidora, y quizás la principal que Fieldnote debe vencer"
+          ],
+          "explanation": "Las soluciones manuales y no hacer nada son alternativas reales. La más común en tus entrevistas es la que tu posicionamiento debe vencer primero."
+        },
+        {
+          "question": "Un inversionista le pregunta a Fieldnote qué pasará cuando una gran suite de gestión de servicios de campo agregue un asistente de IA. ¿Qué respuesta es la más sólida?",
+          "options": [
+            "Simplemente avanzaremos más rápido y lanzaremos funciones cada semana, antes de que reaccionen",
+            "Son demasiado lentos y están muy enfocados en la agenda como para construir algo así",
+            "Nuestras respuestas mejoran con el historial de cada taller, en un flujo en sitio que las suites no cubren",
+            "Usamos un modelo fundacional más nuevo y más capaz que el que usan ellos"
+          ],
+          "explanation": "Una respuesta sólida se apoya en un foso, como datos propios que crecen con el uso o una integración profunda en el flujo de trabajo. La velocidad sola o un modelo que cualquiera puede usar no son un foso."
+        },
+        {
+          "question": "¿Qué afirmación refleja mejor la idea de secreto de Peter Thiel?",
+          "options": [
+            "Información que ocultas a tus competidores con acuerdos de confidencialidad y contrataciones cuidadosas",
+            "Una verdad importante en la que pocas personas están de acuerdo contigo y que explica la oportunidad",
+            "Una función que ningún competidor ha lanzado todavía, pero que los clientes piden una y otra vez",
+            "Un mercado grande y en rápido crecimiento que analistas e inversionistas ya identificaron"
+          ],
+          "explanation": "Thiel les pide a las personas fundadoras una verdad importante que otros todavía no ven. La de Fieldnote es que el conocimiento para resolver en la primera visita está atrapado en unos pocos técnicos senior y en manuales que nadie puede consultar."
+        },
+        {
+          "question": "Los técnicos de Fieldnote envían fotos por WhatsApp y saben que el equipo de Fieldnote les responde en persona mientras se construye el producto. ¿Qué tipo de MVP es este?",
+          "options": [
+            "Un MVP concierge",
+            "Un Mago de Oz",
+            "Una prueba de humo",
+            "Un MVP de una sola función"
+          ],
+          "explanation": "En un MVP concierge el servicio se entrega a mano y el cliente lo sabe. En un MVP de Mago de Oz el cliente cree que el producto es automatizado."
+        },
+        {
+          "question": "¿Cuál es el mejor criterio de éxito para la prueba concierge de cuatro semanas de Fieldnote, cuya hipótesis es que los técnicos usarán la ayuda a demanda de forma repetida?",
+          "options": [
+            "Los técnicos dicen en una encuesta final que les gusta el servicio y lo recomendarían",
+            "Al menos 50 personas de toda la industria se inscriben en la lista de espera",
+            "El equipo fundador siente que la prueba salió bien y los talleres parecen contentos",
+            "6 de 10 técnicos lo usan dos veces por semana para la semana tres y 2 talleres aceptan un piloto pagado"
+          ],
+          "explanation": "La hipótesis trata sobre uso repetido y disposición a pagar, así que el criterio de éxito mide esos comportamientos, con un umbral y una fecha definidos de antemano."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "title": "Week 5 quiz: Building AI products",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "Fieldnote's prototype, a general model prompted with no documents, gives confident but wrong answers about model-specific HVAC error codes. What is the best next step on the ladder of techniques?",
+      "options": [
+        "Fine-tune a model on general HVAC textbooks so it memorizes every manufacturer's error codes",
+        "Add RAG over the manufacturer manuals and re-run the eval set",
+        "Build an agent that researches each code on the open web before answering",
+        "Switch to the biggest model and skip measuring"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The model lacks specific, changing facts, which is the problem RAG solves. Fine-tuning teaches form and behavior better than facts, and agents add cost and risk before a simpler step has been tried."
+    },
+    {
+      "question": "A founder plans to fine-tune a model in week one, before measuring a prompted baseline, with about 30 examples. What is the main problem with this plan?",
+      "options": [
+        "Fine-tuning has become too expensive for any early-stage startup to afford",
+        "Fine-tuning always performs worse than a well-written prompt on the same task",
+        "Thirty examples will overfit the model",
+        "No measured baseline or eval set, and too few examples"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Fine-tuning is worth it once you have a stable task, enough good examples and an eval set showing improvement over a measured baseline. Without those, it adds cost and slows iteration."
+    },
+    {
+      "question": "Fieldnote's first eval run fails on many questions about older units. Error analysis shows the correct manual page was never among the retrieved passages. What should Tomás fix first?",
+      "options": [
+        "Text extraction and indexing of the scanned manuals",
+        "The answer prompt, adding stronger instructions to be accurate and cite sources",
+        "The model, switching to a larger one that knows more about older equipment",
+        "The eval set, dropping older units"
+      ],
+      "correctAnswer": 0,
+      "explanation": "When the right source is never retrieved, no prompt or model can answer correctly. Fixing the largest failure category, here retrieval, comes before tuning the prompt."
+    },
+    {
+      "question": "A team wants to use a model as a judge to grade 2,000 outputs for completeness. What must they do before trusting its grades?",
+      "options": [
+        "Ask the judge to rate its own confidence",
+        "Use the same model as the product so the grades stay consistent with its outputs",
+        "Check its grades against an expert's on a shared sample",
+        "Switch from pass or fail to a 1 to 10 scale so each grade carries more detail"
+      ],
+      "correctAnswer": 2,
+      "explanation": "A model judge is itself an AI system that can be wrong. Calibrating it against expert grades on the same sample is what makes its scores trustworthy."
+    },
+    {
+      "question": "Which set of fields best describes a useful eval case?",
+      "options": [
+        "Input, output and the engineer's opinion",
+        "Real input, pass criteria, grading method and tags",
+        "A synthetic question written by the founders, a 1 to 10 score and the model name",
+        "The user's name, the date of the request and whether they said they were satisfied"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Each case needs a real input, a clear definition of passing, a way to grade it, and tags that show where failures cluster."
+    },
+    {
+      "question": "Fieldnote's founders want to protect technicians while the model is still imperfect. Which design best fits the lesson?",
+      "options": [
+        "Route risky or uncertain answers to a reviewer and log each correction",
+        "Show every answer immediately and rely on technicians to report any mistakes they notice",
+        "Hide all answers from technicians until the model reaches perfect accuracy on the eval set",
+        "Send uncertain questions to a bigger model"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Confidence routing to a human protects users on the risky cases, and logged corrections feed new eval cases and future training data: the data flywheel."
+    },
+    {
+      "question": "A startup wants to ship a prompt change on its weekly release day. The change fixes part lookups, but the eval run shows that a safety-tagged category got worse. What should happen?",
+      "options": [
+        "Ship it, because keeping the weekly rhythm matters more than any one category",
+        "Ship it and watch thumbs-down",
+        "Remove the safety cases from the eval set so that the release run can pass",
+        "Hold it until the safety category recovers"
+      ],
+      "correctAnswer": 3,
+      "explanation": "The eval set is the gate that makes weekly releases safe. A change that breaks a high-risk category waits, even if it improves another."
+    },
+    {
+      "question": "Which shortcut is technical debt worth taking on for an early AI startup?",
+      "options": [
+        "Storing all customers' data in one shared space without separating accounts",
+        "Skipping request logging for now to keep storage costs as low as possible",
+        "Onboarding each pilot's documents by hand",
+        "Skipping regression runs"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Manual onboarding buys learning and can be automated later. Data separation, logging and regression runs are debt you should never take."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la Semana 5: Cómo construir productos de IA",
+      "questions": [
+        {
+          "question": "El prototipo de Fieldnote, un modelo general con prompting y sin documentos, da respuestas seguras pero equivocadas sobre códigos de error de HVAC específicos de cada modelo. ¿Cuál es el mejor siguiente paso en la escalera de técnicas?",
+          "options": [
+            "Hacer fine-tuning con libros generales de HVAC para que memorice los códigos de error de cada fabricante",
+            "Agregar RAG sobre los manuales de fabricantes y volver a correr la evaluación",
+            "Construir un agente que investigue cada código en internet antes de responder",
+            "Cambiar al modelo más grande y dejar de medir"
+          ],
+          "explanation": "Al modelo le faltan datos específicos que cambian, que es justo el problema que resuelve RAG. El fine-tuning enseña mejor forma y comportamiento que datos, y los agentes suman costo y riesgo antes de probar un paso más simple."
+        },
+        {
+          "question": "Una fundadora planea hacer fine-tuning de un modelo en la primera semana, antes de medir una línea base con prompting, con unos 30 ejemplos. ¿Cuál es el problema principal de este plan?",
+          "options": [
+            "El fine-tuning se volvió demasiado caro para cualquier startup en etapa temprana",
+            "El fine-tuning siempre rinde peor que un buen prompt en la misma tarea",
+            "Treinta ejemplos sobreajustarán el modelo",
+            "No hay línea base medida ni set de evaluación, y hay muy pocos ejemplos"
+          ],
+          "explanation": "El fine-tuning vale la pena cuando tienes una tarea estable, suficientes buenos ejemplos y un set de evaluación que muestre mejora frente a una línea base medida. Sin eso, suma costo y frena la iteración."
+        },
+        {
+          "question": "La primera corrida de evaluación de Fieldnote falla en muchas preguntas sobre equipos antiguos. El análisis de errores muestra que la página correcta del manual nunca estuvo entre los fragmentos recuperados. ¿Qué debería arreglar Tomás primero?",
+          "options": [
+            "La extracción de texto y la indexación de los manuales escaneados",
+            "El prompt de respuesta, con instrucciones más fuertes para ser preciso y citar fuentes",
+            "El modelo, cambiando a uno más grande que sepa más de equipos antiguos",
+            "El set, quitando los equipos antiguos"
+          ],
+          "explanation": "Si la fuente correcta nunca se recupera, ningún prompt ni modelo puede responder bien. Arreglar la categoría de falla más grande, aquí la recuperación, va antes de ajustar el prompt."
+        },
+        {
+          "question": "Un equipo quiere usar un modelo como juez para calificar 2000 salidas según qué tan completas están. ¿Qué debe hacer antes de confiar en sus calificaciones?",
+          "options": [
+            "Pedirle al juez que califique su confianza",
+            "Usar el mismo modelo del producto para que las notas sean consistentes con sus salidas",
+            "Comparar sus notas con las de un experto en una muestra común",
+            "Cambiar de aprobado o reprobado a una escala del 1 al 10 para que cada nota tenga más detalle"
+          ],
+          "explanation": "Un modelo juez también es un sistema de IA que puede equivocarse. Calibrarlo contra las calificaciones de un experto sobre la misma muestra es lo que hace confiables sus notas."
+        },
+        {
+          "question": "¿Qué conjunto de campos describe mejor un caso de evaluación útil?",
+          "options": [
+            "Entrada, salida y opinión del ingeniero",
+            "Entrada real, criterios, método de calificación y etiquetas",
+            "Una pregunta sintética escrita por los fundadores, una nota del 1 al 10 y el nombre del modelo",
+            "El nombre del usuario, la fecha de la solicitud y si dijo que quedó satisfecho"
+          ],
+          "explanation": "Cada caso necesita una entrada real, una definición clara de aprobado, una forma de calificarlo y etiquetas que muestren dónde se concentran las fallas."
+        },
+        {
+          "question": "Los fundadores de Fieldnote quieren proteger a los técnicos mientras el modelo todavía es imperfecto. ¿Qué diseño encaja mejor con la lección?",
+          "options": [
+            "Enviar las respuestas dudosas o de riesgo a un revisor y registrar cada corrección",
+            "Mostrar cada respuesta de inmediato y confiar en que los técnicos reporten los errores que noten",
+            "Ocultar todas las respuestas hasta que el modelo logre precisión perfecta en el set de evaluación",
+            "Enviar las dudosas a un modelo más grande"
+          ],
+          "explanation": "El enrutamiento por confianza hacia una persona protege al usuario en los casos de riesgo, y las correcciones registradas alimentan nuevos casos de evaluación y futuros datos de entrenamiento: el ciclo virtuoso de datos."
+        },
+        {
+          "question": "Una startup quiere lanzar un cambio de prompt en su día de lanzamiento semanal. El cambio mejora la búsqueda de repuestos, pero la evaluación muestra que una categoría etiquetada como de seguridad empeoró. ¿Qué debería pasar?",
+          "options": [
+            "Lanzarlo, porque mantener el ritmo semanal importa más que cualquier categoría",
+            "Lanzarlo y vigilar los pulgares abajo",
+            "Quitar los casos de seguridad del set para que la corrida de lanzamiento apruebe",
+            "Detenerlo hasta que la categoría de seguridad se recupere"
+          ],
+          "explanation": "El set de evaluación es el filtro que hace seguros los lanzamientos semanales. Un cambio que rompe una categoría de alto riesgo espera, aunque mejore otra."
+        },
+        {
+          "question": "¿Qué atajo es una deuda técnica que vale la pena asumir para una startup de IA temprana?",
+          "options": [
+            "Guardar los datos de todos los clientes en un mismo espacio sin separar las cuentas",
+            "No registrar las solicitudes por ahora para que el almacenamiento cueste lo menos posible",
+            "Cargar a mano los documentos de cada piloto",
+            "Saltarse la regresión"
+          ],
+          "explanation": "La incorporación manual compra aprendizaje y se puede automatizar después. La separación de datos, los registros y las pruebas de regresión son deudas que nunca debes asumir."
+        }
+      ]
+    }
+  }
+}

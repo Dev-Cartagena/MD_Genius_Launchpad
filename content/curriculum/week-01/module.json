@@ -1,0 +1,50 @@
+{
+  "week": 1,
+  "stage": "foundation",
+  "orderIndex": 1,
+  "title": "Founders and the AI opportunity",
+  "description": "Start from a real problem, an honest view of your founder–market fit and a specific reason AI makes it solvable now. By the end of the week your team has clear roles, fair equity terms and a one-page founder and idea memo.",
+  "objectives": [
+    "Test your idea against \"make something people want\" and the tarpit warning signs",
+    "Score your founder–market fit on insight, access and staying power",
+    "Write a two-sentence why-now argument tied to a specific change and user",
+    "Place your product on the horizontal–vertical and copilot–agent map and name your moat hypothesis",
+    "Agree on co-founder roles, decision rights, equity split and vesting",
+    "Run your first weekly operating cadence with outcome-based goals"
+  ],
+  "resources": [
+    "Paul Graham, How to Get Startup Ideas — https://paulgraham.com/startupideas.html",
+    "Y Combinator Startup Library, How to get startup ideas — https://www.ycombinator.com/library/8g-how-to-get-startup-ideas",
+    "Y Combinator, Requests for Startups — https://www.ycombinator.com/rfs",
+    "Andreessen Horowitz, The Empty Promise of Data Moats — https://a16z.com/the-empty-promise-of-data-moats/",
+    "Y Combinator, How to Split Equity Among Co-Founders — https://www.ycombinator.com/blog/splitting-equity-among-founders",
+    "Paul Graham, The 18 Mistakes That Kill Startups — https://paulgraham.com/startupmistakes.html"
+  ],
+  "translations": {
+    "es": {
+      "title": "Los fundadores y la oportunidad de la IA",
+      "description": "Parte de un problema real, una mirada honesta a tu encaje fundador–mercado y una razón concreta por la que la IA lo vuelve resoluble hoy. Al final de la semana tu equipo tendrá roles claros, condiciones justas de participación y un memo de una página sobre los fundadores y la idea.",
+      "objectives": [
+        "Poner a prueba tu idea con el criterio \"make something people want\" y las señales de una idea trampa",
+        "Calificar tu encaje fundador–mercado en conocimiento, acceso y constancia",
+        "Escribir en dos oraciones un argumento de por qué ahora, ligado a un cambio y un usuario concretos",
+        "Ubicar tu producto en el mapa horizontal–vertical y copiloto–agente y nombrar tu hipótesis de ventaja defensible",
+        "Acordar los roles de los cofundadores, los derechos de decisión, el reparto de participación y el vesting",
+        "Poner en marcha tu primer ritmo operativo semanal con metas basadas en resultados"
+      ],
+      "resources": [
+        "Paul Graham, How to Get Startup Ideas (en inglés) — https://paulgraham.com/startupideas.html",
+        "Biblioteca de Y Combinator, How to get startup ideas (en inglés) — https://www.ycombinator.com/library/8g-how-to-get-startup-ideas",
+        "Y Combinator, Requests for Startups (en inglés) — https://www.ycombinator.com/rfs",
+        "Andreessen Horowitz, The Empty Promise of Data Moats (en inglés) — https://a16z.com/the-empty-promise-of-data-moats/",
+        "Y Combinator, cómo repartir la participación entre cofundadores (en inglés) — https://www.ycombinator.com/blog/splitting-equity-among-founders",
+        "Paul Graham, The 18 Mistakes That Kill Startups (en inglés) — https://paulgraham.com/startupmistakes.html"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "How great startups begin", "es": "Cómo empiezan las grandes startups", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Where AI creates value", "es": "Dónde crea valor la IA", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Building the founding team", "es": "Cómo formar el equipo fundador", "minutes": 15 }
+  ]
+}

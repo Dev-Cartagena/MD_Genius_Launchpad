@@ -1,0 +1,52 @@
+{
+  "week": 5,
+  "stage": "development",
+  "orderIndex": 5,
+  "title": "Building AI products",
+  "description": "Turn your validated MVP into a real AI product: choose an architecture you can defend, measure quality with a real eval set, and set up a weekly rhythm that lets you ship fast without losing user trust.",
+  "objectives": [
+    "Map your product onto the model, context, orchestration and workflow layers, and justify each build-or-buy choice",
+    "Choose between prompting, RAG, fine-tuning and agents based on measured results",
+    "Estimate cost and latency per user task and name the levers that reduce them",
+    "Build an eval set of at least 50 real cases with pass criteria, grading methods and tags",
+    "Design a human review step for low-confidence answers that feeds a data flywheel",
+    "Run a weekly release cycle gated by evals and keep a register of deliberate technical debt"
+  ],
+  "resources": [
+    "Building effective agents (Anthropic) — https://www.anthropic.com/engineering/building-effective-agents",
+    "Patterns for Building LLM-based Systems and Products (Eugene Yan) — https://eugeneyan.com/writing/llm-patterns/",
+    "What We Learned From a Year of Building with LLMs — https://applied-llms.org/",
+    "Your AI Product Needs Evals (Hamel Husain) — https://hamel.dev/blog/posts/evals/",
+    "Using LLM-as-a-Judge for evaluation (Hamel Husain) — https://hamel.dev/blog/posts/llm-judge/",
+    "Do Things That Don't Scale (Paul Graham) — https://paulgraham.com/ds.html",
+    "How to launch (again and again), Kat Manalac (YC Startup Library) — https://www.ycombinator.com/library/6i-how-to-launch-again-and-again"
+  ],
+  "translations": {
+    "es": {
+      "title": "Cómo construir productos de IA",
+      "description": "Convierte tu MVP validado en un producto de IA real: elige una arquitectura que puedas defender, mide la calidad con un set de evaluación real y crea un ritmo semanal que te permita lanzar rápido sin perder la confianza de tus usuarios.",
+      "objectives": [
+        "Ubicar tu producto en las capas de modelo, contexto, orquestación y flujo de trabajo, y justificar cada decisión de construir o comprar",
+        "Elegir entre prompting, RAG, fine-tuning y agentes con base en resultados medidos",
+        "Estimar el costo y la latencia por tarea de usuario e identificar las palancas que los reducen",
+        "Construir un set de evaluación de al menos 50 casos reales con criterios de aprobación, métodos de calificación y etiquetas",
+        "Diseñar un paso de revisión humana para respuestas de baja confianza que alimente un ciclo virtuoso de datos",
+        "Operar un ciclo de lanzamientos semanales filtrado por evaluaciones y llevar un registro de deuda técnica deliberada"
+      ],
+      "resources": [
+        "Cómo construir agentes efectivos (Anthropic, en inglés) — https://www.anthropic.com/engineering/building-effective-agents",
+        "Patrones para construir sistemas y productos con LLM (Eugene Yan, en inglés) — https://eugeneyan.com/writing/llm-patterns/",
+        "Lo que aprendimos en un año construyendo con LLM (en inglés) — https://applied-llms.org/",
+        "Tu producto de IA necesita evaluaciones (Hamel Husain, en inglés) — https://hamel.dev/blog/posts/evals/",
+        "Cómo usar un LLM como juez para evaluar (Hamel Husain, en inglés) — https://hamel.dev/blog/posts/llm-judge/",
+        "Haz cosas que no escalan (Paul Graham, en inglés) — https://paulgraham.com/ds.html",
+        "Cómo lanzar (una y otra vez), Kat Manalac (YC Startup Library, en inglés) — https://www.ycombinator.com/library/6i-how-to-launch-again-and-again"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "AI product architecture", "es": "Arquitectura de productos de IA", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Data and evaluation", "es": "Datos y evaluación", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Ship fast, learn faster", "es": "Lanza rápido, aprende más rápido", "minutes": 15 }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "week": 4,
+  "stage": "validation",
+  "orderIndex": 4,
+  "title": "Market and MVP",
+  "description": "Size the market from the bottom up, position yourself against what customers do today, and design the smallest experiment that tests your riskiest remaining assumption.",
+  "objectives": [
+    "Build a bottom-up TAM, SAM and SOM with a source or estimate label for every input",
+    "Choose a beachhead market and explain why you can dominate it first",
+    "Map every competitive alternative, including doing nothing, from your interview evidence",
+    "State your 10x dimension and your company's secret in one or two sentences each",
+    "Write a positioning statement using Geoffrey Moore's template",
+    "Write an MVP experiment plan with a hypothesis, metric, success line and time box"
+  ],
+  "resources": [
+    "Bill Gurley, How to Miss By a Mile — https://abovethecrowd.com/2014/07/11/how-to-miss-by-a-mile-an-alternative-look-at-ubers-potential-market-size/",
+    "Peter Thiel, Competition is for Losers (YC Startup Library) — https://www.ycombinator.com/library/dT-how-to-start-a-startup-competition-is-for-losers",
+    "April Dunford, Obviously Awesome — https://www.aprildunford.com/books",
+    "Michael Seibel, How to Plan an MVP (YC Startup Library) — https://www.ycombinator.com/library/6f-how-to-plan-an-mvp",
+    "Eric Ries, Minimum Viable Product: a guide — https://www.startuplessonslearned.com/2009/08/minimum-viable-product-guide.html",
+    "Steve Blank, AI Killed the MVP. Long Live the IUP — https://steveblank.com/2026/09/25/ai-killed-the-mvp-long-live-the-iup/"
+  ],
+  "translations": {
+    "es": {
+      "title": "Mercado y MVP",
+      "description": "Dimensiona el mercado de abajo hacia arriba, posiciónate frente a lo que los clientes hacen hoy y diseña el experimento más pequeño que ponga a prueba tu supuesto pendiente más riesgoso.",
+      "objectives": [
+        "Construir un TAM, SAM y SOM de abajo hacia arriba con una fuente o una etiqueta de estimación para cada dato",
+        "Elegir un mercado cabeza de playa y explicar por qué puedes dominarlo primero",
+        "Mapear todas las alternativas competidoras, incluida la de no hacer nada, a partir de la evidencia de tus entrevistas",
+        "Expresar tu dimensión 10x y el secreto de tu empresa en una o dos oraciones cada uno",
+        "Escribir una declaración de posicionamiento con la plantilla de Geoffrey Moore",
+        "Escribir un plan de experimento de MVP con hipótesis, métrica, criterio de éxito y plazo"
+      ],
+      "resources": [
+        "Bill Gurley, cómo errar por mucho al estimar el mercado de Uber — https://abovethecrowd.com/2014/07/11/how-to-miss-by-a-mile-an-alternative-look-at-ubers-potential-market-size/",
+        "Peter Thiel, la competencia es para perdedores (YC Startup Library) — https://www.ycombinator.com/library/dT-how-to-start-a-startup-competition-is-for-losers",
+        "April Dunford, Obviously Awesome (sitio del libro) — https://www.aprildunford.com/books",
+        "Michael Seibel, cómo planear un MVP (YC Startup Library) — https://www.ycombinator.com/library/6f-how-to-plan-an-mvp",
+        "Eric Ries, guía del producto mínimo viable — https://www.startuplessonslearned.com/2009/08/minimum-viable-product-guide.html",
+        "Steve Blank, la IA mató al MVP: larga vida al IUP — https://steveblank.com/2026/09/25/ai-killed-the-mvp-long-live-the-iup/"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "Sizing the market investors believe", "es": "Un tamaño de mercado que convence a inversionistas", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Competition and positioning", "es": "Competencia y posicionamiento", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Designing your MVP", "es": "Cómo diseñar tu MVP", "minutes": 15 }
+  ]
+}
