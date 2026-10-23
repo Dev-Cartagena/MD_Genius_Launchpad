@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,26 @@ import {
   UserCircle
 } from "lucide-react";
 import ChatModal from "@/components/AICoach/ChatModal";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 
-export default function Sidebar() {
+interface SidebarProps {
+  /** Mobile navigation drawer state (below the md breakpoint). */
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
+}
+
+export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: SidebarProps) {
   const { user } = useAuth();
   const [location] = useLocation();
   const [showAiChat, setShowAiChat] = useState(false);
+
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    onMobileOpenChange?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
+
+  const closeMobile = () => onMobileOpenChange?.(false);
 
   const navigationItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard", roles: ["participant", "mentor", "investor", "administrator"] },
@@ -41,9 +56,8 @@ export default function Sidebar() {
 
   const isActive = (href: string) => location === href || location.startsWith(href + "/");
 
-  return (
+  const renderContent = (isMobile: boolean) => (
     <>
-      <aside className="w-64 bg-card border-r border-border flex flex-col">
         {/* Logo Section */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center space-x-3">
@@ -89,7 +103,8 @@ export default function Sidebar() {
                 className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                   isActive(item.href) ? "active" : ""
                 }`}
-                data-testid={`link-${item.label.toLowerCase().replace(/ /g, '-')}`}
+                onClick={isMobile ? closeMobile : undefined}
+                data-testid={`${isMobile ? 'mobile-' : ''}link-${item.label.toLowerCase().replace(/ /g, '-')}`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
@@ -101,16 +116,34 @@ export default function Sidebar() {
         {/* AI Coach Quick Access */}
         <div className="p-4 border-t border-border">
           <Button
-            onClick={() => setShowAiChat(true)}
+            onClick={() => {
+              if (isMobile) closeMobile();
+              setShowAiChat(true);
+            }}
             className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-center space-x-2 hover:opacity-90 transition-opacity animate-glow"
-            data-testid="button-ai-coach"
+            data-testid={isMobile ? "button-ai-coach-mobile" : "button-ai-coach"}
           >
             <Bot className="w-4 h-4" />
             <span>AI Coach</span>
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow"></div>
           </Button>
         </div>
+    </>
+  );
+
+  return (
+    <>
+      <aside className="hidden md:flex w-64 shrink-0 bg-card border-r border-border flex-col overflow-y-auto">
+        {renderContent(false)}
       </aside>
+
+      <Sheet open={mobileOpen} onOpenChange={(open) => onMobileOpenChange?.(open)}>
+        <SheetContent side="left" className="w-72 max-w-[85vw] p-0 flex flex-col overflow-y-auto bg-card">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetDescription className="sr-only">Main navigation menu</SheetDescription>
+          {renderContent(true)}
+        </SheetContent>
+      </Sheet>
 
       <ChatModal 
         isOpen={showAiChat} 

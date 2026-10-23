@@ -14,6 +14,7 @@ import { Link } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { assignmentStatusClass, assignmentStatusLabel, isAssignmentDone, type AssignmentStatus } from "@/lib/roadmapStatus";
 import type { Module, Lesson, Milestone, UserProgress, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
 
 // Extended roadmap types for curriculum integration
@@ -112,7 +113,10 @@ function LessonQuiz({
 }) {
   const { toast } = useToast();
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  // `result` is the result currently on screen; `lastResult` survives "Try again"
+  // so the attempt counter stays accurate while the quiz is retaken.
   const [result, setResult] = useState<QuizResult | null>(null);
+  const [lastResult, setLastResult] = useState<QuizResult | null>(null);
   const [attemptsExhausted, setAttemptsExhausted] = useState<string | null>(null);
 
   const { data: quiz, isLoading, error } = useQuery<ParticipantQuiz>({
@@ -126,6 +130,7 @@ function LessonQuiz({
     },
     onSuccess: (data) => {
       setResult(data);
+      setLastResult(data);
       if (data.passed) {
         toast({ title: "Quiz passed", description: `You scored ${data.score}%. Lesson marked complete.` });
         onPassed();
@@ -161,15 +166,22 @@ function LessonQuiz({
 
   const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
   const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i] !== undefined);
-  const attemptsUsed = result?.attempts;
-  const maxAttempts = result?.maxAttempts ?? quiz.maxAttempts;
+  const maxAttempts = lastResult?.maxAttempts ?? quiz.maxAttempts;
   const noAttemptsLeft =
     !!attemptsExhausted ||
-    (result !== null && !result.passed && maxAttempts != null && result.attempts >= maxAttempts);
+    (lastResult !== null && !lastResult.passed && maxAttempts != null && lastResult.attempts >= maxAttempts);
+  // Attempt counter comes from the last submitted result (kept across "Try again").
+  const attemptNumber = lastResult?.attempts;
 
   const handleSubmit = () => {
-    if (!allAnswered) return;
+    if (!allAnswered || submitMutation.isPending) return;
     submitMutation.mutate(questions.map((_, i) => answers[i]));
+  };
+
+  // Reset to a fresh, unanswered quiz. Does not submit anything.
+  const handleTryAgain = () => {
+    setAnswers({});
+    setResult(null);
   };
 
   return (
@@ -183,7 +195,7 @@ function LessonQuiz({
           <Badge variant="outline" className="text-xs">Pass: {quiz.passThreshold}%</Badge>
           {maxAttempts != null && (
             <Badge variant="outline" className="text-xs">
-              {attemptsUsed !== undefined ? `Attempt ${attemptsUsed} of ${maxAttempts}` : `Max attempts: ${maxAttempts}`}
+              {attemptNumber !== undefined ? `Attempt ${attemptNumber} of ${maxAttempts}` : `Max attempts: ${maxAttempts}`}
             </Badge>
           )}
         </div>
@@ -201,7 +213,7 @@ function LessonQuiz({
           <RadioGroup
             value={answers[qIndex] !== undefined ? String(answers[qIndex]) : ""}
             onValueChange={(value) => setAnswers((prev) => ({ ...prev, [qIndex]: Number(value) }))}
-            disabled={!canSubmit || submitMutation.isPending || noAttemptsLeft}
+            disabled={!canSubmit || submitMutation.isPending || noAttemptsLeft || result !== null}
           >
             {q.options.map((option, oIndex) => {
               const id = `quiz-${lessonId}-q${qIndex}-o${oIndex}`;
@@ -236,14 +248,25 @@ function LessonQuiz({
 
       {canSubmit ? (
         !result?.passed && !noAttemptsLeft && (
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!allAnswered || submitMutation.isPending}
-            data-testid={`button-submit-quiz-${lessonId}`}
-          >
-            {submitMutation.isPending ? "Submitting..." : result ? "Try again" : "Submit answers"}
-          </Button>
+          result ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleTryAgain}
+              data-testid={`button-retry-quiz-${lessonId}`}
+            >
+              Try again
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!allAnswered || submitMutation.isPending}
+              data-testid={`button-submit-quiz-${lessonId}`}
+            >
+              {submitMutation.isPending ? "Submitting..." : "Submit answers"}
+            </Button>
+          )
         )
       ) : (
         <p className="text-xs text-muted-foreground">Quizzes are taken by program participants.</p>
@@ -377,7 +400,7 @@ export default function CurriculumView() {
 
   // Mutation to update roadmap item status
   const updateRoadmapStatusMutation = useMutation({
-    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: 'not_started' | 'in_progress' | 'completed' }) => {
+    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: AssignmentStatus }) => {
       return apiRequest('PATCH', `/api/roadmap/assignments/${assignmentId}/status`, { status });
     },
     onSuccess: () => {
@@ -434,13 +457,13 @@ export default function CurriculumView() {
     if (user?.role === 'administrator' || !assignmentId) return;
     
     // Server statuses: not_started | in_progress | completed | blocked | waived
-    let newStatus: 'not_started' | 'in_progress' | 'completed';
+    let newStatus: AssignmentStatus;
     if (currentStatus === 'not_started' || currentStatus === 'blocked') {
       newStatus = 'in_progress';
     } else if (currentStatus === 'in_progress') {
       newStatus = 'completed';
     } else {
-      return; // Already completed
+      return; // Already done (completed or waived)
     }
     
     await updateRoadmapStatusMutation.mutateAsync({ assignmentId, status: newStatus });
@@ -1235,57 +1258,80 @@ export default function CurriculumView() {
                       <Card key={item.id} className="bg-secondary/30">
                         <CardContent className="p-4">
                           <div className="flex items-start space-x-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center ${
                               item.assignment?.status === 'completed' 
                                 ? 'bg-green-400/20' 
+                                : item.assignment?.status === 'waived'
+                                ? 'bg-purple-400/20'
+                                : item.assignment?.status === 'blocked'
+                                ? 'bg-red-400/20'
                                 : item.assignment?.status === 'in_progress'
                                 ? 'bg-blue-400/20'
                                 : 'bg-gray-400/20'
                             }`}>
                               {item.assignment?.status === 'completed' ? (
                                 <CheckCircle className="w-4 h-4 text-green-400" />
+                              ) : item.assignment?.status === 'waived' ? (
+                                <CheckCircle className="w-4 h-4 text-purple-400" />
+                              ) : item.assignment?.status === 'blocked' ? (
+                                <XCircle className="w-4 h-4 text-red-400" />
                               ) : item.assignment?.status === 'in_progress' ? (
                                 <Play className="w-4 h-4 text-blue-400" />
                               ) : (
                                 <Clock className="w-4 h-4 text-gray-400" />
                               )}
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
                                 {item.title}
                               </p>
                               <p className="text-xs text-muted-foreground mb-2">
                                 {item.description}
                               </p>
-                              <div className="flex items-center justify-between">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
                                 <Badge 
                                   variant="outline" 
-                                  className="text-xs"
+                                  className="text-xs capitalize"
                                   data-testid={`roadmap-type-${item.id}`}
                                 >
-                                  {item.type}
+                                  {item.type.replace(/_/g, ' ')}
                                 </Badge>
                                 {item.assignment ? (
                                   (() => {
                                     const assignment = item.assignment;
                                     if (!assignment?.id) return null;
+                                    if (isAssignmentDone(assignment.status)) {
+                                      return (
+                                        <Badge
+                                          className={`text-xs ${assignmentStatusClass(assignment.status)}`}
+                                          data-testid={`roadmap-status-${item.id}`}
+                                        >
+                                          {assignmentStatusLabel(assignment.status)}
+                                        </Badge>
+                                      );
+                                    }
                                     return (
+                                      <div className="flex items-center gap-2">
+                                        {assignment.status === 'blocked' && (
+                                          <Badge className={`text-xs ${assignmentStatusClass('blocked')}`}>
+                                            {assignmentStatusLabel('blocked')}
+                                          </Badge>
+                                        )}
                                       <Button
                                         size="sm"
-                                        variant={assignment.status === 'completed' ? "secondary" : "outline"}
-                                        disabled={updateRoadmapStatusMutation.isPending || assignment.status === 'completed'}
+                                        variant="outline"
+                                        disabled={updateRoadmapStatusMutation.isPending}
                                         onClick={() => handleRoadmapStatusUpdate(assignment.id as string, assignment.status as string)}
                                         className="text-xs"
                                         data-testid={`button-roadmap-${assignment.status}-${item.id}`}
                                       >
-                                        {assignment.status === 'completed' ? (
-                                          'Completed'
-                                        ) : assignment.status === 'in_progress' ? (
+                                        {assignment.status === 'in_progress' ? (
                                           updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
                                         ) : (
                                           updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
                                         )}
                                       </Button>
+                                      </div>
                                     );
                                   })()
                                 ) : (

@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
+import { cohortStatusMessage } from "@/lib/cohorts";
 import ParticipantDashboard from "@/components/Dashboard/ParticipantDashboard";
 import MentorDashboard from "@/components/Dashboard/MentorDashboard";
 import InvestorDashboard from "@/components/Dashboard/InvestorDashboard";
@@ -104,13 +105,13 @@ export default function Dashboard() {
     }
     
     // Check for active cohorts
-    const activeCohortCount = cohorts.filter((cohort: Cohort) => cohort.isActive).length;
-    if (activeCohortCount > 0) {
+    const cohortMessage = cohortStatusMessage(cohorts);
+    if (cohortMessage) {
       alerts.push({
         id: "active-cohorts",
         type: "info",
         title: "Active Cohorts",
-        message: `${activeCohortCount} cohort${activeCohortCount > 1 ? 's' : ''} currently running`,
+        message: cohortMessage,
         priority: "low"
       });
     }

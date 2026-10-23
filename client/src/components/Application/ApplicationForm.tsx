@@ -179,9 +179,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
         title: "Application Submitted!",
         description: "Thank you for applying. You'll receive a confirmation email shortly.",
       });
+      onComplete?.();
       queryClient.invalidateQueries({ queryKey: ["/api/applications/my"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      onComplete?.();
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {

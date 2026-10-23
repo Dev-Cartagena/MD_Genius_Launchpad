@@ -28,7 +28,7 @@ export default function MentorProfilePage() {
   const [selectedTab, setSelectedTab] = useState("profile");
 
   // Fetch mentor profile
-  const { data: mentorProfile, isLoading: profileLoading, error: profileError } = useQuery<MentorProfile>({
+  const { data: mentorProfile, isLoading: profileLoading, error: profileError } = useQuery<MentorProfile | null>({
     queryKey: ['/api/mentor/profile'],
     enabled: !!user,
     retry: false,

@@ -42,10 +42,14 @@ export default function InvestorDashboard() {
   const [selectedSector, setSelectedSector] = useState("all");
   const [selectedStage, setSelectedStage] = useState("all");
 
+  // One definition of "meetings scheduled", used by the metric card and the pipeline:
+  // startups this investor has an interest at the meeting_scheduled stage for.
+  const meetingsScheduled = interests.filter(i => i.level === "meeting_scheduled").length;
+
   // Real investor metrics based on available data
   const investorStats = {
     startupsViewed: projects.length, // Real count of available projects
-    meetingsScheduled: sessions.length, // Real count of scheduled sessions
+    meetingsScheduled,
     activeDiligence: interests.filter(i => i.level === "diligence").length,
     portfolioInterest: interests.length, // Real count of interests
   };
@@ -53,7 +57,7 @@ export default function InvestorDashboard() {
   // Pipeline counts from this investor's recorded interests
   const pipeline = {
     initial: interests.filter(i => !i.level || i.level === "viewed" || i.level === "requested_info").length,
-    meetings: interests.filter(i => i.level === "meeting_scheduled").length,
+    meetings: meetingsScheduled,
     diligence: interests.filter(i => i.level === "diligence").length,
     decisions: interests.filter(i => i.level === "soft_commit" || i.level === "commit").length,
   };
@@ -115,7 +119,7 @@ export default function InvestorDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Meetings</p>
+                <p className="text-sm font-medium text-muted-foreground">Meetings Scheduled</p>
                 <p className="text-2xl font-bold" data-testid="metric-meetings">{investorStats.meetingsScheduled}</p>
               </div>
               <Calendar className="w-6 h-6 text-accent opacity-80" />
@@ -321,10 +325,10 @@ export default function InvestorDashboard() {
                       <CardTitle className="text-lg" data-testid={`session-title-${session.id}`}>
                         {session.title}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         {session.sessionType && (
-                          <Badge variant="outline" className="mr-2">
-                            {session.sessionType.replace('_', ' ')}
+                          <Badge variant="outline" className="mr-2 capitalize">
+                            {session.sessionType.replace(/_/g, ' ')}
                           </Badge>
                         )}
                         {new Date(session.startTime).toLocaleDateString('en-US', { 
@@ -334,7 +338,7 @@ export default function InvestorDashboard() {
                           hour: 'numeric',
                           minute: '2-digit'
                         })}
-                      </p>
+                      </div>
                     </div>
                     <Badge 
                       className={`${

@@ -250,8 +250,8 @@ export default function AdminInvestorManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       setIsCreateInvestorOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       toast({ title: "Success", description: "Investor created successfully" });
     },
     onError: (error) => {
@@ -265,8 +265,8 @@ export default function AdminInvestorManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       setEditingInvestor(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       toast({ title: "Success", description: "Investor updated successfully" });
     },
     onError: (error) => {
@@ -313,9 +313,9 @@ export default function AdminInvestorManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
       setIsCreateInterestOpen(false);
       setNewInterest({ investorId: "", projectId: "", level: "viewed", notes: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
       toast({ title: "Success", description: "Investor interest saved" });
     },
     onError: (error) => {
@@ -332,8 +332,8 @@ export default function AdminInvestorManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
       setEditingInterest(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
       toast({ title: "Success", description: "Investor interest updated" });
     },
     onError: (error) => {
@@ -356,10 +356,10 @@ export default function AdminInvestorManager() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       setIsCreateSessionOpen(false);
       sessionForm.reset();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       toast({ title: "Success", description: "Session created successfully" });
     },
     onError: (error) => {
@@ -376,11 +376,11 @@ export default function AdminInvestorManager() {
       return response.json();
     },
     onSuccess: () => {
+      setIsAssignCohortOpen(false);
+      cohortForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohort-assignments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohorts"] });
-      setIsAssignCohortOpen(false);
-      cohortForm.reset();
       toast({ title: "Success", description: "Investor assigned to cohort successfully" });
     },
     onError: (error) => {
@@ -560,7 +560,7 @@ export default function AdminInvestorManager() {
     investorUsers.filter((u) => !investors.some((inv) => inv.userId === u.id && inv.id !== currentInvestorId));
 
   const renderLinkAndActiveFields = (currentInvestorId?: string) => (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <FormField
         control={investorForm.control}
         name="userId"
@@ -694,7 +694,7 @@ export default function AdminInvestorManager() {
                   />
 
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField
                         control={sessionForm.control}
                         name="startTime"
@@ -778,7 +778,7 @@ export default function AdminInvestorManager() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FormField
                         control={sessionForm.control}
                         name="endTime"
@@ -875,7 +875,7 @@ export default function AdminInvestorManager() {
               </DialogHeader>
               <Form {...investorForm}>
                 <form onSubmit={investorForm.handleSubmit(handleCreateInvestor)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={investorForm.control}
                       name="organization"
@@ -911,7 +911,7 @@ export default function AdminInvestorManager() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Investment Sectors</FormLabel>
-                        <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
                           {sectorOptions.map((sector) => (
                             <div key={sector} className="flex items-center space-x-2">
                               <input
@@ -944,7 +944,7 @@ export default function AdminInvestorManager() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Investment Stages</FormLabel>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {stageOptions.map((stage) => (
                             <div key={stage} className="flex items-center space-x-2">
                               <input
@@ -977,7 +977,7 @@ export default function AdminInvestorManager() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Geographic Focus</FormLabel>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {geographyOptions.map((geo) => (
                             <div key={geo} className="flex items-center space-x-2">
                               <input
@@ -1158,6 +1158,8 @@ export default function AdminInvestorManager() {
                           variant="ghost"
                           className="h-7 w-7"
                           onClick={() => openEditDialog(investor)}
+                          aria-label="Edit investor"
+                          title="Edit investor"
                           data-testid={`button-edit-${investor.id}`}
                         >
                           <Edit className="w-3 h-3" />
@@ -1167,9 +1169,10 @@ export default function AdminInvestorManager() {
                             size="icon" 
                             variant="ghost"
                             className="h-7 w-7"
-                            title="Reactivate"
                             onClick={() => reactivateInvestorMutation.mutate(investor.id)}
                             disabled={reactivateInvestorMutation.isPending}
+                            aria-label="Reactivate investor"
+                            title="Reactivate investor"
                             data-testid={`button-reactivate-${investor.id}`}
                           >
                             <RotateCcw className="w-3 h-3" />
@@ -1179,9 +1182,10 @@ export default function AdminInvestorManager() {
                             size="icon" 
                             variant="ghost"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            title="Deactivate"
                             onClick={() => deactivateInvestorMutation.mutate(investor.id)}
                             disabled={deactivateInvestorMutation.isPending}
+                            aria-label="Deactivate investor"
+                            title="Deactivate investor"
                             data-testid={`button-deactivate-${investor.id}`}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -1628,6 +1632,8 @@ export default function AdminInvestorManager() {
                           variant="ghost"
                           className="h-7 w-7"
                           onClick={() => openEditInterest(interest)}
+                          aria-label="Edit investor interest"
+                          title="Edit investor interest"
                           data-testid={`button-edit-interest-${interest.id}`}
                         >
                           <Edit className="w-3 h-3" />
@@ -1727,7 +1733,7 @@ export default function AdminInvestorManager() {
           <Form {...investorForm}>
             <form onSubmit={investorForm.handleSubmit(handleUpdateInvestor)} className="space-y-4">
               {/* Same form fields as create, but populated with existing data */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={investorForm.control}
                   name="organization"

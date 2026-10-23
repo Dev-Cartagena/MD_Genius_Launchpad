@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "./Sidebar";
 import { queryClient } from "@/lib/queryClient";
@@ -10,7 +11,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, User, LogOut } from "lucide-react";
+import { ChevronDown, User, LogOut, Menu } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title, subtitle }: AppLayoutProps) {
   const { user } = useAuth();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -33,26 +35,40 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
+      <Sidebar mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
       
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 min-w-0 overflow-auto">
         {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gradient" data-testid="page-title">{title}</h2>
-              {subtitle && (
-                <p className="text-muted-foreground" data-testid="page-subtitle">{subtitle}</p>
-              )}
+        <header className="bg-card border-b border-border px-4 py-3 md:px-6 md:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden shrink-0"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Open navigation menu"
+                title="Open navigation menu"
+                data-testid="button-mobile-menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0">
+                <h2 className="text-xl md:text-2xl font-bold text-gradient truncate" data-testid="page-title">{title}</h2>
+                {subtitle && (
+                  <p className="text-sm md:text-base text-muted-foreground truncate" data-testid="page-subtitle">{subtitle}</p>
+                )}
+              </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center shrink-0">
               {/* Profile Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="flex items-center space-x-2 hover:bg-secondary px-3 py-2"
+                    className="flex items-center space-x-2 hover:bg-secondary px-2 md:px-3 py-2"
+                    aria-label="Open profile menu"
                     data-testid="button-profile-menu"
                   >
                     <User className="h-4 w-4" />
@@ -62,7 +78,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 max-w-[calc(100vw-2rem)]">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
@@ -70,7 +86,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                           ? `${user.firstName} ${user.lastName}` 
                           : user?.firstName || "User"}
                       </p>
-                      <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-xs leading-none text-muted-foreground break-all">
                         {user?.email}
                       </p>
                       {user?.role && (
@@ -92,7 +108,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
         </header>
 
         {/* Main Content */}
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {children}
         </div>
       </main>
