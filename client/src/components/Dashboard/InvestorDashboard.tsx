@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,17 +38,46 @@ export default function InvestorDashboard() {
     queryKey: ["/api/investor/sessions"],
   });
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSector, setSelectedSector] = useState("all");
+  const [selectedStage, setSelectedStage] = useState("all");
+
   // Real investor metrics based on available data
   const investorStats = {
     startupsViewed: projects.length, // Real count of available projects
     meetingsScheduled: sessions.length, // Real count of scheduled sessions
     activeDiligence: interests.filter(i => i.level === "diligence").length,
     portfolioInterest: interests.length, // Real count of interests
-    demoAttendance: 0 // Would need real event attendance data
   };
 
+  // Pipeline counts from this investor's recorded interests
+  const pipeline = {
+    initial: interests.filter(i => !i.level || i.level === "viewed" || i.level === "requested_info").length,
+    meetings: interests.filter(i => i.level === "meeting_scheduled").length,
+    diligence: interests.filter(i => i.level === "diligence").length,
+    decisions: interests.filter(i => i.level === "soft_commit" || i.level === "commit").length,
+  };
+
+  // Projects have no sector field; their primary AI component is used as the sector
+  const sectorOptions = useMemo(
+    () => Array.from(new Set(projects.map((p) => p.aiComponents?.[0]).filter(Boolean) as string[])).sort(),
+    [projects],
+  );
+
+  const filteredProjects = projects.filter((project) => {
+    const query = searchQuery.trim().toLowerCase();
+    const sector = project.aiComponents?.[0] || "";
+    const matchesSearch = !query ||
+      (project.name || "").toLowerCase().includes(query) ||
+      (project.summary || "").toLowerCase().includes(query) ||
+      (project.aiComponents || []).some((c) => c.toLowerCase().includes(query));
+    const matchesSector = selectedSector === "all" || sector === selectedSector;
+    const matchesStage = selectedStage === "all" || project.stage === selectedStage;
+    return matchesSearch && matchesSector && matchesStage;
+  });
+
   // Use real project data only, no synthetic values
-  const featuredStartups = projects.slice(0, 6).map((project) => ({
+  const featuredStartups = filteredProjects.slice(0, 6).map((project) => ({
     id: project.id,
     name: project.name || "Untitled Project",
     stage: project.stage || "ideation",
@@ -56,16 +87,18 @@ export default function InvestorDashboard() {
     founded: project.createdAt ? new Date(project.createdAt).getFullYear().toString() : null
   }));
 
-  // Only show events if we have real event data - currently none available
-  const upcomingEvents: any[] = []; // Empty until real events API is implemented
+  const formatLevel = (level: string | null | undefined) =>
+    (level || "viewed").replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
-  // Only show activity if we have real activity data - currently none available
-  const recentActivity: any[] = []; // Empty until real activity tracking API is implemented
+  // Recent activity comes from this investor's recorded interests
+  const recentActivity = [...interests]
+    .sort((a, b) => new Date((b.updatedAt || b.createdAt || 0) as any).getTime() - new Date((a.updatedAt || a.createdAt || 0) as any).getTime())
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
       {/* Investor Stats Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="glass-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -114,17 +147,6 @@ export default function InvestorDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Demo Days</p>
-                <p className="text-2xl font-bold" data-testid="metric-demos">{investorStats.demoAttendance}</p>
-              </div>
-              <Video className="w-6 h-6 text-green-400 opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
       {/* Search and Filters */}
@@ -138,26 +160,27 @@ export default function InvestorDashboard() {
                   <Input 
                     placeholder="Search startups by name, sector, or technology..." 
                     className="pl-10 bg-secondary border-border"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     data-testid="input-search-startups"
                   />
                 </div>
               </div>
               <div className="flex gap-2">
-                <Select data-testid="select-sector-filter">
-                  <SelectTrigger className="w-40 bg-secondary border-border">
+                <Select value={selectedSector} onValueChange={setSelectedSector}>
+                  <SelectTrigger className="w-40 bg-secondary border-border" data-testid="select-sector-filter">
                     <SelectValue placeholder="Sector" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Sectors</SelectItem>
-                    <SelectItem value="healthtech">HealthTech</SelectItem>
-                    <SelectItem value="fintech">FinTech</SelectItem>
-                    <SelectItem value="cleantech">CleanTech</SelectItem>
-                    <SelectItem value="agritech">AgriTech</SelectItem>
+                    {sectorOptions.map((sector) => (
+                      <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 
-                <Select data-testid="select-stage-filter">
-                  <SelectTrigger className="w-40 bg-secondary border-border">
+                <Select value={selectedStage} onValueChange={setSelectedStage}>
+                  <SelectTrigger className="w-40 bg-secondary border-border" data-testid="select-stage-filter">
                     <SelectValue placeholder="Stage" />
                   </SelectTrigger>
                   <SelectContent>
@@ -165,14 +188,10 @@ export default function InvestorDashboard() {
                     <SelectItem value="ideation">Ideation</SelectItem>
                     <SelectItem value="validation">Validation</SelectItem>
                     <SelectItem value="mvp_build">MVP Build</SelectItem>
+                    <SelectItem value="pilot_traction">Pilot / Traction</SelectItem>
                     <SelectItem value="pitch_ready">Pitch Ready</SelectItem>
                   </SelectContent>
                 </Select>
-                
-                <Button variant="outline" data-testid="button-advanced-filters">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                </Button>
               </div>
             </div>
           </CardContent>
@@ -183,10 +202,26 @@ export default function InvestorDashboard() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">Featured Startups</h2>
-          <Button variant="outline" data-testid="button-view-all-startups">
-            View All Directory
+          <Button variant="outline" asChild data-testid="button-view-all-startups">
+            <Link href="/investors">View All Directory</Link>
           </Button>
         </div>
+
+        {featuredStartups.length === 0 && (
+          <Card className="glass-card">
+            <CardContent className="p-8 text-center">
+              <Building className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {projects.length === 0 ? "No startups yet" : "No startups match your filters"}
+              </h3>
+              <p className="text-muted-foreground">
+                {projects.length === 0
+                  ? "Startups will appear here once participants create their projects."
+                  : "Try adjusting your search or filters."}
+              </p>
+            </CardContent>
+          </Card>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {featuredStartups.map((startup) => (
@@ -195,7 +230,6 @@ export default function InvestorDashboard() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
                     <Avatar className="w-12 h-12">
-                      <AvatarImage src={`/placeholder-startup-${startup.id}.jpg`} alt={startup.name} />
                       <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
                         {startup.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                       </AvatarFallback>
@@ -257,17 +291,11 @@ export default function InvestorDashboard() {
                   <div />
                   <div className="flex space-x-2">
                     <Button 
-                      size="sm" 
-                      variant="outline"
-                      data-testid={`button-view-${startup.id}`}
-                    >
-                      View Details
-                    </Button>
-                    <Button 
                       size="sm"
+                      asChild
                       data-testid={`button-request-meeting-${startup.id}`}
                     >
-                      Request Meeting
+                      <Link href="/investors">Request Meeting</Link>
                     </Button>
                   </div>
                 </div>
@@ -281,9 +309,6 @@ export default function InvestorDashboard() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">Scheduled Sessions</h2>
-          <Button variant="outline" data-testid="button-view-all-sessions">
-            View All Sessions
-          </Button>
         </div>
         
         {sessions.length > 0 ? (
@@ -353,13 +378,6 @@ export default function InvestorDashboard() {
                             Join
                           </Button>
                         )}
-                        <Button 
-                          size="sm"
-                          variant="outline"
-                          data-testid={`button-details-${session.id}`}
-                        >
-                          Details
-                        </Button>
                       </div>
                     </div>
                   </div>
@@ -372,12 +390,9 @@ export default function InvestorDashboard() {
             <CardContent className="p-8 text-center">
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Sessions Scheduled</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground">
                 You don't have any upcoming sessions yet. Participants will request sessions with you through the platform.
               </p>
-              <Button variant="outline" data-testid="button-availability-settings">
-                Manage Availability
-              </Button>
             </CardContent>
           </Card>
         )}
@@ -394,77 +409,9 @@ export default function InvestorDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingEvents.map((event) => (
-                <Card key={event.id} className="bg-secondary/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-sm" data-testid={`event-title-${event.id}`}>
-                            {event.title}
-                          </p>
-                          {event.type === 'demo_day' && (
-                            <Badge className="bg-accent/20 text-accent">Demo Day</Badge>
-                          )}
-                          {event.type === 'meeting' && event.confirmed && (
-                            <Badge className="bg-green-400/20 text-green-400">Confirmed</Badge>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-1 text-xs text-muted-foreground">
-                          <p className="flex items-center space-x-1">
-                            <span data-testid={`event-date-${event.id}`}>{event.date}</span>
-                            <span>•</span>
-                            <span data-testid={`event-time-${event.id}`}>{event.time}</span>
-                          </p>
-                          
-                          {event.startups && (
-                            <p>{event.startups} startups presenting</p>
-                          )}
-                          
-                          {event.startup && (
-                            <p>with {event.startup}</p>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col space-y-1">
-                        {event.type === 'demo_day' && (
-                          <Button 
-                            size="sm" 
-                            className={event.registered ? "bg-green-400" : "bg-primary"}
-                            data-testid={`button-event-${event.id}`}
-                          >
-                            {event.registered ? "Registered" : "Register"}
-                          </Button>
-                        )}
-                        
-                        {event.type === 'meeting' && (
-                          <Button 
-                            size="sm" 
-                            variant={event.confirmed ? "outline" : "default"}
-                            data-testid={`button-meeting-${event.id}`}
-                          >
-                            <Video className="w-3 h-3 mr-1" />
-                            {event.confirmed ? "Join" : "Confirm"}
-                          </Button>
-                        )}
-                        
-                        {event.type === 'pitch' && (
-                          <Button 
-                            size="sm"
-                            data-testid={`button-pitch-${event.id}`}
-                          >
-                            Attend
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <p className="text-sm text-muted-foreground" data-testid="events-empty">
+              No demo days or events have been announced yet.
+            </p>
           </CardContent>
         </Card>
 
@@ -474,32 +421,29 @@ export default function InvestorDashboard() {
             <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3" data-testid={`activity-${activity.id}`}>
-                  <div className={`w-2 h-2 rounded-full ${
-                    activity.action === 'Viewed' ? 'bg-primary' :
-                    activity.action === 'Requested meeting' ? 'bg-accent' :
-                    activity.action === 'Downloaded deck' ? 'bg-yellow-400' :
-                    'bg-green-400'
-                  }`}></div>
-                  <div className="flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium">{activity.action}</span> {activity.startup}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground" data-testid="activity-empty">
+                No activity yet. Request a meeting with a startup to start your pipeline.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-3" data-testid={`activity-${activity.id}`}>
+                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+                    <div className="flex-1">
+                      <p className="text-sm">
+                        <span className="font-medium">{formatLevel(activity.level)}</span> {activity.projectName || "a startup"}
+                      </p>
+                      {(activity.updatedAt || activity.createdAt) && (
+                        <p className="text-xs text-muted-foreground">
+                          {new Date((activity.updatedAt || activity.createdAt) as any).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            
-            <Button 
-              variant="outline" 
-              className="w-full mt-4"
-              data-testid="button-view-all-activity"
-            >
-              View All Activity
-            </Button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
@@ -517,28 +461,28 @@ export default function InvestorDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="bg-blue-400/10 border-blue-400/20">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-blue-400" data-testid="pipeline-initial">8</p>
+                  <p className="text-2xl font-bold text-blue-400" data-testid="pipeline-initial">{pipeline.initial}</p>
                   <p className="text-sm text-muted-foreground">Initial Interest</p>
                 </CardContent>
               </Card>
               
               <Card className="bg-accent/10 border-accent/20">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-accent" data-testid="pipeline-meetings">5</p>
+                  <p className="text-2xl font-bold text-accent" data-testid="pipeline-meetings">{pipeline.meetings}</p>
                   <p className="text-sm text-muted-foreground">Meetings Scheduled</p>
                 </CardContent>
               </Card>
               
               <Card className="bg-yellow-400/10 border-yellow-400/20">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-yellow-400" data-testid="pipeline-diligence">3</p>
+                  <p className="text-2xl font-bold text-yellow-400" data-testid="pipeline-diligence">{pipeline.diligence}</p>
                   <p className="text-sm text-muted-foreground">Due Diligence</p>
                 </CardContent>
               </Card>
               
               <Card className="bg-green-400/10 border-green-400/20">
                 <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold text-green-400" data-testid="pipeline-decisions">1</p>
+                  <p className="text-2xl font-bold text-green-400" data-testid="pipeline-decisions">{pipeline.decisions}</p>
                   <p className="text-sm text-muted-foreground">Investment Decisions</p>
                 </CardContent>
               </Card>

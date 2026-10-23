@@ -66,8 +66,8 @@ interface RoadmapItemWithAssignment {
 interface ProjectRoadmap {
   template: {
     id: string;
-    title: string;
-    description: string;
+    name: string;
+    description: string | null;
   };
   items: RoadmapItemWithAssignment[];
 }
@@ -311,7 +311,7 @@ export default function Roadmap() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              {roadmap.template.title}
+              {roadmap.template.name}
             </CardTitle>
             <p className="text-muted-foreground">{roadmap.template.description}</p>
           </CardHeader>

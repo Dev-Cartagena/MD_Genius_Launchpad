@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ChatModal from "@/components/AICoach/ChatModal";
 import { 
   Calendar,
   Clock,
@@ -25,28 +26,28 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
-import type { Project, Cohort, Milestone, MentorSession } from "@shared/schema";
+import type { Project, Cohort, Milestone, MentorSession, Application } from "@shared/schema";
 
+// Shape returned by GET /api/projects/:id/roadmap
 interface RoadmapItem {
   id: string;
   title: string;
-  description: string;
-  itemType: string;
-  weekNumber: number;
+  description: string | null;
+  type: string;
+  week: number;
   orderIndex: number;
-  estimatedHours: number;
-  assignment?: {
+  estimatedHours: number | null;
+  assignment: {
     id: string;
-    status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'waived';
-    dueDate?: string;
-  };
+    status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'waived' | null;
+  } | null;
 }
 
 interface ProjectRoadmap {
   template: {
     id: string;
-    title: string;
-    description: string;
+    name: string;
+    description: string | null;
   };
   items: RoadmapItem[];
 }
@@ -54,6 +55,7 @@ interface ProjectRoadmap {
 export default function ParticipantDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [showAiChat, setShowAiChat] = useState(false);
 
   // Fetch user projects
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
@@ -65,18 +67,25 @@ export default function ParticipantDashboard() {
     queryKey: ["/api/cohorts"],
   });
 
+  // Accepted applications tell us the participant's cohort before a project exists
+  const { data: myApplications = [] } = useQuery<Application[]>({
+    queryKey: ["/api/applications/my"],
+  });
+
   // Fetch participant sessions
   const { data: participantSessions = [], isLoading: sessionsLoading } = useQuery<MentorSession[]>({
     queryKey: ["/api/participant/sessions"],
   });
 
   // Get current project (first project or default)
-  const currentProject = projects[0] || {
+  const hasProject = projects.length > 0;
+  const currentProject: Pick<Project, "id" | "name" | "stage" | "summary" | "readinessScore" | "cohortId"> = projects[0] || {
     id: "",
     name: "No Project Yet",
     stage: "ideation",
     summary: "You haven't created a project yet. Start by defining your AI startup idea.",
     readinessScore: 0,
+    cohortId: null,
   };
 
   // Fetch roadmap for the current project
@@ -108,10 +117,10 @@ export default function ParticipantDashboard() {
   });
 
   // Fetch milestones for user's cohort
-  const userCohort = cohorts.find((c: Cohort) => {
-    // Find cohort based on project's cohort ID or default to first active cohort
-    return currentProject.cohortId ? c.id === currentProject.cohortId : c.isActive;
-  });
+  // The project's cohort, else the cohort of the participant's accepted application
+  const acceptedCohortId = myApplications.find((app) => app.status === "accepted")?.cohortId;
+  const userCohortId = currentProject.cohortId || acceptedCohortId;
+  const userCohort = cohorts.find((c: Cohort) => c.id === userCohortId);
   
   const { data: milestones = [], isLoading: milestonesLoading } = useQuery<Milestone[]>({
     queryKey: [`/api/cohorts/${userCohort?.id}/milestones`],
@@ -226,35 +235,8 @@ export default function ParticipantDashboard() {
 
   // Get current week's roadmap items
   const currentWeekRoadmapItems = roadmap?.items.filter(
-    item => item.weekNumber === currentWeek
+    item => item.week === currentWeek
   ).sort((a, b) => a.orderIndex - b.orderIndex) || [];
-
-  const nextActions = [
-    {
-      id: 1,
-      title: "Complete Customer Interview #3",
-      description: "Market Validation Milestone",
-      isOverdue: true,
-      dueDate: "2 days ago",
-      priority: "high"
-    },
-    {
-      id: 2,
-      title: "Update Lean Canvas",
-      description: "Based on latest interview insights",
-      isOverdue: false,
-      dueDate: "3 days",
-      priority: "medium"
-    },
-    {
-      id: 3,
-      title: "Mentor Session: Market Strategy",
-      description: "1:1 with Sarah Chen",
-      isOverdue: false,
-      dueDate: "Tomorrow 2:00 PM",
-      priority: "high"
-    },
-  ];
 
   // Process upcoming sessions for display
   const getUpcomingSchedule = () => {
@@ -330,7 +312,9 @@ export default function ParticipantDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg font-semibold">Program Progress</CardTitle>
-              <span className="text-sm text-muted-foreground">Week {currentWeek} of {totalWeeks}</span>
+              <span className="text-sm text-muted-foreground">
+                {userCohort ? `${userCohort.name} • Week ${currentWeek} of ${totalWeeks}` : "No cohort yet"}
+              </span>
             </div>
           </CardHeader>
           <CardContent>
@@ -347,6 +331,9 @@ export default function ParticipantDashboard() {
 
             {/* Milestone Timeline */}
             <div className="space-y-4">
+              {milestonesWithProgress.length === 0 && (
+                <p className="text-sm text-muted-foreground">No milestones have been set for your cohort yet.</p>
+              )}
               {milestonesWithProgress.map((milestone, index) => (
                 <div key={milestone.id} className="flex items-center space-x-4" data-testid={`milestone-${milestone.id}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -420,20 +407,11 @@ export default function ParticipantDashboard() {
               </div>
             </div>
             
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Technical Depth</span>
-                <span className="text-accent">85%</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Market Fit</span>
-                <span className="text-primary">70%</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Team Readiness</span>
-                <span className="text-yellow-400">55%</span>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              {hasProject
+                ? "Your readiness score is updated by the program team as your project progresses."
+                : "Create your project to start tracking venture readiness."}
+            </p>
           </CardContent>
         </Card>
       </section>
@@ -487,7 +465,7 @@ export default function ParticipantDashboard() {
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="flex items-center gap-2 mt-0.5">
-                          {getItemTypeIcon(item.itemType)}
+                          {getItemTypeIcon(item.type)}
                           {getStatusIcon(item.assignment?.status || 'not_started')}
                         </div>
                         
@@ -500,16 +478,11 @@ export default function ParticipantDashboard() {
                           </p>
                           <div className="flex items-center gap-4">
                             <Badge variant="outline" className="text-xs">
-                              {item.itemType}
+                              {item.type}
                             </Badge>
-                            {item.estimatedHours > 0 && (
+                            {(item.estimatedHours ?? 0) > 0 && (
                               <span className="text-xs text-muted-foreground">
                                 ~{item.estimatedHours}h
-                              </span>
-                            )}
-                            {item.assignment?.dueDate && (
-                              <span className="text-xs text-muted-foreground">
-                                Due: {new Date(item.assignment.dueDate).toLocaleDateString()}
                               </span>
                             )}
                           </div>
@@ -517,7 +490,7 @@ export default function ParticipantDashboard() {
                         
                         <div className="flex items-center gap-2">
                           <Badge className={getStatusColor(item.assignment?.status || 'not_started')}>
-                            {item.assignment?.status || 'not_started'}
+                            {(item.assignment?.status || 'not_started').replace('_', ' ')}
                           </Badge>
                           
                           {item.assignment && (
@@ -584,46 +557,19 @@ export default function ParticipantDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Recent AI Suggestions */}
-            <div className="space-y-3 mb-4">
-              <Card className="bg-secondary/50 border-l-4 border-accent">
-                <CardContent className="p-3">
-                  <p className="text-sm font-medium mb-1">💡 Market Research Tip</p>
-                  <p className="text-xs text-muted-foreground">
-                    "Based on your interviews, consider exploring the enterprise segment. I've found 3 relevant case studies in your industry."
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-secondary/50 border-l-4 border-primary">
-                <CardContent className="p-3">
-                  <p className="text-sm font-medium mb-1">🎯 Technical Recommendation</p>
-                  <p className="text-xs text-muted-foreground">
-                    "Your AI model accuracy could improve with data augmentation. I can guide you through implementation strategies."
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
-                data-testid="button-pitch-practice"
-              >
-                Pitch Practice
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
-                data-testid="button-tech-help"
-              >
-                Tech Help
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Ask the AI Coach about program steps, ideation, technical questions, go-to-market or your pitch.
+              It knows your project details.
+            </p>
+            <Button
+              className="w-full bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+              variant="outline"
+              onClick={() => setShowAiChat(true)}
+              data-testid="button-open-ai-coach"
+            >
+              <Lightbulb className="w-4 h-4 mr-2" />
+              Open AI Coach
+            </Button>
           </CardContent>
         </Card>
       </section>
@@ -638,7 +584,7 @@ export default function ParticipantDashboard() {
                 Current Project: {currentProject.name}
               </CardTitle>
               <Badge className="bg-primary/20 text-primary" data-testid="project-stage">
-                {currentProject.stage} Stage
+                {hasProject ? `${currentProject.stage} Stage` : "Not started"}
               </Badge>
             </div>
           </CardHeader>
@@ -647,43 +593,11 @@ export default function ParticipantDashboard() {
               {currentProject.summary}
             </p>
 
-            {/* Project Metrics */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-accent" data-testid="metric-interviews">12</p>
-                <p className="text-xs text-muted-foreground">Customer Interviews</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary" data-testid="metric-features">3</p>
-                <p className="text-xs text-muted-foreground">MVP Features</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-yellow-400" data-testid="metric-market-size">$50K</p>
-                <p className="text-xs text-muted-foreground">Market Size (TAM)</p>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="border-t border-border pt-4">
-              <h4 className="text-sm font-medium mb-3">Recent Updates</h4>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-3 text-sm">
-                  <div className="w-2 h-2 bg-accent rounded-full"></div>
-                  <span className="text-muted-foreground text-xs">2 hours ago</span>
-                  <span>Updated lean canvas with new value proposition</span>
-                </div>
-                <div className="flex items-center space-x-3 text-sm">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <span className="text-muted-foreground text-xs">1 day ago</span>
-                  <span>Completed interview with Enterprise customer #8</span>
-                </div>
-                <div className="flex items-center space-x-3 text-sm">
-                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  <span className="text-muted-foreground text-xs">3 days ago</span>
-                  <span>Submitted Problem Definition milestone</span>
-                </div>
-              </div>
-            </div>
+            <Link href="/project">
+              <Button variant="outline" size="sm" data-testid="button-open-project">
+                {hasProject ? "Open Project" : "Create Your Project"}
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -744,15 +658,18 @@ export default function ParticipantDashboard() {
                           {event.time}
                         </p>
                       </div>
-                      {'sessionData' in event && (
-                        <Button 
-                          size="sm" 
+                      {event.sessionData.meetingLink && (
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="ml-2"
+                          asChild
                           data-testid={`button-session-${event.id}`}
                         >
-                          <Video className="w-3 h-3 mr-1" />
-                          Join
+                          <a href={event.sessionData.meetingLink} target="_blank" rel="noopener noreferrer">
+                            <Video className="w-3 h-3 mr-1" />
+                            Join
+                          </a>
                         </Button>
                       )}
                     </div>
@@ -761,130 +678,20 @@ export default function ParticipantDashboard() {
               </div>
             )}
 
-            <Button 
-              variant="outline" 
-              className="w-full mt-4 border-border hover:bg-secondary/80"
-              data-testid="button-view-calendar"
-            >
-              View Full Calendar
-            </Button>
+            <Link href="/mentors">
+              <Button
+                variant="outline"
+                className="w-full mt-4 border-border hover:bg-secondary/80"
+                data-testid="button-view-calendar"
+              >
+                Mentors & Sessions
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </section>
 
-      {/* Community and Resources */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cohort Community */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Cohort Community</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src="/placeholder-avatar-1.jpg" alt="Maria Santos" />
-                  <AvatarFallback>MS</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-sm">Maria Santos</p>
-                    <span className="text-xs text-muted-foreground">HealthTech AI</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Just completed our first customer pilot! 🚀 The feedback has been incredible.
-                  </p>
-                  <div className="flex items-center space-x-4 mt-2">
-                    <Button variant="link" size="sm" className="text-xs p-0 h-auto text-accent hover:underline">
-                      👏 12 reactions
-                    </Button>
-                    <span className="text-xs text-muted-foreground">2 hours ago</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3">
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src="/placeholder-avatar-2.jpg" alt="David Kim" />
-                  <AvatarFallback>DK</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-sm">David Kim</p>
-                    <span className="text-xs text-muted-foreground">FinTech AI</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Looking for feedback on our pitch deck. Anyone available for a quick review session?
-                  </p>
-                  <div className="flex items-center space-x-4 mt-2">
-                    <Button variant="link" size="sm" className="text-xs p-0 h-auto text-primary hover:underline">
-                      💬 Reply
-                    </Button>
-                    <span className="text-xs text-muted-foreground">5 hours ago</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <Button 
-              variant="outline" 
-              className="w-full mt-4 border-border hover:bg-secondary/80"
-              data-testid="button-view-discussions"
-            >
-              View All Discussions
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Resource Library */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Quick Resources</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { icon: FileText, title: "Lean Canvas Template", description: "Business model framework", color: "primary" },
-                { icon: Video, title: "Customer Interview Guide", description: "Video workshop series", color: "accent" },
-                { icon: Target, title: "AI Ethics Checklist", description: "Responsible AI guidelines", color: "green" },
-                { icon: Users, title: "Pitch Deck Examples", description: "Successful startup decks", color: "yellow" },
-              ].map((resource, index) => (
-                <Card key={index} className="bg-secondary/50">
-                  <CardContent className="flex items-center justify-between p-3">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        resource.color === 'primary' ? 'bg-primary/20' :
-                        resource.color === 'accent' ? 'bg-accent/20' :
-                        resource.color === 'green' ? 'bg-green-400/20' :
-                        'bg-yellow-400/20'
-                      }`}>
-                        <resource.icon className={`w-4 h-4 ${
-                          resource.color === 'primary' ? 'text-primary' :
-                          resource.color === 'accent' ? 'text-accent' :
-                          resource.color === 'green' ? 'text-green-400' :
-                          'text-yellow-400'
-                        }`} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{resource.title}</p>
-                        <p className="text-xs text-muted-foreground">{resource.description}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="text-xs text-accent hover:underline"
-                      data-testid={`button-resource-${index}`}
-                    >
-                      Open
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      <ChatModal isOpen={showAiChat} onClose={() => setShowAiChat(false)} />
     </div>
   );
 }

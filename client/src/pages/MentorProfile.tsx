@@ -248,33 +248,36 @@ export default function MentorProfilePage() {
                       </p>
                     </div>
                   ) : (
-                    mentorSessions.map((session: any) => (
+                    mentorSessions.map((session: { id: string; title: string; startTime: string; endTime: string; participantIds?: string[] | null; meetingLink?: string | null }) => {
+                      // Sessions have no status column: derive it from the end time
+                      const isCompleted = new Date(session.endTime).getTime() < Date.now();
+                      return (
                       <div key={session.id} className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-medium">{session.title}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {new Date(session.scheduledTime).toLocaleDateString()} at {' '}
-                            {new Date(session.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {new Date(session.startTime).toLocaleDateString()} at {' '}
+                            {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {' - '}
+                            {new Date(session.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {session.participantIds?.length || 0} participant(s)
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant={
-                              session.status === 'completed' ? 'default' : 
-                              session.status === 'confirmed' ? 'secondary' : 'outline'
-                            }
-                          >
-                            {session.status}
+                          <Badge variant={isCompleted ? 'default' : 'outline'}>
+                            {isCompleted ? 'Completed' : 'Upcoming'}
                           </Badge>
-                          <Button variant="outline" size="sm" data-testid={`button-view-session-${session.id}`}>
-                            View
-                          </Button>
+                          {!isCompleted && session.meetingLink && (
+                            <Button variant="outline" size="sm" asChild data-testid={`button-join-session-${session.id}`}>
+                              <a href={session.meetingLink} target="_blank" rel="noopener noreferrer">Join</a>
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </CardContent>

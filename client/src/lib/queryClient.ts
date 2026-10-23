@@ -7,6 +7,10 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/**
+ * Note: DELETE endpoints return 204 with an empty body, so never call
+ * response.json() on their responses.
+ */
 export async function apiRequest(
   method: string,
   url: string,

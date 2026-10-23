@@ -3,8 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { getApiErrorMessage } from "@/lib/utils";
+import { formatCohortDate } from "@/lib/dates";
 import type { 
   Investor, 
+  InvestorInterest,
+  User,
   InvestorSession, 
   InvestorCohortParticipation, 
   Cohort,
@@ -30,6 +34,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 
 // Form handling
 import { useForm } from "react-hook-form";
@@ -52,7 +57,9 @@ import {
   Filter,
   Star,
   Video,
-  MessageCircle
+  MessageCircle,
+  RotateCcw,
+  TrendingUp
 } from "lucide-react";
 
 // Form schemas - extending shared schemas with UI-specific validation
@@ -64,6 +71,8 @@ const investorFormSchema = insertInvestorSchema.extend({
   contactEmail: z.string().email("Valid email is required"),
   checkSize: z.string().min(1, "Check size is required"),
   ndaStatus: z.boolean().default(false),
+  userId: z.string().nullable().optional(),
+  isActive: z.boolean().default(true),
 });
 
 const sessionFormSchema = insertInvestorSessionSchema.extend({
@@ -84,6 +93,21 @@ const cohortAssignmentSchema = insertInvestorCohortParticipationSchema.extend({
 type InvestorFormData = z.infer<typeof investorFormSchema>;
 type SessionFormData = z.infer<typeof sessionFormSchema>;
 type CohortAssignmentData = z.infer<typeof cohortAssignmentSchema>;
+
+const interestLevelOptions = [
+  "viewed", "requested_info", "meeting_scheduled", "diligence", "soft_commit", "commit"
+] as const;
+
+type InterestLevel = typeof interestLevelOptions[number];
+
+const formatLevel = (level: string | null | undefined) =>
+  (level || "viewed").replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+type AdminProject = { id: string; name: string; cohortId: string | null; ownerId: string };
+type AdminInterest = InvestorInterest & { projectName?: string };
+
+// Radix Select items can't use an empty value, so "no linked user" uses a sentinel
+const NO_USER = "__none__";
 
 // Pre-defined options
 const sectorOptions = [
@@ -153,6 +177,13 @@ export default function AdminInvestorManager() {
   const [editingInvestor, setEditingInvestor] = useState<Investor | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSector, setFilterSector] = useState<string>("all");
+  const [isCreateInterestOpen, setIsCreateInterestOpen] = useState(false);
+  const [newInterest, setNewInterest] = useState<{ investorId: string; projectId: string; level: InterestLevel; notes: string }>({
+    investorId: "", projectId: "", level: "viewed", notes: "",
+  });
+  const [editingInterest, setEditingInterest] = useState<AdminInterest | null>(null);
+  const [editInterestLevel, setEditInterestLevel] = useState<InterestLevel>("viewed");
+  const [editInterestNotes, setEditInterestNotes] = useState("");
 
   // Queries
   const { data: investors = [], isLoading: investorsLoading } = useQuery<Investor[]>({
@@ -172,15 +203,32 @@ export default function AdminInvestorManager() {
   });
 
   const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
-    queryKey: ["/api/cohorts"],
+    queryKey: ["/api/admin/cohorts"],
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error)) return false;
       return failureCount < 3;
     },
   });
 
-  const { data: projects = [] } = useQuery({
+  const { data: projects = [] } = useQuery<AdminProject[]>({
     queryKey: ["/api/admin/projects"],
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error)) return false;
+      return failureCount < 3;
+    },
+  });
+
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error)) return false;
+      return failureCount < 3;
+    },
+  });
+  const investorUsers = useMemo(() => allUsers.filter((u) => u.role === "investor"), [allUsers]);
+
+  const { data: interests = [], isLoading: interestsLoading } = useQuery<AdminInterest[]>({
+    queryKey: ["/api/admin/investor-interests"],
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error)) return false;
       return failureCount < 3;
@@ -207,7 +255,7 @@ export default function AdminInvestorManager() {
       toast({ title: "Success", description: "Investor created successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to create investor", variant: "destructive" });
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to create investor"), variant: "destructive" });
     },
   });
 
@@ -222,21 +270,74 @@ export default function AdminInvestorManager() {
       toast({ title: "Success", description: "Investor updated successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to update investor", variant: "destructive" });
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to update investor"), variant: "destructive" });
     },
   });
 
   const deactivateInvestorMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/investors/${id}`);
-      return response.json();
+      // Returns 204 with no body
+      await apiRequest("DELETE", `/api/admin/investors/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       toast({ title: "Success", description: "Investor deactivated successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to deactivate investor", variant: "destructive" });
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to deactivate investor"), variant: "destructive" });
+    },
+  });
+
+  const reactivateInvestorMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("PUT", `/api/admin/investors/${id}`, { isActive: true });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
+      toast({ title: "Success", description: "Investor reactivated" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to reactivate investor"), variant: "destructive" });
+    },
+  });
+
+  const createInterestMutation = useMutation({
+    mutationFn: async (data: { investorId: string; projectId: string; level: InterestLevel; notes: string }) => {
+      const response = await apiRequest("POST", "/api/admin/investor-interests", {
+        investorId: data.investorId,
+        projectId: data.projectId,
+        level: data.level,
+        ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
+      setIsCreateInterestOpen(false);
+      setNewInterest({ investorId: "", projectId: "", level: "viewed", notes: "" });
+      toast({ title: "Success", description: "Investor interest saved" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to save investor interest"), variant: "destructive" });
+    },
+  });
+
+  const updateInterestMutation = useMutation({
+    mutationFn: async ({ id, level, notes }: { id: string; level: InterestLevel; notes: string }) => {
+      const response = await apiRequest("PUT", `/api/admin/investor-interests/${id}`, {
+        level,
+        notes: notes.trim() ? notes.trim() : null,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/investor-interests"] });
+      setEditingInterest(null);
+      toast({ title: "Success", description: "Investor interest updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to update investor interest"), variant: "destructive" });
     },
   });
 
@@ -262,7 +363,7 @@ export default function AdminInvestorManager() {
       toast({ title: "Success", description: "Session created successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to create session", variant: "destructive" });
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to create session"), variant: "destructive" });
     },
   });
 
@@ -277,13 +378,13 @@ export default function AdminInvestorManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/investors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cohort-assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cohorts"] });
       setIsAssignCohortOpen(false);
       cohortForm.reset();
       toast({ title: "Success", description: "Investor assigned to cohort successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to assign investor to cohort", variant: "destructive" });
+      toast({ title: "Error", description: getApiErrorMessage(error, "Failed to assign investor to cohort"), variant: "destructive" });
     },
   });
 
@@ -298,6 +399,8 @@ export default function AdminInvestorManager() {
       geography: [],
       checkSize: "",
       ndaStatus: false,
+      userId: null,
+      isActive: true,
     },
   });
 
@@ -380,6 +483,8 @@ export default function AdminInvestorManager() {
     },
   });
 
+  const activeInvestors = useMemo(() => investors.filter((inv) => inv.isActive !== false), [investors]);
+
   // Filtered investors
   const filteredInvestors = useMemo(() => {
     return investors.filter((investor: Investor) => {
@@ -419,8 +524,92 @@ export default function AdminInvestorManager() {
       geography: investor.geography || [],
       checkSize: investor.checkSize || "",
       ndaStatus: investor.ndaStatus || false,
+      userId: investor.userId ?? null,
+      isActive: investor.isActive !== false,
     });
   };
+
+  const openCreateDialog = (open: boolean) => {
+    if (open) {
+      investorForm.reset({
+        organization: "",
+        contactEmail: "",
+        sectors: [],
+        stages: [],
+        geography: [],
+        checkSize: "",
+        ndaStatus: false,
+        userId: null,
+        isActive: true,
+      });
+    }
+    setIsCreateInvestorOpen(open);
+  };
+
+  const openEditInterest = (interest: AdminInterest) => {
+    setEditingInterest(interest);
+    setEditInterestLevel((interest.level || "viewed") as InterestLevel);
+    setEditInterestNotes(interest.notes || "");
+  };
+
+  const userLabel = (u: User) =>
+    u.firstName || u.lastName ? `${[u.firstName, u.lastName].filter(Boolean).join(" ")} (${u.email})` : (u.email || u.id);
+
+  // Investor users not already linked to a different investor record
+  const availableInvestorUsers = (currentInvestorId?: string) =>
+    investorUsers.filter((u) => !investors.some((inv) => inv.userId === u.id && inv.id !== currentInvestorId));
+
+  const renderLinkAndActiveFields = (currentInvestorId?: string) => (
+    <div className="grid grid-cols-2 gap-4">
+      <FormField
+        control={investorForm.control}
+        name="userId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Linked investor user</FormLabel>
+            <Select
+              onValueChange={(value) => field.onChange(value === NO_USER ? null : value)}
+              value={field.value ?? NO_USER}
+            >
+              <FormControl>
+                <SelectTrigger data-testid={currentInvestorId ? "select-edit-investor-user" : "select-investor-user"}>
+                  <SelectValue placeholder="No linked user" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value={NO_USER}>No linked user</SelectItem>
+                {availableInvestorUsers(currentInvestorId).map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{userLabel(u)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {investorUsers.length === 0 && (
+              <p className="text-xs text-muted-foreground">No users with the investor role yet. Invite one from the Users tab.</p>
+            )}
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={investorForm.control}
+        name="isActive"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center space-x-3 space-y-0 pt-8">
+            <FormControl>
+              <Switch
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                data-testid={currentInvestorId ? "switch-edit-investor-active" : "switch-investor-active"}
+              />
+            </FormControl>
+            <FormLabel>Active</FormLabel>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -453,7 +642,7 @@ export default function AdminInvestorManager() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {investors.map((investor: Investor) => (
+                            {activeInvestors.map((investor: Investor) => (
                               <SelectItem key={investor.id} value={investor.id}>
                                 {investor.organization}
                               </SelectItem>
@@ -673,7 +862,7 @@ export default function AdminInvestorManager() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isCreateInvestorOpen} onOpenChange={setIsCreateInvestorOpen}>
+          <Dialog open={isCreateInvestorOpen} onOpenChange={openCreateDialog}>
             <DialogTrigger asChild>
               <Button data-testid="button-create-investor">
                 <Plus className="w-4 h-4 mr-2" />
@@ -840,6 +1029,8 @@ export default function AdminInvestorManager() {
                     )}
                   />
 
+                  {renderLinkAndActiveFields()}
+
                   <FormField
                     control={investorForm.control}
                     name="ndaStatus"
@@ -879,6 +1070,7 @@ export default function AdminInvestorManager() {
           <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
           <TabsTrigger value="sessions" data-testid="tab-sessions">Sessions</TabsTrigger>
           <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohort Assignments</TabsTrigger>
+          <TabsTrigger value="interests" data-testid="tab-interests">Investor Interests</TabsTrigger>
         </TabsList>
 
         <TabsContent value="investors" className="space-y-6">
@@ -923,7 +1115,7 @@ export default function AdminInvestorManager() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredInvestors.map((investor: Investor) => (
-                <Card key={investor.id} className="glass-card hover:shadow-lg transition-shadow duration-200 max-w-sm">
+                <Card key={investor.id} className={`glass-card hover:shadow-lg transition-shadow duration-200 max-w-sm ${investor.isActive === false ? "opacity-70" : ""}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3 min-w-0 flex-1">
@@ -939,6 +1131,25 @@ export default function AdminInvestorManager() {
                           <p className="text-xs text-muted-foreground truncate">
                             {investor.contactEmail}
                           </p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {investor.isActive === false && (
+                              <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5" data-testid={`badge-inactive-${investor.id}`}>
+                                Inactive
+                              </Badge>
+                            )}
+                            {(() => {
+                              const linked = investor.userId ? allUsers.find((u) => u.id === investor.userId) : undefined;
+                              return investor.userId ? (
+                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 max-w-full truncate">
+                                  User: {linked ? (linked.email || linked.id) : "linked"}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs px-2 py-0.5 h-5 text-muted-foreground">
+                                  No linked user
+                                </Badge>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                       <div className="flex space-x-1 flex-shrink-0">
@@ -951,15 +1162,31 @@ export default function AdminInvestorManager() {
                         >
                           <Edit className="w-3 h-3" />
                         </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => deactivateInvestorMutation.mutate(investor.id)}
-                          data-testid={`button-deactivate-${investor.id}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        {investor.isActive === false ? (
+                          <Button 
+                            size="icon" 
+                            variant="ghost"
+                            className="h-7 w-7"
+                            title="Reactivate"
+                            onClick={() => reactivateInvestorMutation.mutate(investor.id)}
+                            disabled={reactivateInvestorMutation.isPending}
+                            data-testid={`button-reactivate-${investor.id}`}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </Button>
+                        ) : (
+                          <Button 
+                            size="icon" 
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            title="Deactivate"
+                            onClick={() => deactivateInvestorMutation.mutate(investor.id)}
+                            disabled={deactivateInvestorMutation.isPending}
+                            data-testid={`button-deactivate-${investor.id}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -995,7 +1222,8 @@ export default function AdminInvestorManager() {
                         size="sm" 
                         variant="outline"
                         className="h-7 text-xs"
-                        onClick={() => window.open(`mailto:${investor.contactEmail}`, '_blank')}
+                        disabled={!investor.contactEmail}
+                        onClick={() => { if (investor.contactEmail) window.location.href = `mailto:${investor.contactEmail}`; }}
                         data-testid={`button-contact-${investor.id}`}
                       >
                         <Mail className="w-3 h-3 mr-1" />
@@ -1122,7 +1350,7 @@ export default function AdminInvestorManager() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {investors.map((investor: Investor) => (
+                              {activeInvestors.map((investor: Investor) => (
                                 <SelectItem key={investor.id} value={investor.id}>
                                   {investor.organization}
                                 </SelectItem>
@@ -1149,7 +1377,7 @@ export default function AdminInvestorManager() {
                             <SelectContent>
                               {cohorts.map((cohort: Cohort) => (
                                 <SelectItem key={cohort.id} value={cohort.id}>
-                                  {cohort.name}
+                                  {cohort.name}{cohort.isActive === false ? " (Inactive)" : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -1229,7 +1457,13 @@ export default function AdminInvestorManager() {
                             </CardTitle>
                             <p className="text-sm text-muted-foreground">
                               {cohort?.name ?? "Unknown Cohort"}
+                              {cohort?.isActive === false ? " (Inactive)" : ""}
                             </p>
+                            {cohort && (
+                              <p className="text-xs text-muted-foreground">
+                                {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1273,7 +1507,216 @@ export default function AdminInvestorManager() {
             )}
           </div>
         </TabsContent>
+        <TabsContent value="interests" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Investor Interests</h3>
+            <Dialog open={isCreateInterestOpen} onOpenChange={setIsCreateInterestOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-create-interest">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Record Interest
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Record Investor Interest</DialogTitle>
+                </DialogHeader>
+                <form
+                  className="space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newInterest.investorId || !newInterest.projectId) {
+                      toast({ title: "Missing fields", description: "Pick an investor and a project.", variant: "destructive" });
+                      return;
+                    }
+                    createInterestMutation.mutate(newInterest);
+                  }}
+                >
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Investor</label>
+                    <Select value={newInterest.investorId} onValueChange={(v) => setNewInterest((p) => ({ ...p, investorId: v }))}>
+                      <SelectTrigger data-testid="select-interest-investor">
+                        <SelectValue placeholder="Select investor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeInvestors.map((investor) => (
+                          <SelectItem key={investor.id} value={investor.id}>{investor.organization || investor.contactEmail || investor.id}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project</label>
+                    <Select value={newInterest.projectId} onValueChange={(v) => setNewInterest((p) => ({ ...p, projectId: v }))}>
+                      <SelectTrigger data-testid="select-interest-project">
+                        <SelectValue placeholder={projects.length === 0 ? "No projects yet" : "Select project"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Level</label>
+                    <Select value={newInterest.level} onValueChange={(v) => setNewInterest((p) => ({ ...p, level: v as InterestLevel }))}>
+                      <SelectTrigger data-testid="select-interest-level">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {interestLevelOptions.map((level) => (
+                          <SelectItem key={level} value={level}>{formatLevel(level)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Notes</label>
+                    <Textarea
+                      value={newInterest.notes}
+                      onChange={(e) => setNewInterest((p) => ({ ...p, notes: e.target.value }))}
+                      placeholder="Optional notes"
+                      data-testid="textarea-interest-notes"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    If this investor already has an interest in the project, it is updated instead of duplicated.
+                  </p>
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => setIsCreateInterestOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createInterestMutation.isPending} data-testid="button-submit-interest">
+                      {createInterestMutation.isPending ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {interestsLoading ? (
+              [...Array(3)].map((_, i) => (
+                <Card key={i} className="glass-card">
+                  <CardContent className="p-6">
+                    <Skeleton className="h-6 w-3/4 mb-4" />
+                    <Skeleton className="h-4 w-full mb-2" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : interests.length > 0 ? (
+              interests.map((interest) => {
+                const investor = investors.find((inv) => inv.id === interest.investorId);
+                const projectName = interest.projectName || projects.find((p) => p.id === interest.projectId)?.name || "Unknown project";
+                return (
+                  <Card key={interest.id} className="glass-card">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0">
+                          <CardTitle className="text-base truncate" data-testid={`interest-project-${interest.id}`}>
+                            {projectName}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {investor?.organization ?? "Unknown investor"}
+                            {investor?.isActive === false ? " (Inactive)" : ""}
+                          </p>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => openEditInterest(interest)}
+                          data-testid={`button-edit-interest-${interest.id}`}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <Badge variant="outline" className="text-xs">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        {formatLevel(interest.level)}
+                      </Badge>
+                      {interest.notes && <p className="text-sm line-clamp-3">{interest.notes}</p>}
+                      {interest.questions && interest.questions.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {interest.questions.length} question{interest.questions.length !== 1 ? "s" : ""}
+                        </p>
+                      )}
+                      {(interest.updatedAt || interest.createdAt) && (
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Updated {new Date((interest.updatedAt || interest.createdAt) as unknown as string).toLocaleDateString()}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              <Card className="glass-card col-span-full">
+                <CardContent className="p-8 text-center">
+                  <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No investor interests yet</h3>
+                  <p className="text-muted-foreground">
+                    Record an investor's interest in a project to track the pipeline.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Edit Interest Dialog */}
+      <Dialog open={editingInterest !== null} onOpenChange={(open) => { if (!open) setEditingInterest(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Investor Interest</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (editingInterest) {
+                updateInterestMutation.mutate({ id: editingInterest.id, level: editInterestLevel, notes: editInterestNotes });
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Level</label>
+              <Select value={editInterestLevel} onValueChange={(v) => setEditInterestLevel(v as InterestLevel)}>
+                <SelectTrigger data-testid="select-edit-interest-level">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {interestLevelOptions.map((level) => (
+                    <SelectItem key={level} value={level}>{formatLevel(level)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes</label>
+              <Textarea
+                value={editInterestNotes}
+                onChange={(e) => setEditInterestNotes(e.target.value)}
+                data-testid="textarea-edit-interest-notes"
+              />
+            </div>
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditingInterest(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateInterestMutation.isPending} data-testid="button-update-interest">
+                {updateInterestMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Investor Dialog */}
       <Dialog open={editingInvestor !== null} onOpenChange={() => setEditingInvestor(null)}>
@@ -1338,6 +1781,8 @@ export default function AdminInvestorManager() {
                   </FormItem>
                 )}
               />
+
+              {renderLinkAndActiveFields(editingInvestor?.id)}
 
               <div className="flex justify-end space-x-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setEditingInvestor(null)}>

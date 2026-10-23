@@ -14,7 +14,8 @@ import {
   Rocket,
   Settings,
   Bot,
-  Map
+  Map,
+  UserCircle
 } from "lucide-react";
 import ChatModal from "@/components/AICoach/ChatModal";
 
@@ -29,6 +30,7 @@ export default function Sidebar() {
     { href: "/roadmap", icon: Map, label: "Roadmap", roles: ["participant"] },
     { href: "/project", icon: Lightbulb, label: "My Project", roles: ["participant"] },
     { href: "/mentors", icon: Users, label: "Mentors", roles: ["participant", "mentor"] },
+    { href: "/mentor-profile", icon: UserCircle, label: "My Mentor Profile", roles: ["mentor"] },
     { href: "/investors", icon: TrendingUp, label: "Investors", roles: ["participant", "investor"] },
     { href: "/admin", icon: Settings, label: "Admin Panel", roles: ["administrator"] },
   ];
@@ -87,7 +89,7 @@ export default function Sidebar() {
                 className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                   isActive(item.href) ? "active" : ""
                 }`}
-                data-testid={`link-${item.label.toLowerCase().replace(' ', '-')}`}
+                data-testid={`link-${item.label.toLowerCase().replace(/ /g, '-')}`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>

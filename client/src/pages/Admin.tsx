@@ -10,10 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/utils";
+import { formatCohortDate } from "@/lib/dates";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -79,14 +82,20 @@ const inviteUserSchema = z.object({
 type EditUserFormData = z.infer<typeof editUserSchema>;
 type InviteUserFormData = z.infer<typeof inviteUserSchema>;
 
-// Mentor management schemas
+// Mentor management schemas. Expertise and industries are edited as comma-separated text.
 const editMentorProfileSchema = z.object({
-  expertise: z.array(z.string()).optional(),
+  expertise: z.string().optional(),
   bio: z.string().optional(),
-  industries: z.array(z.string()).optional(),
-  availability: z.any().optional(),
+  industries: z.string().optional(),
   isActive: z.boolean().optional(),
 });
+
+const splitList = (value: string | undefined) =>
+  (value || "").split(",").map((part) => part.trim()).filter(Boolean);
+
+// Sessions have no status column: derive it from the end time.
+const sessionStatus = (session: { endTime?: string | Date | null }) =>
+  session.endTime && new Date(session.endTime).getTime() < Date.now() ? "Completed" : "Upcoming";
 
 type EditMentorProfileFormData = z.infer<typeof editMentorProfileSchema>;
 
@@ -108,10 +117,7 @@ interface AdminMetrics {
   acceptanceRate: number;
   activeCohorts: number;
   totalProjects: number;
-  mentorUtilization: number;
-  averageReadiness: number;
-  fundingDisbursed: number;
-  completionRate: number;
+  totalUsers: number;
 }
 
 interface SystemAlert {
@@ -252,6 +258,10 @@ export default function Admin() {
   // Mentor management state
   const [viewingMentor, setViewingMentor] = useState<MentorWithProfile | null>(null);
   const [editingMentor, setEditingMentor] = useState<MentorWithProfile | null>(null);
+
+  // Search state
+  const [mentorSearch, setMentorSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -265,8 +275,9 @@ export default function Admin() {
     enabled: isAdmin,
   });
 
+  // Admin endpoint: includes inactive cohorts so they can be reactivated.
   const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
-    queryKey: ["/api/cohorts"],
+    queryKey: ["/api/admin/cohorts"],
     enabled: isAdmin,
   });
 
@@ -285,7 +296,9 @@ export default function Admin() {
     enabled: isAdmin,
   });
 
-  const { data: recentSessions = [], isLoading: sessionsLoading } = useQuery<any[]>({
+  const { data: recentSessions = [], isLoading: sessionsLoading } = useQuery<
+    { id: string; title: string; startTime: string; endTime: string; participantIds?: string[] | null }[]
+  >({
     queryKey: ["/api/admin/sessions"],
     enabled: isAdmin,
   });
@@ -303,13 +316,9 @@ export default function Admin() {
       acceptanceRate,
       activeCohorts,
       totalProjects,
-      // Future metrics - will be calculated when supporting data becomes available
-      mentorUtilization: 0,
-      averageReadiness: projects.reduce((sum: number, p: Project) => sum + (p.readinessScore || 0), 0) / Math.max(projects.length, 1),
-      fundingDisbursed: 0,
-      completionRate: 0
+      totalUsers: users.length,
     };
-  }, [applications, cohorts, projects]);
+  }, [applications, cohorts, projects, users]);
 
   // Process real applications data with user information
   const recentApplications = useMemo((): ProcessedApplication[] => {
@@ -409,12 +418,54 @@ export default function Admin() {
   const editMentorForm = useForm<EditMentorProfileFormData>({
     resolver: zodResolver(editMentorProfileSchema),
     defaultValues: {
-      expertise: [],
+      expertise: "",
       bio: "",
-      industries: [],
-      availability: {},
+      industries: "",
       isActive: true,
     },
+  });
+
+  // Admin screens read /api/admin/cohorts; applicants read the public /api/cohorts.
+  const invalidateCohorts = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/cohorts"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
+  };
+
+  const handleMutationError = (error: unknown, fallback: string) => {
+    if (isUnauthorizedError(error as Error)) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 500);
+      return;
+    }
+    toast({
+      title: "Error",
+      description: getApiErrorMessage(error, fallback),
+      variant: "destructive",
+    });
+  };
+
+  // Activate / deactivate a cohort
+  const setCohortActive = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const response = await apiRequest("PATCH", `/api/admin/cohorts/${id}`, { isActive });
+      return response.json();
+    },
+    onSuccess: (_data, variables) => {
+      toast({
+        title: variables.isActive ? "Cohort Reactivated" : "Cohort Deactivated",
+        description: variables.isActive
+          ? "The cohort is open to applicants again."
+          : "The cohort is hidden from applicants.",
+      });
+      invalidateCohorts();
+    },
+    onError: (error) => handleMutationError(error, "Failed to update cohort. Please try again."),
   });
 
   // Create cohort mutation
@@ -428,7 +479,7 @@ export default function Admin() {
         title: "Cohort Created!",
         description: "New cohort has been created successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
+      invalidateCohorts();
       cohortForm.reset();
     },
     onError: (error) => {
@@ -463,7 +514,7 @@ export default function Admin() {
         title: "Cohort Updated!",
         description: "Cohort has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/cohorts"] });
+      invalidateCohorts();
       setEditingCohort(null);
       editCohortForm.reset();
     },
@@ -487,10 +538,35 @@ export default function Admin() {
     }
   });
 
+  const mentorProfilePayload = (data: EditMentorProfileFormData) => ({
+    bio: data.bio || undefined,
+    expertise: splitList(data.expertise),
+    industries: splitList(data.industries),
+    isActive: data.isActive ?? true,
+  });
+
+  // Create a profile for a mentor user who doesn't have one yet
+  const createMentorProfile = useMutation({
+    mutationFn: async ({ userId, data }: { userId: string; data: EditMentorProfileFormData }) => {
+      const response = await apiRequest("POST", "/api/admin/mentors", { userId, ...mentorProfilePayload(data) });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mentor Profile Created!",
+        description: "The mentor now appears to participants.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
+      setEditingMentor(null);
+      editMentorForm.reset();
+    },
+    onError: (error) => handleMutationError(error, "Failed to create mentor profile. Please try again."),
+  });
+
   // Update mentor profile mutation
   const updateMentorProfile = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditMentorProfileFormData }) => {
-      const response = await apiRequest("PATCH", `/api/admin/mentors/${id}`, data);
+      const response = await apiRequest("PATCH", `/api/admin/mentors/${id}`, mentorProfilePayload(data));
       return response.json();
     },
     onSuccess: () => {
@@ -548,17 +624,20 @@ export default function Admin() {
     setEditingMentor(mentor);
     // Reset form with mentor profile data
     editMentorForm.reset({
-      expertise: mentor.mentorProfile?.expertise || [],
+      expertise: (mentor.mentorProfile?.expertise || []).join(", "),
       bio: mentor.mentorProfile?.bio || "",
-      industries: mentor.mentorProfile?.industries || [],
-      availability: mentor.mentorProfile?.availability || {},
+      industries: (mentor.mentorProfile?.industries || []).join(", "),
       isActive: mentor.mentorProfile?.isActive ?? true,
     });
   };
 
   const handleEditMentorSubmit = (data: EditMentorProfileFormData) => {
-    if (!editingMentor?.mentorProfile) return;
-    updateMentorProfile.mutate({ id: editingMentor.mentorProfile.id, data });
+    if (!editingMentor) return;
+    if (editingMentor.mentorProfile) {
+      updateMentorProfile.mutate({ id: editingMentor.mentorProfile.id, data });
+    } else {
+      createMentorProfile.mutate({ userId: editingMentor.id, data });
+    }
   };
 
   // Update application status mutation
@@ -638,11 +717,18 @@ export default function Admin() {
       const response = await apiRequest("POST", "/api/admin/users/invite", data);
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "User Invited!",
-        description: "New user invitation has been sent successfully.",
-      });
+    onSuccess: (result: { inviteEmailSent?: boolean }) => {
+      if (result?.inviteEmailSent) {
+        toast({
+          title: "User Invited!",
+          description: "The invitation email has been sent.",
+        });
+      } else {
+        toast({
+          title: "User Created",
+          description: "User created. Email is not configured, so no invite was sent.",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setIsInviteUserOpen(false);
     },
@@ -660,10 +746,10 @@ export default function Admin() {
       }
       
       // Handle specific error message from backend
-      const errorMessage = error?.message?.includes("already exists") 
+      const errorMessage = error?.message?.includes("already exists")
         ? "A user with this email address already exists."
-        : "Failed to invite user. Please try again.";
-      
+        : getApiErrorMessage(error, "Failed to invite user. Please try again.");
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -671,6 +757,27 @@ export default function Admin() {
       });
     }
   });
+
+  const matchesSearch = (search: string, ...values: (string | null | undefined)[]) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    return values.some((value) => value?.toLowerCase().includes(term));
+  };
+
+  const filteredMentors = mentors.filter((mentor) =>
+    matchesSearch(
+      mentorSearch,
+      mentor.firstName,
+      mentor.lastName,
+      mentor.email,
+      ...(mentor.mentorProfile?.expertise || []),
+      ...(mentor.mentorProfile?.industries || []),
+    ),
+  );
+
+  const filteredUsers = users.filter((u) =>
+    matchesSearch(userSearch, u.firstName, u.lastName, u.email, u.role),
+  );
 
   const filteredApplications = recentApplications.filter((app: ProcessedApplication) => 
     selectedApplicationStatus === "all" || app.status === selectedApplicationStatus
@@ -954,7 +1061,7 @@ export default function Admin() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-user-role">
                           <SelectValue placeholder="Select user role" />
@@ -1074,7 +1181,7 @@ export default function Admin() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Role</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-invite-user-role">
                           <SelectValue placeholder="Select user role" />
@@ -1151,7 +1258,7 @@ export default function Admin() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Status</label>
                 <p className="text-sm" data-testid="mentor-status">
-                  {viewingMentor.mentorProfile?.isActive ? 'Active' : 'Inactive'}
+                  {!viewingMentor.mentorProfile ? 'No profile yet' : viewingMentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
                 </p>
               </div>
             </div>
@@ -1196,7 +1303,7 @@ export default function Admin() {
               }}
               data-testid="button-edit-mentor-from-view"
             >
-              Edit Profile
+              {viewingMentor.mentorProfile ? "Edit Profile" : "Create Profile"}
             </Button>
           </div>
         </DialogContent>
@@ -1209,14 +1316,18 @@ export default function Admin() {
     if (!editingMentor) return null;
 
     const fullName = `${editingMentor.firstName || ''} ${editingMentor.lastName || ''}`.trim() || 'Unnamed Mentor';
+    const isCreating = !editingMentor.mentorProfile;
+    const isSaving = isCreating ? createMentorProfile.isPending : updateMentorProfile.isPending;
 
     return (
       <Dialog open={!!editingMentor} onOpenChange={() => setEditingMentor(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Mentor Profile - {fullName}</DialogTitle>
+            <DialogTitle>{isCreating ? "Create" : "Edit"} Mentor Profile - {fullName}</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Update mentor profile information
+              {isCreating
+                ? "This mentor has no profile yet. Create one so participants can find and book them."
+                : "Update mentor profile information"}
             </div>
           </DialogHeader>
           
@@ -1229,13 +1340,51 @@ export default function Admin() {
                   <FormItem>
                     <FormLabel>Bio</FormLabel>
                     <FormControl>
-                      <textarea 
-                        className="w-full p-2 border rounded-md min-h-[100px]"
-                        placeholder="Enter mentor bio" 
+                      <Textarea
+                        className="min-h-[100px]"
+                        placeholder="Enter mentor bio"
                         {...field}
                         data-testid="input-edit-mentor-bio"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editMentorForm.control}
+                name="expertise"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Expertise</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Fundraising, Product, Go-to-market"
+                        {...field}
+                        data-testid="input-edit-mentor-expertise"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Separate with commas</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editMentorForm.control}
+                name="industries"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Industries</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Healthcare, Fintech"
+                        {...field}
+                        data-testid="input-edit-mentor-industries"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Separate with commas</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1253,10 +1402,9 @@ export default function Admin() {
                       </p>
                     </div>
                     <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={field.onChange}
+                      <Switch
+                        checked={field.value ?? true}
+                        onCheckedChange={field.onChange}
                         data-testid="input-edit-mentor-active"
                       />
                     </FormControl>
@@ -1275,10 +1423,10 @@ export default function Admin() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={updateMentorProfile.isPending}
+                  disabled={isSaving}
                   data-testid="button-submit-edit-mentor"
                 >
-                  {updateMentorProfile.isPending ? "Updating..." : "Update Profile"}
+                  {isSaving ? "Saving..." : isCreating ? "Create Profile" : "Update Profile"}
                 </Button>
               </div>
             </form>
@@ -1312,7 +1460,7 @@ export default function Admin() {
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="applications" data-testid="tab-applications">Applications</TabsTrigger>
             <TabsTrigger value="cohorts" data-testid="tab-cohorts">Cohorts</TabsTrigger>
@@ -1321,7 +1469,6 @@ export default function Admin() {
             <TabsTrigger value="mentors" data-testid="tab-mentors">Mentors</TabsTrigger>
             <TabsTrigger value="investors" data-testid="tab-investors">Investors</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
-            <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -1376,13 +1523,13 @@ export default function Admin() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Funding Disbursed</p>
-                      <p className="text-2xl font-bold" data-testid="metric-funding-disbursed">
-                        ${(adminMetrics.fundingDisbursed / 1000).toFixed(0)}K
+                      <p className="text-sm font-medium text-muted-foreground">Users</p>
+                      <p className="text-2xl font-bold" data-testid="metric-total-users">
+                        {adminMetrics.totalUsers}
                       </p>
-                      <p className="text-xs text-green-400 mt-1">Approved disbursements</p>
+                      <p className="text-xs text-green-400 mt-1">All roles</p>
                     </div>
-                    <DollarSign className="w-8 h-8 text-green-400 opacity-80" />
+                    <Users className="w-8 h-8 text-green-400 opacity-80" />
                   </div>
                 </CardContent>
               </Card>
@@ -1396,7 +1543,10 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentApplications.map((application: ProcessedApplication) => (
+                    {recentApplications.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">No applications yet.</p>
+                    )}
+                    {recentApplications.slice(0, 5).map((application: ProcessedApplication) => (
                       <Card key={application.id} className="bg-secondary/30">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
@@ -1437,6 +1587,9 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    {systemAlerts.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nothing needs attention right now.</p>
+                    )}
                     {systemAlerts.map((alert: SystemAlert) => (
                       <Card 
                         key={alert.id} 
@@ -1468,33 +1621,6 @@ export default function Admin() {
               </Card>
             </div>
 
-            {/* System Health */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <BarChart3 className="w-5 h-5" />
-                  <span>System Health & Performance</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Mentor Utilization</span>
-                      <span className="font-medium text-green-400">{adminMetrics.mentorUtilization}%</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div 
-                        className="bg-green-400 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${adminMetrics.mentorUtilization}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  
-                  
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="applications" className="space-y-6">
@@ -1519,7 +1645,12 @@ export default function Admin() {
                       </SelectContent>
                     </Select>
                     
-                    <Button variant="outline" data-testid="button-export-applications">
+                    <Button
+                      variant="outline"
+                      onClick={exportApplicationsCSV}
+                      disabled={filteredApplications.length === 0}
+                      data-testid="button-export-applications"
+                    >
                       <Download className="w-4 h-4 mr-2" />
                       Export
                     </Button>
@@ -1539,7 +1670,10 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {filteredApplications.map((application: any) => (
+                  {filteredApplications.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-8">No applications match this filter.</p>
+                  )}
+                  {filteredApplications.map((application: ProcessedApplication) => (
                     <Card key={application.id} className="bg-secondary/30">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
@@ -1622,7 +1756,7 @@ export default function Admin() {
                                 <FormControl>
                                   <Input 
                                     {...field} 
-                                    placeholder="e.g., 2025 Q1 Cohort"
+                                    placeholder="e.g., Spring Cohort"
                                     data-testid="input-cohort-name"
                                   />
                                 </FormControl>
@@ -1722,7 +1856,12 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {cohorts.map((cohort: any) => (
+                  {cohortsLoading ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading cohorts...</p>
+                  ) : cohorts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No cohorts yet. Create one to open applications.</p>
+                  ) : null}
+                  {cohorts.map((cohort: Cohort) => (
                     <Card key={cohort.id} className="bg-secondary/30">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
@@ -1735,7 +1874,7 @@ export default function Admin() {
                             </p>
                             <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                               <span>
-                                {new Date(cohort.startDate).toLocaleDateString()} - {new Date(cohort.endDate).toLocaleDateString()}
+                                {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
                               </span>
                               <span>Capacity: {cohort.capacity}</span>
                               <Badge variant={cohort.isActive ? "default" : "secondary"}>
@@ -1754,12 +1893,14 @@ export default function Admin() {
                               <Edit className="w-3 h-3 mr-1" />
                               Edit
                             </Button>
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
-                              data-testid={`button-manage-cohort-${cohort.id}`}
+                              onClick={() => setCohortActive.mutate({ id: cohort.id, isActive: !cohort.isActive })}
+                              disabled={setCohortActive.isPending}
+                              data-testid={`button-toggle-cohort-${cohort.id}`}
                             >
-                              Manage
+                              {cohort.isActive ? "Deactivate" : "Reactivate"}
                             </Button>
                           </div>
                         </div>
@@ -1809,12 +1950,20 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-6">
-                  <Input 
-                    placeholder="Search mentors..." 
+                  <Input
+                    placeholder="Search mentors..."
                     className="max-w-sm"
+                    value={mentorSearch}
+                    onChange={(e) => setMentorSearch(e.target.value)}
                     data-testid="input-search-mentors"
                   />
-                  <Button data-testid="button-invite-mentor">
+                  <Button
+                    onClick={() => {
+                      inviteUserForm.reset({ firstName: "", lastName: "", email: "", role: "mentor" });
+                      setIsInviteUserOpen(true);
+                    }}
+                    data-testid="button-invite-mentor"
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Invite Mentor
                   </Button>
@@ -1826,13 +1975,13 @@ export default function Admin() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                       <p className="text-muted-foreground mt-2">Loading mentors...</p>
                     </div>
-                  ) : mentors.length === 0 ? (
+                  ) : filteredMentors.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-muted-foreground">No mentors found</p>
                     </div>
                   ) : (
-                    mentors.map((mentor) => {
+                    filteredMentors.map((mentor) => {
                       const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || 'Unnamed Mentor';
                       const initials = mentor.firstName && mentor.lastName 
                         ? `${mentor.firstName[0]}${mentor.lastName[0]}`
@@ -1858,6 +2007,11 @@ export default function Admin() {
                                   <p className="text-sm text-muted-foreground">
                                     {mentor.email}
                                   </p>
+                                  {!mentor.mentorProfile && (
+                                    <p className="mt-2 text-xs text-yellow-400">
+                                      No mentor profile yet, so participants can't see or book this mentor.
+                                    </p>
+                                  )}
                                   {mentor.mentorProfile && (
                                     <div className="mt-2 space-y-1">
                                       <p className="text-sm font-medium">
@@ -1886,21 +2040,37 @@ export default function Admin() {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditMentor(mentor)}
-                                  data-testid={`button-edit-mentor-${mentor.id}`}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  data-testid={`button-contact-mentor-${mentor.id}`}
-                                >
-                                  <Mail className="w-4 h-4" />
-                                </Button>
+                                {mentor.mentorProfile ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditMentor(mentor)}
+                                    data-testid={`button-edit-mentor-${mentor.id}`}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleEditMentor(mentor)}
+                                    data-testid={`button-create-mentor-profile-${mentor.id}`}
+                                  >
+                                    <Plus className="w-4 h-4 mr-1" />
+                                    Create profile
+                                  </Button>
+                                )}
+                                {mentor.email && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                    data-testid={`button-contact-mentor-${mentor.id}`}
+                                  >
+                                    <a href={`mailto:${mentor.email}`} aria-label={`Email ${fullName}`}>
+                                      <Mail className="w-4 h-4" />
+                                    </a>
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -1938,27 +2108,21 @@ export default function Admin() {
                         <div className="flex-1">
                           <p className="font-medium text-sm">{session.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(session.scheduledTime).toLocaleDateString()} at {new Date(session.scheduledTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {new Date(session.startTime).toLocaleDateString()} at {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {" - "}
+                            {new Date(session.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {session.participantIds?.length || 0} participant(s)
                           </p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant={session.status === 'completed' ? 'default' : session.status === 'confirmed' ? 'secondary' : 'outline'}
-                            className="text-xs"
-                          >
-                            {session.status}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            data-testid={`button-view-session-${session.id}`}
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                        </div>
+                        <Badge
+                          variant={sessionStatus(session) === 'Completed' ? 'default' : 'outline'}
+                          className="text-xs"
+                          data-testid={`session-status-${session.id}`}
+                        >
+                          {sessionStatus(session)}
+                        </Badge>
                       </div>
                     ))
                   )}
@@ -1988,13 +2152,18 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-6">
-                  <Input 
-                    placeholder="Search users..." 
+                  <Input
+                    placeholder="Search users..."
                     className="max-w-sm"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
                     data-testid="input-search-users"
                   />
-                  <Button 
-                    onClick={() => setIsInviteUserOpen(true)}
+                  <Button
+                    onClick={() => {
+                      inviteUserForm.reset({ firstName: "", lastName: "", email: "", role: "public_visitor" });
+                      setIsInviteUserOpen(true);
+                    }}
                     data-testid="button-invite-user"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -2008,13 +2177,13 @@ export default function Admin() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                       <p className="text-muted-foreground mt-2">Loading users...</p>
                     </div>
-                  ) : users.length === 0 ? (
+                  ) : filteredUsers.length === 0 ? (
                     <div className="text-center py-8">
                       <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-muted-foreground">No users found</p>
                     </div>
                   ) : (
-                    users.map((user) => {
+                    filteredUsers.map((user) => {
                       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unnamed User';
                       const initials = user.firstName && user.lastName 
                         ? `${user.firstName[0]}${user.lastName[0]}`
@@ -2053,14 +2222,19 @@ export default function Admin() {
                                   <Edit className="w-3 h-3 mr-1" />
                                   Edit
                                 </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  data-testid={`button-message-user-${user.id}`}
-                                >
-                                  <Mail className="w-3 h-3 mr-1" />
-                                  Message
-                                </Button>
+                                {user.email && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    asChild
+                                    data-testid={`button-message-user-${user.id}`}
+                                  >
+                                    <a href={`mailto:${user.email}`}>
+                                      <Mail className="w-3 h-3 mr-1" />
+                                      Email
+                                    </a>
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -2073,91 +2247,21 @@ export default function Admin() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="settings" className="space-y-6">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle>Platform Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="font-semibold mb-2">General Settings</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Application Window</p>
-                          <p className="text-sm text-muted-foreground">Control when applications are accepted</p>
-                        </div>
-                        <Button variant="outline" data-testid="button-configure-applications">
-                          Configure
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Email Templates</p>
-                          <p className="text-sm text-muted-foreground">Manage automated email templates</p>
-                        </div>
-                        <Button variant="outline" data-testid="button-manage-emails">
-                          Manage
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">AI Coach Settings</p>
-                          <p className="text-sm text-muted-foreground">Configure AI Coach behavior and knowledge</p>
-                        </div>
-                        <Button variant="outline" data-testid="button-configure-ai">
-                          Configure
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold mb-2">System Maintenance</h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Database Backup</p>
-                          <p className="text-sm text-muted-foreground">Last backup: 2 hours ago</p>
-                        </div>
-                        <Button variant="outline" data-testid="button-backup-database">
-                          Backup Now
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">System Logs</p>
-                          <p className="text-sm text-muted-foreground">View and download system logs</p>
-                        </div>
-                        <Button variant="outline" data-testid="button-view-logs">
-                          View Logs
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
 
       {/* Application View Dialog */}
       {viewingApplication && (
-        <ApplicationViewDialog application={viewingApplication} />
+        ApplicationViewDialog({ application: viewingApplication })
       )}
 
       {/* User Management Dialogs */}
-      <EditUserDialog />
-      <InviteUserDialog />
+      {EditUserDialog()}
+      {InviteUserDialog()}
 
       {/* Mentor Management Dialogs */}
-      <ViewMentorDialog />
-      <EditMentorDialog />
+      {ViewMentorDialog()}
+      {EditMentorDialog()}
 
       {/* Cohort Edit Dialog */}
       <Dialog open={!!editingCohort} onOpenChange={() => setEditingCohort(null)}>
@@ -2176,7 +2280,7 @@ export default function Admin() {
                     <FormControl>
                       <Input 
                         {...field} 
-                        placeholder="e.g., 2025 Q1 Cohort"
+                        placeholder="e.g., Spring Cohort"
                         data-testid="input-edit-cohort-name"
                       />
                     </FormControl>

@@ -13,10 +13,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { ObjectUploader, fileUrl, type UploadedFile } from "@/components/ObjectUploader";
-import type { Project, Deliverable, Artifact, RoadmapItem, AssignedRoadmap, RoadmapTemplate } from "@shared/schema";
+import type { Project, Deliverable, Artifact, RoadmapItem, AssignedRoadmap, RoadmapTemplate, Application, Cohort } from "@shared/schema";
 
 // Extended types for roadmap milestone tracking
 type RoadmapItemWithAssignment = RoadmapItem & {
@@ -95,8 +96,31 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     queryKey: ["/api/projects/my"],
   });
 
+  // Accepted applications decide which cohorts the project may join
+  const { data: myApplications = [] } = useQuery<Application[]>({
+    queryKey: ["/api/applications/my"],
+  });
+  const { data: openCohorts = [] } = useQuery<Cohort[]>({
+    queryKey: ["/api/cohorts"],
+  });
+  const acceptedCohortIds = Array.from(new Set(
+    myApplications.filter((app) => app.status === "accepted").map((app) => app.cohortId),
+  ));
+  const cohortLabel = (id: string) => openCohorts.find((c) => c.id === id)?.name ?? "Your accepted cohort";
+  const [selectedCohortId, setSelectedCohortId] = useState<string>("");
+
   // Fetch deliverables for current project
   const currentProject = projects[0] || null;
+
+  // Default the cohort picker to the project's cohort, or the only accepted cohort
+  useEffect(() => {
+    if (currentProject?.cohortId) {
+      setSelectedCohortId(currentProject.cohortId);
+    } else if (acceptedCohortIds.length === 1) {
+      setSelectedCohortId(acceptedCohortIds[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject?.cohortId, acceptedCohortIds.join(",")]);
   const { data: deliverables = [] } = useQuery<Deliverable[]>({
     queryKey: ["/api/projects", currentProject?.id, "deliverables"],
     enabled: !!currentProject?.id,
@@ -171,7 +195,10 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   // Create new project mutation
   const createProject = useMutation({
     mutationFn: async (data: ProjectFormData) => {
-      const response = await apiRequest("POST", "/api/projects", data);
+      const response = await apiRequest("POST", "/api/projects", {
+        ...data,
+        ...(selectedCohortId ? { cohortId: selectedCohortId } : {}),
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -180,6 +207,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         description: "Your project has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/projects/my"] });
+      // Joining a cohort can auto-assign the cohort's default roadmap
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsEditing(false);
     },
     onError: (error) => {
@@ -196,7 +225,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       }
       toast({
         title: "Error",
-        description: "Failed to create project. Please try again.",
+        description: getApiErrorMessage(error, "Failed to create project. Please try again."),
         variant: "destructive",
       });
     }
@@ -206,7 +235,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const updateProject = useMutation({
     mutationFn: async (data: ProjectFormData) => {
       if (!currentProject?.id) throw new Error("No project to update");
-      const response = await apiRequest("PUT", `/api/projects/${currentProject.id}`, data);
+      const cohortChanged = !!selectedCohortId && selectedCohortId !== currentProject.cohortId;
+      const response = await apiRequest("PUT", `/api/projects/${currentProject.id}`, {
+        ...data,
+        ...(cohortChanged ? { cohortId: selectedCohortId } : {}),
+      });
       return response.json();
     },
     onSuccess: () => {
@@ -215,6 +248,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         description: "Your project has been updated successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/projects/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsEditing(false);
     },
     onError: (error) => {
@@ -231,7 +265,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       }
       toast({
         title: "Error",
-        description: "Failed to update project. Please try again.",
+        description: getApiErrorMessage(error, "Failed to update project. Please try again."),
         variant: "destructive",
       });
     }
@@ -562,6 +596,25 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   />
                 </div>
 
+                {acceptedCohortIds.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Cohort</label>
+                    <Select value={selectedCohortId} onValueChange={setSelectedCohortId}>
+                      <SelectTrigger className="bg-secondary border-border" data-testid="select-project-cohort">
+                        <SelectValue placeholder="Pick the cohort this project belongs to" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {acceptedCohortIds.map((id) => (
+                          <SelectItem key={id} value={id}>{cohortLabel(id)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Your cohort's roadmap is assigned to the project automatically.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex space-x-4">
                   <Button 
                     type="submit" 
@@ -773,9 +826,6 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                       </p>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline" data-testid={`button-view-deliverable-${deliverable.id}`}>
-                    View Details
-                  </Button>
                 </div>
               ))}
             </div>

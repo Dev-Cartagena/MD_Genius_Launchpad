@@ -39,15 +39,7 @@ import {
   Phone
 } from "lucide-react";
 
-// Extended investor type for UI compatibility
-type ExtendedInvestor = Investor & {
-  // Optional UI fields for compatibility with mock data
-  description?: string;
-  portfolioSize?: number;
-  notableInvestments?: string[];
-  isAvailable?: boolean;
-  nextAvailable?: string;
-};
+type ExtendedInvestor = Investor;
 
 // Session booking form schema
 const investorSessionBookingSchema = z.object({
@@ -309,6 +301,8 @@ export default function Investors() {
 
   // Determine if user is investor vs participant/other
   const isInvestor = user?.role === "investor";
+  // Only participants can book investor sessions (the server rejects other roles)
+  const canBookSessions = user?.role === "participant";
 
   // Fetch startup projects for directory
   const { data: projects = [], isLoading: projectsLoading } = useQuery<any[]>({
@@ -321,13 +315,9 @@ export default function Investors() {
     enabled: !isInvestor,
   });
 
-  // Use only real project data from API
-
-  // Use only real investor data from API
-
-  // Use only real data from APIs
   const displayStartups = projects;
-  const displayInvestors = investors;
+  // The directory only lists investors that are currently active
+  const displayInvestors = investors.filter((investor: any) => investor?.isActive !== false);
 
   // Request meeting mutation
   const requestMeeting = useMutation({
@@ -359,7 +349,7 @@ export default function Investors() {
       }
       toast({
         title: "Error",
-        description: "Failed to request meeting. Please try again.",
+        description: getApiErrorMessage(error, "Failed to request meeting. Please try again."),
         variant: "destructive",
       });
     }
@@ -549,15 +539,6 @@ export default function Investors() {
                       <div className="flex items-center justify-between pt-4 border-t border-border">
                         <div />
                         <div className="flex space-x-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            data-testid={`button-view-details-${startup.id}`}
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            View
-                          </Button>
-                          
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button 
@@ -609,9 +590,11 @@ export default function Investors() {
                       <CardTitle className="text-lg" data-testid={`investor-name-${investor.id}`}>
                         {investor.organization}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground" data-testid={`investor-description-${investor.id}`}>
-                        {investor.description}
-                      </p>
+                      {investor.contactEmail && (
+                        <p className="text-sm text-muted-foreground" data-testid={`investor-description-${investor.id}`}>
+                          {investor.contactEmail}
+                        </p>
+                      )}
                     </CardHeader>
                     
                     <CardContent>
@@ -631,25 +614,29 @@ export default function Investors() {
                           <div>
                             <span className="text-muted-foreground">Check Size:</span>
                             <p className="font-medium" data-testid={`investor-check-size-${investor.id}`}>
-                              {investor.checkSize}
+                              {investor.checkSize || "Not specified"}
                             </p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Portfolio:</span>
-                            <p className="font-medium">{investor.portfolioSize} companies</p>
+                            <span className="text-muted-foreground">Geography:</span>
+                            <p className="font-medium">
+                              {(investor.geography || []).length > 0 ? investor.geography.join(", ") : "Not specified"}
+                            </p>
                           </div>
                         </div>
                         
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Notable Investments</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {(investor.notableInvestments || []).map((investment: string, index: number) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {investment}
-                              </Badge>
-                            ))}
+                        {(investor.stages || []).length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-2">Stages</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {investor.stages.map((stage: string, index: number) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {stage}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
                         
                         <div className="flex space-x-2 pt-4 border-t border-border">
                           <Button 
@@ -662,14 +649,16 @@ export default function Investors() {
                             <Mail className="w-3 h-3 mr-1" />
                             Contact
                           </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => setSelectedInvestorForBooking(investor)}
-                            data-testid={`button-book-session-${investor.id}`}
-                          >
-                            <Calendar className="w-3 h-3 mr-1" />
-                            Book Session
-                          </Button>
+                          {canBookSessions && (
+                            <Button 
+                              size="sm"
+                              onClick={() => setSelectedInvestorForBooking(investor)}
+                              data-testid={`button-book-session-${investor.id}`}
+                            >
+                              <Calendar className="w-3 h-3 mr-1" />
+                              Book Session
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -695,106 +684,17 @@ export default function Investors() {
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
-            {/* Demo Days and Events */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Calendar className="w-5 h-5" />
-                    <span>Upcoming Demo Days</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Card className="bg-primary/10 border-primary/20">
-                      <CardContent className="p-4">
-                        <h4 className="font-semibold mb-2" data-testid="demo-day-title">
-                          Q1 2025 Demo Day
-                        </h4>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          12 startups presenting their AI innovations to top investors
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-primary font-medium">
-                            March 15, 2025 • 2:00 PM PST
-                          </span>
-                          <Button size="sm" data-testid="button-register-demo-day">
-                            Register
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card className="bg-accent/10 border-accent/20">
-                      <CardContent className="p-4">
-                        <h4 className="font-semibold mb-2">
-                          AI Startup Showcase
-                        </h4>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Monthly networking event with emerging AI startups
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-accent font-medium">
-                            February 20, 2025 • 6:00 PM PST
-                          </span>
-                          <Button size="sm" variant="outline" data-testid="button-register-showcase">
-                            RSVP
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Star className="w-5 h-5" />
-                    <span>Past Success Stories</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center text-white font-bold">
-                        AI
-                      </div>
-                      <div>
-                        <p className="font-medium">MedAI Diagnostics</p>
-                        <p className="text-sm text-muted-foreground">
-                          Raised $5M Series A • Sequoia Capital
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-accent to-green-400 rounded-lg flex items-center justify-center text-white font-bold">
-                        AG
-                      </div>
-                      <div>
-                        <p className="font-medium">AgriOptimize</p>
-                        <p className="text-sm text-muted-foreground">
-                          Raised $3M Seed • Andreessen Horowitz
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-blue-400 rounded-lg flex items-center justify-center text-white font-bold">
-                        FT
-                      </div>
-                      <div>
-                        <p className="font-medium">FinTech AutoML</p>
-                        <p className="text-sm text-muted-foreground">
-                          Raised $2M Pre-Seed • Y Combinator
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2" data-testid="events-empty-title">
+                  No events scheduled yet
+                </h3>
+                <p className="text-muted-foreground">
+                  Demo days and investor events will be listed here once the program team announces them.
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import ApplicationForm from "@/components/Application/ApplicationForm";
 import type { Application as ApplicationRecord, Cohort } from "@shared/schema";
+import { formatCohortDate } from "@/lib/dates";
 import { 
   CheckCircle, 
   Clock, 
@@ -14,7 +15,8 @@ import {
   FileText,
   Calendar,
   Users,
-  ArrowRight
+  ArrowRight,
+  LogIn
 } from "lucide-react";
 
 const statusConfig = {
@@ -33,9 +35,10 @@ export default function Application() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  // Fetch user's applications
+  // Fetch user's applications (only when signed in; the endpoint requires a session)
   const { data: applications = [], isLoading } = useQuery<ApplicationRecord[]>({
     queryKey: ["/api/applications/my"],
+    enabled: !!user,
   });
 
   // Fetch available cohorts for new applications
@@ -139,13 +142,10 @@ export default function Application() {
                 {currentApplication.status === 'offer' && (
                   <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-6">
                     <h3 className="font-semibold mb-2 text-green-400">Offer Extended!</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Congratulations! You've been accepted to MD Genius AI Launchpad.
+                    <p className="text-sm text-muted-foreground">
+                      Congratulations! You've been offered a place in MD Genius AI Launchpad.
+                      Our team will contact you by email to confirm your spot.
                     </p>
-                    <Button className="bg-gradient-to-r from-primary to-accent" data-testid="button-accept-offer">
-                      Accept Offer
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
                   </div>
                 )}
 
@@ -241,12 +241,9 @@ export default function Application() {
           <Card className="glass-card">
             <CardContent className="p-6 text-center">
               <h3 className="font-semibold mb-2">Questions?</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                If you have any questions about your application status, feel free to contact us.
+              <p className="text-sm text-muted-foreground">
+                If you have any questions about your application status, reply to any email from our admissions team.
               </p>
-              <Button variant="outline" data-testid="button-contact-support">
-                Contact Support
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -324,7 +321,7 @@ export default function Application() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {cohorts.slice(0, 2).map((cohort: any) => (
+                {cohorts.slice(0, 2).map((cohort: Cohort) => (
                   <Card key={cohort.id} className="bg-secondary/30">
                     <CardContent className="p-4">
                       <h3 className="font-semibold mb-2" data-testid={`cohort-name-${cohort.id}`}>{cohort.name}</h3>
@@ -333,7 +330,7 @@ export default function Application() {
                       </p>
                       <div className="flex items-center justify-between text-sm">
                         <span data-testid={`cohort-start-date-${cohort.id}`}>
-                          Starts: {new Date(cohort.startDate).toLocaleDateString()}
+                          Starts: {formatCohortDate(cohort.startDate)}
                         </span>
                         <Badge variant="outline" data-testid={`cohort-capacity-${cohort.id}`}>
                           {cohort.capacity} spots
@@ -347,8 +344,26 @@ export default function Application() {
           </Card>
         )}
 
-        {/* Application Form */}
-        <ApplicationForm onComplete={() => navigate('/dashboard?submitted=true')} />
+        {/* Application Form (requires an account so answers can be saved) */}
+        {user ? (
+          <ApplicationForm onComplete={() => navigate('/dashboard?submitted=true')} />
+        ) : (
+          <Card className="glass-card">
+            <CardContent className="p-8 text-center space-y-4">
+              <h2 className="text-2xl font-bold">Create an account to apply</h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                Applications are saved to your account, so you can come back to a draft and follow its
+                status after you submit. Sign in, or create a free account, then return here to fill in the form.
+              </p>
+              <Button asChild className="bg-gradient-to-r from-primary to-accent" data-testid="button-sign-in-to-apply">
+                <Link href="/login?next=/apply">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign in or create an account to apply
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
