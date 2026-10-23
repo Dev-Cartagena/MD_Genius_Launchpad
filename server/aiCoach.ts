@@ -88,6 +88,13 @@ const PROJECT_ANALYSIS_SCHEMA = {
 } as const;
 
 /** Thrown when Claude declines a request even after the fallback model. */
+/** How the coach should write, by interface language. Field names in JSON output always stay in English. */
+export function languageInstruction(locale: string | null | undefined): string {
+  return locale === "es"
+    ? "Write every reply in neutral Latin American Spanish. Address the founder as tú: warm, respectful and professional, for young entrepreneurs. Keep common startup terms such as startup, pitch, MVP and demo day. Use no exclamation marks."
+    : "Write every reply in English.";
+}
+
 export class AiRefusalError extends Error {
   constructor() {
     super("The AI Coach can't help with that request.");
@@ -260,7 +267,7 @@ ${this.knowledgeBase[mode].content}
 Templates available to participants: ${this.knowledgeBase[mode].templates.join(", ")}.
 
 When advice touches legal, financial or medical decisions, recommend confirming with a qualified human expert. Encourage responsible, ethical AI development.
-Reply in ${locale === "es" ? "Spanish" : "English"}.`;
+${languageInstruction(locale)}`;
   }
 
   async analyzeProject(projectData: {
@@ -274,7 +281,7 @@ Reply in ${locale === "es" ? "Spanish" : "English"}.`;
     dataNeeds: string | null;
     risks: string[] | null;
     ethics: string | null;
-  }): Promise<ProjectAnalysis> {
+  }, locale: string = "en"): Promise<ProjectAnalysis> {
     const project = {
       name: projectData.name,
       stage: projectData.stage,
@@ -290,7 +297,7 @@ Reply in ${locale === "es" ? "Spanish" : "English"}.`;
     try {
       return await askForJson<ProjectAnalysis>({
         system:
-          "You review AI startup projects in the MD Genius 8-week accelerator. Evaluate technical feasibility, market opportunity, team readiness, AI ethics and business model. Be candid and specific.",
+          `You review AI startup projects in the MD Genius 8-week accelerator. Evaluate technical feasibility, market opportunity, team readiness, AI ethics and business model. Be candid and specific.\n${languageInstruction(locale)}`,
         messages: [
           {
             role: "user",
@@ -304,8 +311,8 @@ Reply in ${locale === "es" ? "Spanish" : "English"}.`;
       console.error("Project analysis error:", error);
       return {
         strengths: [],
-        improvements: ["Unable to analyze project at this time"],
-        nextSteps: ["Try again later or consult with a mentor"],
+        improvements: [locale === "es" ? "No pudimos analizar el proyecto en este momento." : "Unable to analyze project at this time"],
+        nextSteps: [locale === "es" ? "Inténtalo más tarde o consulta con un mentor." : "Try again later or consult with a mentor"],
         readinessScore: 0,
       };
     }

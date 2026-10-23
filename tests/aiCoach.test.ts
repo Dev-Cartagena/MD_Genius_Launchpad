@@ -101,3 +101,32 @@ describe("AI Coach on Claude", () => {
     expect(create.mock.calls[0][0].output_config.effort).toBe("medium");
   });
 });
+
+describe("AI Coach language", () => {
+  const okReply = {
+    stop_reason: "end_turn",
+    content: [{ type: "text", text: JSON.stringify({ message: "Hola", sources: [], confidence: 0.8, suggestedActions: [] }) }],
+  };
+
+  it("asks for neutral Latin American Spanish with tú when the user's language is Spanish", async () => {
+    create.mockResolvedValue(okReply);
+    await aiCoachService.generateResponse([{ role: "user", content: "¿Cómo valido mi idea?" }], "ideation", "participant", "es");
+    const system = create.mock.calls[0][0].system as string;
+    expect(system).toContain("neutral Latin American Spanish");
+    expect(system).toContain("tú");
+  });
+
+  it("asks for English otherwise, and analyzes projects in the user's language", async () => {
+    create.mockResolvedValue(okReply);
+    await aiCoachService.generateResponse([{ role: "user", content: "Hi" }], "ideation", "participant", "en");
+    expect(create.mock.calls[0][0].system).toContain("Write every reply in English.");
+
+    create.mockResolvedValue({
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ strengths: [], improvements: [], nextSteps: [], readinessScore: 10 }) }],
+    });
+    const project = { name: "X", stage: null, summary: null, problem: null, solution: null, market: null, aiComponents: null, dataNeeds: null, risks: null, ethics: null };
+    await aiCoachService.analyzeProject(project, "es");
+    expect(create.mock.calls[1][0].system).toContain("neutral Latin American Spanish");
+  });
+});
