@@ -2,16 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/brand/Logo";
 import { 
   Home, 
   BookOpen, 
   Lightbulb, 
-  Calendar, 
   Users, 
   TrendingUp, 
-  Folder, 
-  Rocket,
   Settings,
   Bot,
   Map,
@@ -59,54 +56,46 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
   const renderContent = (isMobile: boolean) => (
     <>
         {/* Logo Section */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center animate-glow">
-              <Rocket className="text-white text-lg" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gradient" data-testid="app-title">MD Genius</h1>
-              <p className="text-xs text-muted-foreground">AI Launchpad</p>
-            </div>
-          </div>
+        <div className="px-6 pt-6 pb-5">
+          <Link href="/dashboard" aria-label="MD Genius Launchpad home" data-testid="app-title">
+            <Logo layout="compact" className="h-7" />
+          </Link>
         </div>
 
         {/* User Profile */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center text-white font-semibold">
-              {user?.firstName?.[0] || "U"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" data-testid="text-user-name">
-                {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || "User"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate capitalize">
-                {user?.role?.replace('_', ' ') || "Participant"}
-              </p>
-              <div className="flex items-center mt-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                <span className="text-xs text-green-400">Active</span>
-              </div>
-            </div>
+        <div className="mx-4 mb-2 flex items-center gap-3 rounded-lg border border-border px-3 py-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-medium text-primary-foreground">
+            {(user?.firstName?.[0] || user?.email?.[0] || "U").toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-sm font-medium" data-testid="text-user-name">
+              {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || "User"}
+            </p>
+            <p className="truncate text-xs capitalize text-muted-foreground">
+              {user?.role?.replace('_', ' ') || "Participant"}
+            </p>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 sidebar-nav">
+        <nav className="flex-1 space-y-0.5 px-4 py-3" aria-label="Main">
           {visibleItems.map((item) => {
             const Icon = item.icon;
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
-                  isActive(item.href) ? "active" : ""
+                aria-current={active ? "page" : undefined}
+                className={`relative flex items-center gap-3 rounded-md px-3 py-2 font-display text-sm transition-colors ${
+                  active
+                    ? "active bg-secondary font-medium text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-accent"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
                 onClick={isMobile ? closeMobile : undefined}
                 data-testid={`${isMobile ? 'mobile-' : ''}link-${item.label.toLowerCase().replace(/ /g, '-')}`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="h-[18px] w-[18px]" />
                 <span>{item.label}</span>
               </Link>
             );
@@ -114,18 +103,17 @@ export default function Sidebar({ mobileOpen = false, onMobileOpenChange }: Side
         </nav>
 
         {/* AI Coach Quick Access */}
-        <div className="p-4 border-t border-border">
+        <div className="border-t border-border p-4">
           <Button
             onClick={() => {
               if (isMobile) closeMobile();
               setShowAiChat(true);
             }}
-            className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-center space-x-2 hover:opacity-90 transition-opacity animate-glow"
+            className="w-full"
             data-testid={isMobile ? "button-ai-coach-mobile" : "button-ai-coach"}
           >
-            <Bot className="w-4 h-4" />
+            <Bot className="h-4 w-4" />
             <span>AI Coach</span>
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow"></div>
           </Button>
         </div>
     </>

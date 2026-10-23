@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "./Sidebar";
+import { NodeRule } from "@/components/brand/NodeRule";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { 
@@ -39,8 +40,8 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
       
       <main className="flex-1 min-w-0 overflow-auto">
         {/* Header */}
-        <header className="bg-card border-b border-border px-4 py-3 md:px-6 md:py-4">
-          <div className="flex items-center justify-between gap-2">
+        <header className="bg-background px-4 pt-4 md:px-8 md:pt-6">
+          <div className="flex items-center justify-between gap-2 pb-3 md:pb-4">
             <div className="flex items-center gap-2 min-w-0">
               <Button
                 variant="ghost"
@@ -54,9 +55,9 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                 <Menu className="h-5 w-5" />
               </Button>
               <div className="min-w-0">
-                <h2 className="text-xl md:text-2xl font-bold text-gradient truncate" data-testid="page-title">{title}</h2>
+                <h1 className="truncate font-display text-2xl font-medium text-foreground md:text-[32px]" data-testid="page-title">{title}</h1>
                 {subtitle && (
-                  <p className="text-sm md:text-base text-muted-foreground truncate" data-testid="page-subtitle">{subtitle}</p>
+                  <p className="mt-1 truncate font-display text-sm text-muted-foreground md:text-base" data-testid="page-subtitle">{subtitle}</p>
                 )}
               </div>
             </div>
@@ -67,7 +68,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="flex items-center space-x-2 hover:bg-secondary px-2 md:px-3 py-2"
+                    className="flex items-center gap-2 px-2 py-2 font-display text-sm md:px-3"
                     aria-label="Open profile menu"
                     data-testid="button-profile-menu"
                   >
@@ -90,7 +91,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                         {user?.email}
                       </p>
                       {user?.role && (
-                        <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground capitalize">
+                        <span className="inline-flex w-fit items-center rounded-md bg-secondary px-2 py-0.5 font-display text-xs font-medium capitalize text-secondary-foreground">
                           {user.role.replace('_', ' ')}
                         </span>
                       )}
@@ -105,10 +106,11 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               </DropdownMenu>
             </div>
           </div>
+          <NodeRule />
         </header>
 
         {/* Main Content */}
-        <div className="p-4 md:p-6">
+        <div className="p-4 md:px-8 md:py-6">
           {children}
         </div>
       </main>
