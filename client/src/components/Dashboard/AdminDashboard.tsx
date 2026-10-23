@@ -231,7 +231,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         <MistPanel>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="font-display text-sm text-muted-foreground">Latest submissions</p>
+              <p className="font-display text-sm text-foreground/80">Latest submissions</p>
               <h2 className="font-display text-xl font-medium">Recent applications</h2>
             </div>
             <Link href="/admin">

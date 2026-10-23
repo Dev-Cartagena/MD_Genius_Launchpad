@@ -707,7 +707,7 @@ export default function CurriculumView() {
           </div>
 
           {weekModules.length === 0 ? (
-            <DropZone className="p-8">
+            <DropZone className="bg-card p-8">
               <BookOpen className="w-8 h-8 text-primary" />
               <p className="text-muted-foreground">No modules for this week yet.</p>
             </DropZone>

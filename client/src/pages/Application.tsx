@@ -161,7 +161,7 @@ export default function Application() {
                 {currentApplication.status === 'offer' && (
                   <MistPanel className="p-5">
                     <h3 className="text-base font-medium mb-2">You have an offer</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-foreground/80">
                       Congratulations. You have been offered a place in MD Genius Launchpad.
                       Our team will contact you by email to confirm your place.
                     </p>
@@ -171,7 +171,7 @@ export default function Application() {
                 {currentApplication.status === 'accepted' && (
                   <MistPanel className="p-5">
                     <h3 className="text-base font-medium mb-2">Welcome to the cohort</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-sm text-foreground/80 mb-4">
                       You are now part of MD Genius Launchpad. Open your participant dashboard to get started.
                     </p>
                     <Button

@@ -489,9 +489,9 @@ export default function Investors() {
                 {filteredStartups.map((startup: any) => (
                   <Card key={startup.id} className="transition-colors hover:border-accent/40">
                     <CardHeader>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-11 w-11 rounded-lg">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
+                          <Avatar className="h-11 w-11 shrink-0 rounded-lg">
                             <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-display">
                               {(startup.name || "S").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
                             </AvatarFallback>
@@ -502,7 +502,7 @@ export default function Investors() {
                             </CardTitle>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
+                        <div className="flex flex-wrap items-center gap-1">
                           {startup.aiComponents?.[0] && (
                             <Badge variant="secondary" data-testid={`startup-sector-${startup.id}`}>
                               {startup.aiComponents[0]}

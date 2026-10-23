@@ -735,7 +735,7 @@ export default function AdminRoadmapManager() {
                     <Users className="w-3 h-3 mr-1" />
                     {cohortName(template.cohortId)}
                   </div>
-                  <div className="flex flex-wrap items-center justify-end gap-1 mt-4 pt-3 border-t">
+                  <div className="flex flex-wrap items-center justify-end mt-4 pt-3 border-t">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -745,7 +745,7 @@ export default function AdminRoadmapManager() {
                       }}
                       data-testid={`button-select-template-${template.id}`}
                     >
-                      <Eye className="w-3 h-3 mr-1" />
+                      <Eye className="w-3 h-3" />
                       View
                     </Button>
                     <Button
@@ -757,7 +757,7 @@ export default function AdminRoadmapManager() {
                       }}
                       data-testid={`button-edit-template-${template.id}`}
                     >
-                      <Edit className="w-3 h-3 mr-1" />
+                      <Edit className="w-3 h-3" />
                       Edit
                     </Button>
                     {inactive ? (
@@ -771,7 +771,7 @@ export default function AdminRoadmapManager() {
                         disabled={updateTemplateMutation.isPending}
                         data-testid={`button-restore-template-${template.id}`}
                       >
-                        <RotateCcw className="w-3 h-3 mr-1" />
+                        <RotateCcw className="w-3 h-3" />
                         Restore
                       </Button>
                     ) : (
@@ -785,7 +785,7 @@ export default function AdminRoadmapManager() {
                           }}
                           data-testid={`button-assign-template-${template.id}`}
                         >
-                          <Send className="w-3 h-3 mr-1" />
+                          <Send className="w-3 h-3" />
                           Assign
                         </Button>
                         <Button

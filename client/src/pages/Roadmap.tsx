@@ -403,11 +403,11 @@ export default function Roadmap() {
                   {state === "current" && (
                     <span className="font-display text-xs text-accent">Current week</span>
                   )}
-                  <span className="ml-auto font-display text-sm text-muted-foreground">
+                  <span className={cn("ml-auto font-display text-sm", state === "current" ? "text-foreground/80" : "text-muted-foreground")}>
                     {doneCount}/{weekItems.length} done
                   </span>
                 </div>
-                <div className="divide-y divide-border">
+                <div className={cn("divide-y divide-border", state === "current" && "rounded-b-xl bg-card")}>
                   {weekItems
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((item) => (

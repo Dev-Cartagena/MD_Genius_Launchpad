@@ -1978,13 +1978,7 @@ export default function Admin() {
 
           <TabsContent value="curriculum" className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Curriculum</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Manage the modules, lessons and assessments for each cohort.
-                </p>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <AdminCurriculumManager
                   selectedCohort={curriculumCohort}
                   onSelectedCohortChange={setCurriculumCohort}
@@ -2208,13 +2202,7 @@ export default function Admin() {
 
           <TabsContent value="investors" className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Investors</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Manage investor profiles, sessions and cohort participation.
-                </p>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <AdminInvestorManager />
               </CardContent>
             </Card>

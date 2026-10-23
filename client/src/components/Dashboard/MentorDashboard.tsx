@@ -172,7 +172,7 @@ export default function MentorDashboard() {
         <MistPanel>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="font-display text-sm text-muted-foreground">Next 7 days</p>
+              <p className="font-display text-sm text-foreground/80">Next 7 days</p>
               <h2 className="font-display text-xl font-medium">Upcoming sessions</h2>
             </div>
             <Link href="/mentor-profile">
@@ -313,7 +313,7 @@ export default function MentorDashboard() {
                           {mentee.name}
                         </p>
                         <Badge variant="outline" data-testid={`mentee-sessions-${index}`}>
-                          {mentee.sessionCount} sessions
+                          {mentee.sessionCount} {mentee.sessionCount === 1 ? 'session' : 'sessions'}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mb-3">

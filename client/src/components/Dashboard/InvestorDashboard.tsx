@@ -117,7 +117,7 @@ export default function InvestorDashboard() {
       {/* Scheduled Sessions (next step) */}
       <MistPanel>
         <div className="mb-5">
-          <p className="font-display text-sm text-muted-foreground">Your next meetings</p>
+          <p className="font-display text-sm text-foreground/80">Your next meetings</p>
           <h2 className="font-display text-xl font-medium">Scheduled sessions</h2>
         </div>
 
@@ -156,7 +156,7 @@ export default function InvestorDashboard() {
                   <div className="space-y-3">
                     <div className="text-sm">
                       <span className="font-display text-muted-foreground">Participants</span>
-                      <p className="font-medium">{session.participantIds?.length || 0} participant(s)</p>
+                      <p className="font-medium">{session.participantIds?.length || 0} {(session.participantIds?.length || 0) === 1 ? 'participant' : 'participants'}</p>
                     </div>
 
                     {session.agenda && (
@@ -270,8 +270,8 @@ export default function InvestorDashboard() {
           {featuredStartups.map((startup) => (
             <Card key={startup.id} className="flex flex-col transition-colors hover:border-accent/50">
               <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 basis-48 items-center gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-base font-medium text-primary-foreground" aria-hidden="true">
                       {startup.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
@@ -286,7 +286,7 @@ export default function InvestorDashboard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     {startup.sector && (
                       <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
                         {startup.sector}

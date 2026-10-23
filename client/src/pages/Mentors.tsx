@@ -412,11 +412,11 @@ export default function Mentors() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
                       <span className="flex items-center space-x-1">
                         <MessageCircle className="w-3 h-3" />
-                        <span>{mentor.totalSessions ?? 0} sessions</span>
+                        <span>{mentor.totalSessions ?? 0} {(mentor.totalSessions ?? 0) === 1 ? 'session' : 'sessions'}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <Clock className="w-3 h-3" />
-                        <span>Responds {mentor.responseTime ?? 'varies'}</span>
+                        <span>{mentor.responseTime ? `Responds ${mentor.responseTime}` : 'Response time varies'}</span>
                       </span>
                     </div>
                     
