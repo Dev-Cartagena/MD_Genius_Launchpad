@@ -1,0 +1,133 @@
+{
+  "brand": {
+    "name": "MD Genius Launchpad",
+    "short": "Launchpad",
+    "endorsement": "an MDGeniusAI program"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "curriculum": "Curriculum",
+    "roadmap": "Roadmap",
+    "project": "My project",
+    "mentors": "Mentors",
+    "mentorProfile": "My mentor profile",
+    "investors": "Investors",
+    "admin": "Admin panel",
+    "aiCoach": "AI Coach",
+    "main": "Main",
+    "navigation": "Navigation",
+    "navigationDescription": "Main navigation menu",
+    "openNavigation": "Open navigation menu",
+    "openProfileMenu": "Open profile menu",
+    "homeLink": "MD Genius Launchpad home"
+  },
+  "account": {
+    "user": "User",
+    "logOut": "Log out"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "es": "Español",
+    "enShort": "EN",
+    "esShort": "ES",
+    "switchTo": "Switch language to {{language}}"
+  },
+  "actions": {
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "open": "Open",
+    "back": "Back",
+    "next": "Next",
+    "continue": "Continue",
+    "submit": "Submit",
+    "upload": "Upload",
+    "replace": "Replace",
+    "viewAll": "View all",
+    "tryAgain": "Try again",
+    "search": "Search"
+  },
+  "status": {
+    "loading": "Loading",
+    "saved": "Saved",
+    "error": "Something went wrong",
+    "tryAgainLater": "Please try again in a moment."
+  },
+  "roles": {
+    "public_visitor": "Visitor",
+    "applicant": "Applicant",
+    "participant": "Participant",
+    "mentor": "Mentor",
+    "investor": "Investor",
+    "administrator": "Administrator"
+  },
+  "assignmentStatus": {
+    "not_started": "Not started",
+    "in_progress": "In progress",
+    "completed": "Completed",
+    "blocked": "Blocked",
+    "waived": "Waived"
+  },
+  "applicationStatus": {
+    "draft": "Draft",
+    "submitted": "Submitted",
+    "under_review": "Under review",
+    "shortlisted": "Shortlisted",
+    "interview": "Interview",
+    "offer": "Offer",
+    "waitlist": "Waitlist",
+    "rejected": "Not selected",
+    "accepted": "Accepted"
+  },
+  "projectStage": {
+    "ideation": "Ideation",
+    "validation": "Market validation",
+    "mvp_build": "MVP build",
+    "pilot_traction": "Pilot and traction",
+    "pitch_ready": "Pitch ready"
+  },
+  "itemType": {
+    "task": "Task",
+    "assignment": "Assignment",
+    "deliverable": "Deliverable",
+    "milestone": "Milestone",
+    "checkin": "Check-in",
+    "learning": "Learning"
+  },
+  "interestLevel": {
+    "viewed": "Viewed",
+    "requested_info": "Requested info",
+    "meeting_scheduled": "Meeting scheduled",
+    "diligence": "Diligence",
+    "soft_commit": "Soft commit",
+    "commit": "Commit"
+  },
+  "cohortState": {
+    "running": "Week {{week}} of {{total}}",
+    "upcoming": "Upcoming",
+    "finished": "Finished"
+  },
+  "week": "Week {{week}}",
+  "weekOf": "Week {{week}} of {{total}}",
+  "dateRange": "{{start}} to {{end}}",
+  "notFound": {
+    "code": "Error 404",
+    "title": "Page not found",
+    "body": "The page you are looking for does not exist or has moved.",
+    "home": "Go to home page"
+  },
+  "content": {
+    "language": "Content language",
+    "english": "English",
+    "spanish": "Español",
+    "required": "English is required.",
+    "optional": "Spanish is optional. Empty fields show the English text.",
+    "missing": "No Spanish yet"
+  }
+}

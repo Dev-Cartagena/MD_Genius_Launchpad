@@ -1,20 +1,14 @@
+import i18n from "@/i18n";
+
 export type AssignmentStatus = "not_started" | "in_progress" | "completed" | "blocked" | "waived";
 
-export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
-  not_started: "Not started",
-  in_progress: "In progress",
-  completed: "Completed",
-  blocked: "Blocked",
-  waived: "Waived",
-};
+const ASSIGNMENT_STATUSES: AssignmentStatus[] = ["not_started", "in_progress", "completed", "blocked", "waived"];
 
-/** Human label for an assignment status; never shows the raw value. */
+/** Human label for an assignment status in the current language; never shows the raw value. */
 export function assignmentStatusLabel(status?: string | null): string {
-  if (!status) return ASSIGNMENT_STATUS_LABELS.not_started;
-  return (
-    ASSIGNMENT_STATUS_LABELS[status as AssignmentStatus] ??
-    status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
-  );
+  const key = (status ?? "not_started") as AssignmentStatus;
+  if (ASSIGNMENT_STATUSES.includes(key)) return i18n.t(`assignmentStatus.${key}`);
+  return (status ?? "").replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 }
 
 /** Completed and waived items count as done. */

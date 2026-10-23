@@ -1,0 +1,80 @@
+{
+  "greeting": {
+    "morning": "Buenos días",
+    "afternoon": "Buenas tardes",
+    "evening": "Buenas noches",
+    "morningName": "Buenos días, {{name}}",
+    "afternoonName": "Buenas tardes, {{name}}",
+    "eveningName": "Buenas noches, {{name}}"
+  },
+  "lead": {
+    "public_visitor": "Launchpad es un programa de ocho semanas de MDGeniusAI para founders que construyen IA para la salud.",
+    "applicant": "Tu postulación está en curso. Termínala cuando quieras; la revisaremos con atención.",
+    "participant": "Así va tu startup en el programa esta semana.",
+    "mentor": "Tus mentoreados y tus próximas sesiones, en un solo lugar.",
+    "investor": "Las startups de la cohorte actual y tus próximas reuniones.",
+    "administrator": "Cómo está el programa hoy y qué necesita tu atención."
+  },
+  "openDashboard": "Abrir el panel",
+  "track": {
+    "application": "Tu postulación",
+    "program": "Programa",
+    "applicationStep": "Paso {{step}} de {{total}}: {{name}}",
+    "noCohortAdmin": "Todavía no hay una cohorte programada.",
+    "noCohort": "La próxima cohorte aún no se ha anunciado.",
+    "startsIn_one": "Empieza el {{date}}, en {{count}} día",
+    "startsIn_other": "Empieza el {{date}}, en {{count}} días",
+    "finished": "Terminó el {{date}}",
+    "running": "Semana {{week}} de {{total}}, termina el {{date}}"
+  },
+  "appSteps": {
+    "start": "inicio",
+    "submit": "envío",
+    "review": "revisión",
+    "decision": "decisión"
+  },
+  "facts": {
+    "applicationsToReview_one": "postulación por revisar",
+    "applicationsToReview_other": "postulaciones por revisar",
+    "participants_one": "participante",
+    "participants_other": "participantes",
+    "mentors_one": "mentor",
+    "mentors_other": "mentores",
+    "weekItemsDone": "actividades completadas esta semana",
+    "readiness": "nivel de preparación",
+    "mentees_one": "mentoreado",
+    "mentees_other": "mentoreados",
+    "upcomingSessions_one": "próxima sesión",
+    "upcomingSessions_other": "próximas sesiones",
+    "directory_one": "startup en el directorio",
+    "directory_other": "startups en el directorio",
+    "interests_one": "startup de interés",
+    "interests_other": "startups de interés",
+    "upcomingMeetings_one": "próxima reunión",
+    "upcomingMeetings_other": "próximas reuniones"
+  },
+  "actions": {
+    "heading": "Tus próximos pasos",
+    "open": "Abrir",
+    "reviewApplications": { "title": "Revisar postulaciones", "description": "Lee las postulaciones y actualiza su estado." },
+    "manageCohorts": { "title": "Gestionar cohortes", "description": "Crea una cohorte y define sus fechas." },
+    "programSetup": { "title": "Configurar el programa", "description": "Currículo, plantillas de hoja de ruta e inversionistas." },
+    "weekRoadmap": { "title": "Hoja de ruta de la semana", "description": "Las tareas y lecciones planeadas para esta semana." },
+    "curriculum": { "title": "Currículo", "description": "Lecciones, quizzes y recursos por semana." },
+    "project": { "title": "Mi proyecto", "description": "El perfil de tu startup, sus archivos y su etapa." },
+    "bookMentor": { "title": "Agendar un mentor", "description": "Encuentra un mentor y agenda una sesión." },
+    "sessions": { "title": "Sesiones", "description": "Tus sesiones de mentoría próximas y pasadas." },
+    "mentorProfile": { "title": "Perfil de mentor", "description": "Tu experiencia, industrias y disponibilidad." },
+    "mentorDirectory": { "title": "Directorio de mentores", "description": "Conoce a quienes también acompañan a esta cohorte." },
+    "browseStartups": { "title": "Explorar startups", "description": "Filtra la cohorte por sector y etapa." },
+    "meetings": { "title": "Reuniones", "description": "Sesiones y demo days a los que te invitaron." },
+    "apply": { "title": "Postúlate al programa", "description": "Cuéntanos sobre tu equipo, tu idea y el problema que resuelves." },
+    "continueApplication": { "title": "Continúa tu postulación", "description": "Retoma donde la dejaste. Tus respuestas están guardadas." }
+  },
+  "cohorts": {
+    "heading": "Cohortes",
+    "loading": "Cargando cohortes…",
+    "emptyTitle": "No hay cohortes abiertas en este momento.",
+    "emptyBody": "Las nuevas cohortes se anuncian aquí primero."
+  }
+}

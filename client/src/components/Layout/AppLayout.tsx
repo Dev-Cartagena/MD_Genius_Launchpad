@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "./Sidebar";
 import { NodeRule } from "@/components/brand/NodeRule";
@@ -23,6 +25,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title, subtitle }: AppLayoutProps) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -49,8 +52,8 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                 size="icon"
                 className="md:hidden shrink-0"
                 onClick={() => setMobileNavOpen(true)}
-                aria-label="Open navigation menu"
-                title="Open navigation menu"
+                aria-label={t("nav.openNavigation")}
+                title={t("nav.openNavigation")}
                 data-testid="button-mobile-menu"
               >
                 <Menu className="h-5 w-5" />
@@ -63,19 +66,20 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               </div>}
             </div>
             
-            <div className="flex items-center shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <LanguageSwitcher />
               {/* Profile Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     className="flex items-center gap-2 px-2 py-2 font-display text-sm md:px-3"
-                    aria-label="Open profile menu"
+                    aria-label={t("nav.openProfileMenu")}
                     data-testid="button-profile-menu"
                   >
                     <User className="h-4 w-4" />
                     <span className="hidden md:inline" data-testid="text-username">
-                      {user?.firstName || "User"}
+                      {user?.firstName || t("account.user")}
                     </span>
                     <ChevronDown className="h-3 w-3" />
                   </Button>
@@ -86,14 +90,14 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                       <p className="text-sm font-medium leading-none">
                         {user?.firstName && user?.lastName 
                           ? `${user.firstName} ${user.lastName}` 
-                          : user?.firstName || "User"}
+                          : user?.firstName || t("account.user")}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground break-all">
                         {user?.email}
                       </p>
                       {user?.role && (
                         <span className="inline-flex w-fit items-center rounded-md bg-secondary px-2 py-0.5 font-display text-xs font-medium capitalize text-secondary-foreground">
-                          {user.role.replace('_', ' ')}
+                          {t(`roles.${user.role}`)}
                         </span>
                       )}
                     </div>
@@ -101,7 +105,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                    <span>{t("account.logOut")}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

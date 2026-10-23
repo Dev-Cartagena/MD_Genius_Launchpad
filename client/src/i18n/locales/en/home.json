@@ -1,0 +1,80 @@
+{
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "morningName": "Good morning, {{name}}",
+    "afternoonName": "Good afternoon, {{name}}",
+    "eveningName": "Good evening, {{name}}"
+  },
+  "lead": {
+    "public_visitor": "Launchpad is an eight-week program from MDGeniusAI for founders building AI for healthcare.",
+    "applicant": "Your application is in progress. Finish it when you are ready, and we will review it carefully.",
+    "participant": "Here is where your startup stands in the program this week.",
+    "mentor": "Your mentees and upcoming sessions, in one place.",
+    "investor": "The startups in the current cohort and your upcoming meetings.",
+    "administrator": "The state of the program today, and what needs your attention."
+  },
+  "openDashboard": "Open dashboard",
+  "track": {
+    "application": "Your application",
+    "program": "Program",
+    "applicationStep": "Step {{step}} of {{total}}: {{name}}",
+    "noCohortAdmin": "No cohort is scheduled yet.",
+    "noCohort": "The next cohort has not been announced yet.",
+    "startsIn_one": "Starts {{date}}, in {{count}} day",
+    "startsIn_other": "Starts {{date}}, in {{count}} days",
+    "finished": "Finished {{date}}",
+    "running": "Week {{week}} of {{total}}, ends {{date}}"
+  },
+  "appSteps": {
+    "start": "start",
+    "submit": "submit",
+    "review": "review",
+    "decision": "decision"
+  },
+  "facts": {
+    "applicationsToReview_one": "application to review",
+    "applicationsToReview_other": "applications to review",
+    "participants_one": "participant",
+    "participants_other": "participants",
+    "mentors_one": "mentor",
+    "mentors_other": "mentors",
+    "weekItemsDone": "roadmap items done this week",
+    "readiness": "readiness score",
+    "mentees_one": "mentee",
+    "mentees_other": "mentees",
+    "upcomingSessions_one": "upcoming session",
+    "upcomingSessions_other": "upcoming sessions",
+    "directory_one": "startup in the directory",
+    "directory_other": "startups in the directory",
+    "interests_one": "startup of interest",
+    "interests_other": "startups of interest",
+    "upcomingMeetings_one": "upcoming meeting",
+    "upcomingMeetings_other": "upcoming meetings"
+  },
+  "actions": {
+    "heading": "Where to go next",
+    "open": "Open",
+    "reviewApplications": { "title": "Review applications", "description": "Read submissions and update their status." },
+    "manageCohorts": { "title": "Manage cohorts", "description": "Create a cohort and set its dates." },
+    "programSetup": { "title": "Program setup", "description": "Curriculum, roadmap templates and investors." },
+    "weekRoadmap": { "title": "This week's roadmap", "description": "The tasks and lessons planned for this week." },
+    "curriculum": { "title": "Curriculum", "description": "Lessons, quizzes and resources by week." },
+    "project": { "title": "My project", "description": "Your startup profile, files and stage." },
+    "bookMentor": { "title": "Book a mentor", "description": "Find a mentor and schedule a session." },
+    "sessions": { "title": "Sessions", "description": "Your upcoming and past mentoring sessions." },
+    "mentorProfile": { "title": "Mentor profile", "description": "Your expertise, industries and availability." },
+    "mentorDirectory": { "title": "Mentor directory", "description": "See who else is mentoring this cohort." },
+    "browseStartups": { "title": "Browse startups", "description": "Filter the cohort by sector and stage." },
+    "meetings": { "title": "Meetings", "description": "Sessions and demo days you are invited to." },
+    "apply": { "title": "Apply to the program", "description": "Tell us about your team, your idea and the problem you are solving." },
+    "continueApplication": { "title": "Continue your application", "description": "Pick up where you left off. Your answers are saved." }
+  },
+  "cohorts": {
+    "heading": "Cohorts",
+    "loading": "Loading cohorts…",
+    "emptyTitle": "No cohorts are open right now.",
+    "emptyBody": "New cohorts are announced here first."
+  }
+}

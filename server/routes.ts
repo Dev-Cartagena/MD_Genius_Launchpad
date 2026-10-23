@@ -34,8 +34,10 @@ import {
   applicationStatusEnum,
   investorInterestLevelEnum,
   userRoleEnum,
+  LOCALES,
   type User,
 } from "../shared/schema.js";
+import { publicQuizTranslations } from "./translations.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -47,6 +49,8 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
   firstName: z.string().trim().max(100).optional(),
   lastName: z.string().trim().max(100).optional(),
+  /** The language the visitor was using when they signed up. */
+  locale: z.enum(LOCALES).optional(),
 });
 
 const loginSchema = z.object({
@@ -177,7 +181,7 @@ export function registerRoutes(app: Express): void {
   // Email/Password Authentication Routes
   app.post('/api/auth/register', registerLimit, async (req, res) => {
     try {
-      const { email, password, firstName, lastName } = registerSchema.parse(req.body);
+      const { email, password, firstName, lastName, locale } = registerSchema.parse(req.body);
       
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -187,7 +191,7 @@ export function registerRoutes(app: Express): void {
       const passwordHash = await bcrypt.hash(password, 12);
       let user;
       try {
-        user = await storage.createLocalUser({ email, firstName, lastName, passwordHash });
+        user = await storage.createLocalUser({ email, firstName, lastName, passwordHash, locale });
       } catch (insertError: any) {
         // Lost a race with a concurrent sign-up for the same email.
         if (insertError?.code === "23505" || insertError?.cause?.code === "23505") {
@@ -324,6 +328,23 @@ export function registerRoutes(app: Express): void {
   // Existing Auth routes
   app.get('/api/auth/user', isAuthenticated, (req, res) => {
     res.json(currentUser(req));
+  });
+
+  // The signed-in user's interface and email language.
+  const localeSchema = z.object({ locale: z.enum(LOCALES) });
+  app.put('/api/auth/user/locale', isAuthenticated, async (req, res) => {
+    try {
+      const { locale } = localeSchema.parse(req.body);
+      const updated = await storage.updateUser(currentUser(req).id, { locale });
+      res.json({ locale: updated?.locale ?? locale });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error updating locale:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to update language" });
+    }
   });
 
   // Application routes
@@ -682,6 +703,8 @@ export function registerRoutes(app: Express): void {
     cohortId: z.string().min(1).nullable().optional(),
     isDefault: z.boolean().optional(),
     isActive: z.boolean().optional(),
+    // Shape is enforced by sanitizeTranslations in storage.
+    translations: z.record(z.unknown()).optional(),
   }).strict();
 
   app.put('/api/admin/roadmap/templates/:templateId', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
@@ -1307,6 +1330,7 @@ export function registerRoutes(app: Express): void {
         passThreshold: quiz.passThreshold,
         maxAttempts: quiz.maxAttempts,
         questions: questions.map((q) => ({ question: q.question, options: q.options })),
+        translations: publicQuizTranslations(quiz.translations),
       });
     } catch (error) {
       console.error("Error fetching quiz:", error);
@@ -1611,6 +1635,8 @@ export function registerRoutes(app: Express): void {
     firstName: z.string().trim().max(100).optional(),
     lastName: z.string().trim().max(100).optional(),
     role: z.enum(userRoleEnum.enumValues).default("public_visitor"),
+    /** Language for the invite email and the new account. */
+    locale: z.enum(LOCALES).optional(),
   });
 
   // Creates the account and emails a link to set a password.
