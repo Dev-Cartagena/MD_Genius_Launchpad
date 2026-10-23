@@ -20,7 +20,7 @@
     }
   },
   "stats": {
-    "pending": "Pendientes",
+    "pending": "Pendiente",
     "doneOf": "{{done}} de {{total}} listas"
   },
   "weeks": {
