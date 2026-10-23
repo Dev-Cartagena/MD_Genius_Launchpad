@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { intlLocale } from "@/i18n";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +20,8 @@ interface Message {
   content: string;
   timestamp: Date;
   sources?: string[];
+  /** The local greeting: its text is rendered from the catalog so it follows the UI language. */
+  welcome?: boolean;
 }
 
 interface ChatModalProps {
@@ -25,13 +29,16 @@ interface ChatModalProps {
   onClose: () => void;
 }
 
+// Labels and descriptions come from coach:modes.<id>
 const chatModes = [
-  { id: "process_guide", label: "Process guide", icon: Target, description: "Deadlines, steps, checklists" },
-  { id: "ideation", label: "Ideation", icon: Lightbulb, description: "Problem framing, solution ideas" },
-  { id: "technical", label: "Technical", icon: Code, description: "AI/ML fundamentals, implementation" },
-  { id: "gtm", label: "Go-to-market", icon: TrendingUp, description: "Customer discovery, messaging" },
-  { id: "pitch", label: "Pitch coach", icon: Mic, description: "Investor preparation, storytelling" },
-];
+  { id: "process_guide", icon: Target },
+  { id: "ideation", icon: Lightbulb },
+  { id: "technical", icon: Code },
+  { id: "gtm", icon: TrendingUp },
+  { id: "pitch", icon: Mic },
+] as const;
+
+type ChatModeId = (typeof chatModes)[number]["id"];
 
 // Server limits: user messages up to 4000 chars, at most 40 messages per request.
 // Send only the most recent part of the conversation; the full list stays in the UI.
@@ -47,9 +54,10 @@ function trimHistory(history: Message[]) {
 
 const createWelcomeMessage = (): Message => ({
   role: "assistant",
-  content: "Hello, I'm your AI Coach for MD Genius Launchpad. I can help you think through your venture at each step of the program. What would you like to focus on today?",
+  content: "",
   timestamp: new Date(),
-  sources: []
+  sources: [],
+  welcome: true,
 });
 
 export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
@@ -58,11 +66,12 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
   // Bumped when the chat is reset so late responses from a closed chat are ignored
   const chatSessionRef = useRef(0);
   const [inputValue, setInputValue] = useState("");
-  const [currentMode, setCurrentMode] = useState("process_guide");
+  const [currentMode, setCurrentMode] = useState<ChatModeId>("process_guide");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation(["coach", "common"]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -102,8 +111,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
       setIsTyping(false);
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Session expired",
-          description: "You have been signed out. Taking you to sign in.",
+          title: t("toast.sessionExpired.title"),
+          description: t("toast.sessionExpired.description"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -112,8 +121,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
         return;
       }
       toast({
-        title: "No response",
-        description: getApiErrorMessage(error, "The AI Coach could not respond. Please try again."),
+        title: t("toast.noResponse.title"),
+        description: getApiErrorMessage(error, t("toast.noResponse.description")),
         variant: "destructive",
       });
     }
@@ -147,7 +156,6 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
     }
   };
 
-  const currentModeInfo = chatModes.find(mode => mode.id === currentMode);
 
   const handleClose = () => {
     // Closing the coach ends the conversation; the next chat starts fresh
@@ -168,10 +176,10 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               <Logo layout="symbol" tone="reversed" className="h-6 shrink-0" />
               <div className="min-w-0">
                 <DialogTitle className="font-display text-lg font-medium text-primary-foreground">
-                  AI Coach
+                  {t("common:nav.aiCoach")}
                 </DialogTitle>
                 <p className="text-sm text-primary-foreground/70 truncate">
-                  {currentModeInfo?.label} · {currentModeInfo?.description}
+                  {t(`modes.${currentMode}.label`)} · {t(`modes.${currentMode}.description`)}
                 </p>
               </div>
             </div>
@@ -180,8 +188,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               size="icon"
               onClick={handleClose}
               className="shrink-0 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-              aria-label="Close AI Coach"
-              title="Close AI Coach"
+              aria-label={t("close")}
+              title={t("close")}
               data-testid="button-close-chat"
             >
               <X className="w-4 h-4" />
@@ -204,7 +212,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                   data-testid={`button-mode-${mode.id}`}
                 >
                   <Icon className="w-3 h-3" />
-                  <span>{mode.label}</span>
+                  <span>{t(`modes.${mode.id}.label`)}</span>
                 </Button>
               );
             })}
@@ -227,14 +235,16 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                       : "bg-card border border-accent/40 text-foreground"
                   }`}
                 >
-                  {message.role === "assistant" ? (
+                  {message.welcome ? (
+                    <p className="text-sm leading-relaxed">{t("greeting")}</p>
+                  ) : message.role === "assistant" ? (
                     <SimpleMarkdown content={message.content} className="text-sm leading-relaxed" />
                   ) : (
                     <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   )}
                   {message.sources && message.sources.length > 0 && (
                     <div className="mt-3 space-y-1 border-t border-border pt-2">
-                      <p className="font-display text-xs text-muted-foreground">Sources</p>
+                      <p className="font-display text-xs text-muted-foreground">{t("sources")}</p>
                       <div className="flex flex-wrap gap-1">
                         {message.sources.map((source, idx) => (
                           <Badge key={idx} variant="secondary" className="text-xs">
@@ -245,7 +255,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                     </div>
                   )}
                   <p className={`text-xs mt-1 ${message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                    {message.timestamp.toLocaleTimeString()}
+                    {message.timestamp.toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" })}
                   </p>
                 </div>
               </div>
@@ -254,7 +264,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
             {isTyping && (
               <div className="flex justify-start" data-testid="typing-indicator">
                 <div className="bg-card border border-accent/40 px-4 py-3 rounded-xl">
-                  <BlockLoader label="AI Coach is thinking" className="flex-row gap-3" />
+                  <BlockLoader label={t("thinking")} className="flex-row gap-3" />
                 </div>
               </div>
             )}
@@ -270,8 +280,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               onChange={(e) => setInputValue(e.target.value.slice(0, MAX_USER_MESSAGE_LENGTH))}
               maxLength={MAX_USER_MESSAGE_LENGTH}
               onKeyPress={handleKeyPress}
-              placeholder="Ask about your startup or the program"
-              aria-label="Message the AI Coach"
+              placeholder={t("input.placeholder")}
+              aria-label={t("input.label")}
               className="flex-1 min-w-0"
               disabled={isTyping}
               data-testid="input-chat-message"
@@ -280,17 +290,19 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isTyping}
               className="px-4 shrink-0"
-              aria-label="Send message"
-              title="Send message"
+              aria-label={t("input.send")}
+              title={t("input.send")}
               data-testid="button-send-message"
             >
               <Send className="w-4 h-4" />
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Press Enter to send
+            {t("input.hint")}
             {inputValue.length > MAX_USER_MESSAGE_LENGTH - 500 && (
-              <span className="ml-2">{inputValue.length}/{MAX_USER_MESSAGE_LENGTH} characters</span>
+              <span className="ml-2">
+                {t("input.count", { length: inputValue.length, max: MAX_USER_MESSAGE_LENGTH })}
+              </span>
             )}
           </p>
         </div>

@@ -1,1 +1,224 @@
-{}
+{
+  "directory": {
+    "title": "Mentors",
+    "subtitle": "Meet experienced operators and founders who can advise on your venture",
+    "loading": "Loading mentor directory..."
+  },
+  "filters": {
+    "searchPlaceholder": "Search by name or expertise",
+    "searchLabel": "Search mentors",
+    "expertiseLabel": "Filter by expertise",
+    "expertisePlaceholder": "Expertise",
+    "allExpertise": "All expertise",
+    "industryLabel": "Filter by industry",
+    "industryPlaceholder": "Industry",
+    "allIndustries": "All industries"
+  },
+  "card": {
+    "sessions_one": "{{count}} session",
+    "sessions_other": "{{count}} sessions",
+    "responds": "Responds {{time}}",
+    "responseVaries": "Response time varies",
+    "availableNow": "Available now",
+    "availableFrom": "Available {{when}}",
+    "unavailable": "Not currently taking sessions",
+    "noBio": "No bio yet",
+    "expertise": "Expertise",
+    "industries": "Industries",
+    "linkedin": "LinkedIn",
+    "schedule": "Schedule session"
+  },
+  "empty": {
+    "title": "No mentors found",
+    "body": "Try a different search or adjust the filters."
+  },
+  "tips": {
+    "title": "Getting the most from mentorship",
+    "prepared": {
+      "title": "Come prepared",
+      "body": "Have specific questions and challenges ready to discuss. Share context about your project beforehand."
+    },
+    "responsive": {
+      "title": "Be responsive",
+      "body": "Respond promptly to mentor communications and follow through on action items discussed."
+    },
+    "appreciation": {
+      "title": "Show appreciation",
+      "body": "Acknowledge your mentor's time and expertise. Share updates on your progress."
+    }
+  },
+  "booking": {
+    "title": "Schedule a session with {{name}}",
+    "titleLabel": "Session title",
+    "titlePlaceholder": "e.g., Product strategy discussion",
+    "slotLabel": "Available time slots",
+    "slotPlaceholder": "Select a time slot",
+    "slot": "{{day}} at {{time}}",
+    "durationLabel": "Session duration",
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "agendaLabel": "Session agenda",
+    "agendaPlaceholder": "What would you like to discuss? Include specific questions or topics.",
+    "submit": "Book session",
+    "submitting": "Booking...",
+    "validation": {
+      "titleMin": "Session title must be at least 5 characters",
+      "agendaMin": "Please provide at least 10 characters for the session agenda",
+      "startTimeRequired": "Please select a start time",
+      "durationMin": "Session must be at least 30 minutes",
+      "durationMax": "Session cannot exceed 2 hours"
+    },
+    "toast": {
+      "booked": {
+        "title": "Session booked",
+        "description": "Your session with {{name}} is scheduled."
+      },
+      "failed": {
+        "title": "Could not book session",
+        "description": "The session could not be booked. Please try again."
+      }
+    }
+  },
+  "profile": {
+    "title": "Mentor profile",
+    "subtitle": "Manage your mentoring profile and sessions",
+    "loading": "Loading your profile",
+    "setup": {
+      "title": "Set up your mentor profile",
+      "subtitle": "Create your profile to start meeting Launchpad participants",
+      "welcomeTitle": "Welcome to the mentor program",
+      "welcomeBody": "Set up your mentor profile to start working with participants in the MD Genius Launchpad accelerator. Your profile helps participants find the right mentor for their needs."
+    },
+    "tabs": {
+      "profile": "Profile",
+      "sessions": "Sessions"
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "edit": "Edit profile",
+    "about": "About",
+    "noBio": "No bio yet",
+    "expertise": "Areas of expertise",
+    "noExpertise": "No expertise added yet",
+    "industries": "Industry focus",
+    "noIndustries": "No industries added yet",
+    "availability": "Availability",
+    "noAvailability": "No availability added yet",
+    "savedToast": "Your mentor profile is up to date.",
+    "sessions": {
+      "title": "My mentoring sessions",
+      "description": "Your upcoming and past mentoring sessions.",
+      "loading": "Loading sessions",
+      "emptyTitle": "No mentoring sessions scheduled yet",
+      "emptyBody": "Participants can book sessions with you once your profile is active.",
+      "when": "{{date}} at {{start}} - {{end}}",
+      "participants_one": "{{count}} participant",
+      "participants_other": "{{count}} participants",
+      "completed": "Completed",
+      "upcoming": "Upcoming",
+      "join": "Join"
+    }
+  },
+  "form": {
+    "editTitle": "Edit mentor profile",
+    "createTitle": "Create mentor profile",
+    "editDescription": "Update your profile details and availability.",
+    "createDescription": "Set up your profile so participants can find and book you.",
+    "loading": "Loading your profile",
+    "bio": {
+      "label": "Professional bio",
+      "placeholder": "Tell participants about your background, experience, and the areas you like to advise on.",
+      "count": "{{length}}/500 characters"
+    },
+    "expertise": {
+      "label": "Areas of expertise",
+      "customPlaceholder": "Add other expertise",
+      "add": "Add expertise",
+      "remove": "Remove expertise {{value}}"
+    },
+    "industries": {
+      "label": "Industry focus",
+      "customPlaceholder": "Add other industry",
+      "add": "Add industry",
+      "remove": "Remove industry {{value}}"
+    },
+    "remove": "Remove",
+    "availability": {
+      "label": "Availability"
+    },
+    "active": {
+      "label": "Available for mentoring",
+      "description": "When checked, participants can see your profile and book sessions."
+    },
+    "submit": {
+      "save": "Save profile",
+      "create": "Create profile",
+      "saving": "Updating...",
+      "creating": "Creating..."
+    },
+    "validation": {
+      "expertiseMin": "Please select at least one area of expertise",
+      "bioMin": "Bio must be at least 50 characters",
+      "bioMax": "Bio must not exceed 500 characters",
+      "industriesMin": "Please select at least one industry",
+      "availabilityMin": "Please select your availability"
+    },
+    "toast": {
+      "created": {
+        "title": "Profile created",
+        "description": "Your mentor profile is ready."
+      },
+      "createFailed": {
+        "title": "Could not create profile",
+        "description": "The profile could not be created. Please try again."
+      },
+      "saved": {
+        "title": "Profile saved",
+        "description": "Your mentor profile changes are saved."
+      },
+      "saveFailed": {
+        "title": "Could not save profile",
+        "description": "The profile could not be saved. Please try again."
+      }
+    }
+  },
+  "options": {
+    "expertise": {
+      "ai_machine_learning": "AI/Machine Learning",
+      "product_strategy": "Product Strategy",
+      "software_engineering": "Software Engineering",
+      "data_science": "Data Science",
+      "business_development": "Business Development",
+      "marketing_growth": "Marketing & Growth",
+      "fundraising": "Fundraising",
+      "legal_compliance": "Legal & Compliance",
+      "ux_ui_design": "UX/UI Design",
+      "operations": "Operations",
+      "sales": "Sales",
+      "leadership": "Leadership"
+    },
+    "industries": {
+      "healthcare": "Healthcare",
+      "fintech": "Fintech",
+      "edtech": "EdTech",
+      "e_commerce": "E-commerce",
+      "saas": "SaaS",
+      "cybersecurity": "Cybersecurity",
+      "climate_tech": "Climate Tech",
+      "web3_blockchain": "Web3/Blockchain",
+      "robotics": "Robotics",
+      "iot": "IoT",
+      "gaming": "Gaming",
+      "media_entertainment": "Media & Entertainment"
+    },
+    "availability": {
+      "weekday_mornings": "Weekday Mornings",
+      "weekday_afternoons": "Weekday Afternoons",
+      "weekday_evenings": "Weekday Evenings",
+      "weekend_mornings": "Weekend Mornings",
+      "weekend_afternoons": "Weekend Afternoons",
+      "weekend_evenings": "Weekend Evenings",
+      "flexible_schedule": "Flexible Schedule"
+    }
+  }
+}

@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { intlLocale } from "@/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getApiErrorMessage } from "@/lib/utils";
+import { useMentorOptionLabel } from "@/components/Mentor/MentorProfileForm";
 import {
   Users,
   Search,
@@ -46,15 +50,22 @@ import {
   ExternalLink
 } from "lucide-react";
 
-// Session booking form schema
-const sessionBookingSchema = z.object({
-  title: z.string().min(5, "Session title must be at least 5 characters"),
-  agenda: z.string().min(10, "Please provide at least 10 characters for the session agenda"),
-  startTime: z.string().min(1, "Please select a start time"),
-  duration: z.number().min(30, "Session must be at least 30 minutes").max(120, "Session cannot exceed 2 hours").default(60),
-});
+// Session booking form schema (messages follow the UI language)
+const sessionBookingSchema = (t: TFunction<["mentors", "common"]>) =>
+  z.object({
+    title: z.string().min(5, t("booking.validation.titleMin")),
+    agenda: z.string().min(10, t("booking.validation.agendaMin")),
+    startTime: z.string().min(1, t("booking.validation.startTimeRequired")),
+    duration: z
+      .number()
+      .min(30, t("booking.validation.durationMin"))
+      .max(120, t("booking.validation.durationMax"))
+      .default(60),
+  });
 
-type SessionBookingFormData = z.infer<typeof sessionBookingSchema>;
+type SessionBookingFormData = z.infer<ReturnType<typeof sessionBookingSchema>>;
+
+const DURATIONS = [30, 60, 90, 120];
 
 // Session Booking Dialog Component
 function SessionBookingDialog({ mentor, isOpen, onClose }: { 
@@ -64,9 +75,11 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation(["mentors", "common"]);
+  const schema = useMemo(() => sessionBookingSchema(t), [t]);
   
   const form = useForm<SessionBookingFormData>({
-    resolver: zodResolver(sessionBookingSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       title: "",
       agenda: "",
@@ -83,8 +96,8 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     // Generate slots for next 7 days
     for (let day = 1; day <= 7; day++) {
       const date = new Date(now.getTime() + day * 24 * 60 * 60 * 1000);
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dayLabel = date.toLocaleDateString(intlLocale(), { weekday: "long", month: "short", day: "numeric" });
+      const time = (slot: Date) => slot.toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" });
       
       // Add morning and afternoon slots
       const morningSlot = new Date(date);
@@ -95,12 +108,12 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
       
       slots.push({
         value: morningSlot.toISOString(),
-        label: `${dayName} ${dateStr} at 10:00 AM`
+        label: t("booking.slot", { day: dayLabel, time: time(morningSlot) })
       });
       
       slots.push({
         value: afternoonSlot.toISOString(),
-        label: `${dayName} ${dateStr} at 2:00 PM`
+        label: t("booking.slot", { day: dayLabel, time: time(afternoonSlot) })
       });
     }
     
@@ -123,8 +136,8 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     },
     onSuccess: () => {
       toast({
-        title: "Session booked",
-        description: `Your session with ${mentor.firstName} is scheduled.`,
+        title: t("booking.toast.booked.title"),
+        description: t("booking.toast.booked.description", { name: mentor.firstName ?? "" }),
       });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
@@ -133,8 +146,8 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     },
     onError: (error) => {
       toast({
-        title: "Could not book session",
-        description: getApiErrorMessage(error, "The session could not be booked. Please try again."),
+        title: t("booking.toast.failed.title"),
+        description: getApiErrorMessage(error, t("booking.toast.failed.description")),
         variant: "destructive",
       });
     },
@@ -148,7 +161,9 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Schedule a session with {mentor.firstName} {mentor.lastName}</DialogTitle>
+          <DialogTitle>
+            {t("booking.title", { name: `${mentor.firstName ?? ""} ${mentor.lastName ?? ""}`.trim() })}
+          </DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -158,10 +173,10 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session title</FormLabel>
+                  <FormLabel>{t("booking.titleLabel")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., Product strategy discussion"
+                      placeholder={t("booking.titlePlaceholder")}
                       {...field}
                       data-testid={`input-session-title-${mentor.id}`}
                     />
@@ -176,11 +191,11 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="startTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Available time slots</FormLabel>
+                  <FormLabel>{t("booking.slotLabel")}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-timeslot-${mentor.id}`}>
-                        <SelectValue placeholder="Select a time slot" />
+                        <SelectValue placeholder={t("booking.slotPlaceholder")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -201,7 +216,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session duration</FormLabel>
+                  <FormLabel>{t("booking.durationLabel")}</FormLabel>
                   <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-duration-${mentor.id}`}>
@@ -209,10 +224,11 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">60 minutes</SelectItem>
-                      <SelectItem value="90">90 minutes</SelectItem>
-                      <SelectItem value="120">120 minutes</SelectItem>
+                      {DURATIONS.map((minutes) => (
+                        <SelectItem key={minutes} value={String(minutes)}>
+                          {t("booking.minutes", { count: minutes })}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -225,10 +241,10 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="agenda"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session agenda</FormLabel>
+                  <FormLabel>{t("booking.agendaLabel")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="What would you like to discuss? Include specific questions or topics."
+                      placeholder={t("booking.agendaPlaceholder")}
                       className="min-h-[80px]"
                       {...field}
                       data-testid={`textarea-session-agenda-${mentor.id}`}
@@ -247,7 +263,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
                 className="flex-1"
                 data-testid={`button-cancel-booking-${mentor.id}`}
               >
-                Cancel
+                {t("common:actions.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -255,7 +271,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
                 className="flex-1"
                 data-testid={`button-confirm-booking-${mentor.id}`}
               >
-                {bookSession.isPending ? "Booking..." : "Book session"}
+                {bookSession.isPending ? t("booking.submitting") : t("booking.submit")}
               </Button>
             </div>
           </form>
@@ -271,6 +287,8 @@ export default function Mentors() {
   const [selectedIndustry, setSelectedIndustry] = useState("all");
   const [selectedMentorForBooking, setSelectedMentorForBooking] = useState<ExtendedMentor | null>(null);
   const { user } = useAuth();
+  const { t } = useTranslation(["mentors", "common"]);
+  const optionLabel = useMentorOptionLabel();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isParticipant = user?.role === "participant";
@@ -318,7 +336,7 @@ export default function Mentors() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Mentors" subtitle="Loading mentor directory...">
+      <AppLayout title={t("directory.title")} subtitle={t("directory.loading")}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -341,8 +359,8 @@ export default function Mentors() {
 
   return (
     <AppLayout 
-      title="Mentors" 
-      subtitle="Meet experienced operators and founders who can advise on your venture"
+      title={t("directory.title")}
+      subtitle={t("directory.subtitle")}
     >
       <div className="space-y-6">
         {/* Search and Filters */}
@@ -350,34 +368,34 @@ export default function Mentors() {
               <div className="relative flex-1 min-w-0 sm:min-w-[240px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search by name or expertise" 
+                    placeholder={t("filters.searchPlaceholder")}
                     className="pl-10"
-                    aria-label="Search mentors"
+                    aria-label={t("filters.searchLabel")}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     data-testid="input-search-mentors"
                   />
               </div>
                 <Select value={selectedExpertise} onValueChange={setSelectedExpertise}>
-                  <SelectTrigger className="w-full sm:w-48" aria-label="Filter by expertise" data-testid="select-expertise-filter">
-                    <SelectValue placeholder="Expertise" />
+                  <SelectTrigger className="w-full sm:w-48" aria-label={t("filters.expertiseLabel")} data-testid="select-expertise-filter">
+                    <SelectValue placeholder={t("filters.expertisePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All expertise</SelectItem>
+                    <SelectItem value="all">{t("filters.allExpertise")}</SelectItem>
                     {expertiseOptions.map((expertise) => (
-                      <SelectItem key={expertise} value={expertise}>{expertise}</SelectItem>
+                      <SelectItem key={expertise} value={expertise}>{optionLabel("expertise", expertise)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 
                 <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                  <SelectTrigger className="w-full sm:w-48" aria-label="Filter by industry" data-testid="select-industry-filter">
-                    <SelectValue placeholder="Industry" />
+                  <SelectTrigger className="w-full sm:w-48" aria-label={t("filters.industryLabel")} data-testid="select-industry-filter">
+                    <SelectValue placeholder={t("filters.industryPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All industries</SelectItem>
+                    <SelectItem value="all">{t("filters.allIndustries")}</SelectItem>
                     {industryOptions.map((industry) => (
-                      <SelectItem key={industry} value={industry}>{industry}</SelectItem>
+                      <SelectItem key={industry} value={industry}>{optionLabel("industries", industry)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -412,11 +430,11 @@ export default function Mentors() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
                       <span className="flex items-center space-x-1">
                         <MessageCircle className="w-3 h-3" />
-                        <span>{mentor.totalSessions ?? 0} {(mentor.totalSessions ?? 0) === 1 ? 'session' : 'sessions'}</span>
+                        <span>{t("card.sessions", { count: mentor.totalSessions ?? 0 })}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <Clock className="w-3 h-3" />
-                        <span>{mentor.responseTime ? `Responds ${mentor.responseTime}` : 'Response time varies'}</span>
+                        <span>{mentor.responseTime ? t("card.responds", { time: mentor.responseTime }) : t("card.responseVaries")}</span>
                       </span>
                     </div>
                     
@@ -427,7 +445,11 @@ export default function Mentors() {
                       <span className={`text-xs ${
                         mentor.isAvailable ? 'text-success' : 'text-warning'
                       }`}>
-                        {mentor.isAvailable ? `Available ${mentor.nextAvailable ?? 'now'}` : 'Not currently taking sessions'}
+                        {mentor.isAvailable
+                          ? mentor.nextAvailable
+                            ? t("card.availableFrom", { when: mentor.nextAvailable })
+                            : t("card.availableNow")
+                          : t("card.unavailable")}
                       </span>
                     </div>
                   </div>
@@ -436,27 +458,27 @@ export default function Mentors() {
               
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4 leading-relaxed" data-testid={`mentor-bio-${mentor.id}`}>
-                  {mentor.mentorProfile?.bio || mentor.bio || "No bio yet"}
+                  {mentor.mentorProfile?.bio || mentor.bio || t("card.noBio")}
                 </p>
                 
                 <div className="space-y-3 mb-4">
                   <div>
-                    <h4 className="font-display text-sm text-muted-foreground mb-2">Expertise</h4>
+                    <h4 className="font-display text-sm text-muted-foreground mb-2">{t("card.expertise")}</h4>
                     <div className="flex flex-wrap gap-1">
                       {(mentor.mentorProfile?.expertise ?? []).map((skill: string, index: number) => (
                         <Badge key={index} variant="secondary" className="text-xs">
-                          {skill}
+                          {optionLabel("expertise", skill)}
                         </Badge>
                       ))}
                     </div>
                   </div>
                   
                   <div>
-                    <h4 className="font-display text-sm text-muted-foreground mb-2">Industries</h4>
+                    <h4 className="font-display text-sm text-muted-foreground mb-2">{t("card.industries")}</h4>
                     <div className="flex flex-wrap gap-1">
                       {(mentor.mentorProfile?.industries ?? []).map((industry: string, index: number) => (
                         <Badge key={index} variant="outline" className="text-xs">
-                          {industry}
+                          {optionLabel("industries", industry)}
                         </Badge>
                       ))}
                     </div>
@@ -479,7 +501,7 @@ export default function Mentors() {
                       data-testid={`button-linkedin-${mentor.id}`}
                     >
                       <LinkedinIcon className="w-3 h-3 mr-1" />
-                      LinkedIn
+                      {t("card.linkedin")}
                     </Button>
                     )}
                     
@@ -494,7 +516,7 @@ export default function Mentors() {
                       data-testid={`button-schedule-${mentor.id}`}
                     >
                       <Calendar className="w-3 h-3 mr-1" />
-                      Schedule session
+                      {t("card.schedule")}
                     </Button>
                   )}
                 </div>
@@ -506,10 +528,8 @@ export default function Mentors() {
         {filteredMentors.length === 0 && (
           <div className="rounded-xl border border-dashed border-steel/50 p-8 text-center">
               <Users className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg mb-2">No mentors found</h3>
-              <p className="text-muted-foreground">
-                Try a different search or adjust the filters.
-              </p>
+              <h3 className="text-lg mb-2">{t("empty.title")}</h3>
+              <p className="text-muted-foreground">{t("empty.body")}</p>
           </div>
         )}
 
@@ -518,7 +538,7 @@ export default function Mentors() {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 font-display font-medium">
               <Award className="w-5 h-5" />
-              <span>Getting the most from mentorship</span>
+              <span>{t("tips.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -527,30 +547,24 @@ export default function Mentors() {
                 <div className="w-11 h-11 bg-secondary text-primary rounded-lg flex items-center justify-center mx-auto mb-3">
                   <Calendar className="w-5 h-5" />
                 </div>
-                <h4 className="font-medium mb-2">Come prepared</h4>
-                <p className="text-sm text-muted-foreground">
-                  Have specific questions and challenges ready to discuss. Share context about your project beforehand.
-                </p>
+                <h4 className="font-medium mb-2">{t("tips.prepared.title")}</h4>
+                <p className="text-sm text-muted-foreground">{t("tips.prepared.body")}</p>
               </div>
               
               <div className="text-center">
                 <div className="w-11 h-11 bg-secondary text-primary rounded-lg flex items-center justify-center mx-auto mb-3">
                   <MessageCircle className="w-5 h-5" />
                 </div>
-                <h4 className="font-medium mb-2">Be responsive</h4>
-                <p className="text-sm text-muted-foreground">
-                  Respond promptly to mentor communications and follow through on action items discussed.
-                </p>
+                <h4 className="font-medium mb-2">{t("tips.responsive.title")}</h4>
+                <p className="text-sm text-muted-foreground">{t("tips.responsive.body")}</p>
               </div>
               
               <div className="text-center">
                 <div className="w-11 h-11 bg-secondary text-primary rounded-lg flex items-center justify-center mx-auto mb-3">
                   <Award className="w-5 h-5" />
                 </div>
-                <h4 className="font-medium mb-2">Show appreciation</h4>
-                <p className="text-sm text-muted-foreground">
-                  Acknowledge your mentor's time and expertise. Share updates on your progress.
-                </p>
+                <h4 className="font-medium mb-2">{t("tips.appreciation.title")}</h4>
+                <p className="text-sm text-muted-foreground">{t("tips.appreciation.body")}</p>
               </div>
             </div>
           </CardContent>

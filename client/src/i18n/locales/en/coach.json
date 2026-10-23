@@ -1,1 +1,30 @@
-{}
+{
+  "close": "Close AI Coach",
+  "greeting": "Hello, I'm your AI Coach for MD Genius Launchpad. I can help you think through your venture at each step of the program. What would you like to focus on today?",
+  "modes": {
+    "process_guide": { "label": "Process guide", "description": "Deadlines, steps, checklists" },
+    "ideation": { "label": "Ideation", "description": "Problem framing, solution ideas" },
+    "technical": { "label": "Technical", "description": "AI/ML fundamentals, implementation" },
+    "gtm": { "label": "Go-to-market", "description": "Customer discovery, messaging" },
+    "pitch": { "label": "Pitch coach", "description": "Investor preparation, storytelling" }
+  },
+  "sources": "Sources",
+  "thinking": "AI Coach is thinking",
+  "input": {
+    "placeholder": "Ask about your startup or the program",
+    "label": "Message the AI Coach",
+    "send": "Send message",
+    "hint": "Press Enter to send",
+    "count": "{{length}}/{{max}} characters"
+  },
+  "toast": {
+    "sessionExpired": {
+      "title": "Session expired",
+      "description": "You have been signed out. Taking you to sign in."
+    },
+    "noResponse": {
+      "title": "No response",
+      "description": "The AI Coach could not respond. Please try again."
+    }
+  }
+}
