@@ -98,7 +98,9 @@
     "deliverable": "Entregable",
     "milestone": "Hito",
     "checkin": "Check-in",
-    "learning": "Aprendizaje"
+    "learning": "Aprendizaje",
+    "lesson": "Lección",
+    "mentor_session": "Sesión de mentoría"
   },
   "interestLevel": {
     "viewed": "Vista",
@@ -129,5 +131,8 @@
     "required": "El inglés es obligatorio.",
     "optional": "El español es opcional. Los campos vacíos muestran el texto en inglés.",
     "missing": "Sin español todavía"
+  },
+  "application": {
+    "untitled": "Aún sin idea de proyecto"
   }
 }
