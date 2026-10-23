@@ -45,7 +45,7 @@ export default function ConfirmDialog({
             onClick={() => request?.onConfirm()}
             data-testid="button-confirm-action"
           >
-            {request?.confirmLabel ?? "Delete"}
+            {request?.confirmLabel ?? (request?.destructive === false ? "Confirm" : "Delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

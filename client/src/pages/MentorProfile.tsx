@@ -20,6 +20,7 @@ import {
   Users
 } from "lucide-react";
 import type { MentorProfile } from "@shared/schema";
+import { BlockLoader } from "@/components/brand";
 
 export default function MentorProfilePage() {
   const { user } = useAuth();
@@ -45,24 +46,21 @@ export default function MentorProfilePage() {
   const handleProfileComplete = () => {
     setIsEditing(false);
     toast({
-      title: "Success!",
-      description: "Your mentor profile has been updated successfully.",
+      title: "Saved",
+      description: "Your mentor profile is up to date.",
     });
   };
 
   if (profileLoading) {
     return (
       <AppLayout 
-        title="Mentor Profile" 
+        title="Mentor profile" 
         subtitle="Manage your mentoring profile and sessions"
       >
         <div className="space-y-6">
-          <Card className="glass-card">
+          <Card>
             <CardContent className="p-6">
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                <p className="text-muted-foreground mt-4">Loading your profile...</p>
-              </div>
+              <BlockLoader label="Loading your profile" className="py-12" />
             </CardContent>
           </Card>
         </div>
@@ -74,19 +72,19 @@ export default function MentorProfilePage() {
   if (!hasProfile && !isEditing) {
     return (
       <AppLayout 
-        title="Setup Mentor Profile" 
-        subtitle="Create your mentor profile to start connecting with participants"
+        title="Set up your mentor profile" 
+        subtitle="Create your profile to start meeting Launchpad participants"
       >
         <div className="space-y-6">
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="w-5 h-5 text-primary" />
-                <span>Welcome to the Mentor Program!</span>
+              <CardTitle className="flex items-center space-x-2 font-display font-medium">
+                <User className="w-5 h-5" />
+                <span>Welcome to the mentor program</span>
               </CardTitle>
               <p className="text-muted-foreground">
-                Set up your mentor profile to start connecting with participants in the AI startup accelerator program.
-                Your profile will help participants find the right mentor for their needs.
+                Set up your mentor profile to start working with participants in the MD Genius Launchpad accelerator.
+                Your profile helps participants find the right mentor for their needs.
               </p>
             </CardHeader>
           </Card>
@@ -100,12 +98,12 @@ export default function MentorProfilePage() {
   // Show profile with tabs (Profile + Sessions)
   return (
     <AppLayout 
-      title="Mentor Profile" 
+      title="Mentor profile" 
       subtitle="Manage your mentoring profile and sessions"
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList>
             <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
             <TabsTrigger value="sessions" data-testid="tab-sessions">Sessions</TabsTrigger>
           </TabsList>
@@ -118,18 +116,18 @@ export default function MentorProfilePage() {
                 isEditing={true} 
               />
             ) : (
-              <Card className="glass-card">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-accent to-primary rounded-full flex items-center justify-center text-white font-bold text-lg">
+              <Card>
+                <CardHeader className="border-b border-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-11 w-11 shrink-0 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-display text-base">
                         {user?.firstName?.[0]}{user?.lastName?.[0]}
                       </div>
-                      <div>
-                        <CardTitle className="flex items-center space-x-2">
+                      <div className="min-w-0">
+                        <CardTitle className="flex flex-wrap items-center gap-2 font-display font-medium">
                           <span>{user?.firstName} {user?.lastName}</span>
                           {mentorProfile?.isActive ? (
-                            <Badge className="bg-green-500/20 text-green-400 border-green-500/50">
+                            <Badge variant="outline" className="border-success/40 bg-success/10 text-success">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Active
                             </Badge>
@@ -140,7 +138,7 @@ export default function MentorProfilePage() {
                             </Badge>
                           )}
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                        <p className="text-sm text-muted-foreground break-all">{user?.email}</p>
                       </div>
                     </div>
                     <Button
@@ -149,29 +147,29 @@ export default function MentorProfilePage() {
                       className="flex items-center space-x-2"
                     >
                       <Edit className="w-4 h-4" />
-                      <span>Edit Profile</span>
+                      <span>Edit profile</span>
                     </Button>
                   </div>
                 </CardHeader>
                 
-                <CardContent className="space-y-6">
+                <CardContent className="pt-6 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
                   {/* Bio Section */}
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2 flex items-center space-x-2">
-                      <Users className="w-5 h-5 text-primary" />
+                  <div className="lg:col-span-2">
+                    <h3 className="font-display font-medium text-lg mb-2 flex items-center space-x-2">
+                      <Users className="w-5 h-5" />
                       <span>About</span>
                     </h3>
                     <p className="text-muted-foreground leading-relaxed">
-                      {mentorProfile?.bio || "No bio provided"}
+                      {mentorProfile?.bio || "No bio yet"}
                     </p>
                   </div>
 
 
                   {/* Expertise */}
                   <div>
-                    <h3 className="font-semibold text-lg mb-3 flex items-center space-x-2">
-                      <Star className="w-5 h-5 text-primary" />
-                      <span>Areas of Expertise</span>
+                    <h3 className="font-display font-medium text-lg mb-3 flex items-center space-x-2">
+                      <Star className="w-5 h-5" />
+                      <span>Areas of expertise</span>
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {mentorProfile?.expertise?.length ? mentorProfile.expertise.map((skill) => (
@@ -179,29 +177,29 @@ export default function MentorProfilePage() {
                           {skill}
                         </Badge>
                       )) : (
-                        <p className="text-muted-foreground">No expertise areas specified</p>
+                        <p className="text-muted-foreground">No expertise added yet</p>
                       )}
                     </div>
                   </div>
 
                   {/* Industries */}
                   <div>
-                    <h3 className="font-semibold text-lg mb-3">Industry Focus</h3>
+                    <h3 className="font-display font-medium text-lg mb-3">Industry focus</h3>
                     <div className="flex flex-wrap gap-2">
                       {mentorProfile?.industries?.length ? mentorProfile.industries.map((industry) => (
-                        <Badge key={industry} variant="outline" className="px-3 py-1">
+                        <Badge key={industry} variant="secondary" className="px-3 py-1">
                           {industry}
                         </Badge>
                       )) : (
-                        <p className="text-muted-foreground">No industry focus specified</p>
+                        <p className="text-muted-foreground">No industries added yet</p>
                       )}
                     </div>
                   </div>
 
                   {/* Availability */}
                   <div>
-                    <h3 className="font-semibold text-lg mb-3 flex items-center space-x-2">
-                      <Calendar className="w-5 h-5 text-accent" />
+                    <h3 className="font-display font-medium text-lg mb-3 flex items-center space-x-2">
+                      <Calendar className="w-5 h-5" />
                       <span>Availability</span>
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -210,7 +208,7 @@ export default function MentorProfilePage() {
                           {time}
                         </Badge>
                       )) : (
-                        <p className="text-muted-foreground">No availability specified</p>
+                        <p className="text-muted-foreground">No availability added yet</p>
                       )}
                     </div>
                   </div>
@@ -221,30 +219,27 @@ export default function MentorProfilePage() {
 
           {/* Sessions Tab */}
           <TabsContent value="sessions" className="space-y-6">
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="w-5 h-5 text-primary" />
-                  <span>My Mentoring Sessions</span>
+                <CardTitle className="flex items-center space-x-2 font-display font-medium">
+                  <MessageCircle className="w-5 h-5" />
+                  <span>My mentoring sessions</span>
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Manage your upcoming and past mentoring sessions
+                  Your upcoming and past mentoring sessions.
                 </p>
               </CardHeader>
               
               <CardContent>
                 <div className="space-y-4">
                   {sessionsLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground mt-2 text-sm">Loading sessions...</p>
-                    </div>
+                    <BlockLoader label="Loading sessions" className="py-8" />
                   ) : !Array.isArray(mentorSessions) || mentorSessions.length === 0 ? (
-                    <div className="text-center py-12">
-                      <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground">No mentoring sessions scheduled yet</p>
+                    <div className="text-center py-12 px-4 rounded-xl border border-dashed border-steel/50">
+                      <MessageCircle className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-foreground">No mentoring sessions scheduled yet</p>
                       <p className="text-sm text-muted-foreground mt-2">
-                        Participants will be able to book sessions with you once your profile is active
+                        Participants can book sessions with you once your profile is active.
                       </p>
                     </div>
                   ) : (
@@ -252,8 +247,8 @@ export default function MentorProfilePage() {
                       // Sessions have no status column: derive it from the end time
                       const isCompleted = new Date(session.endTime).getTime() < Date.now();
                       return (
-                      <div key={session.id} className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg">
-                        <div className="flex-1">
+                      <div key={session.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-border rounded-lg">
+                        <div className="flex-1 min-w-0">
                           <h4 className="font-medium">{session.title}</h4>
                           <p className="text-sm text-muted-foreground">
                             {new Date(session.startTime).toLocaleDateString()} at {' '}
@@ -266,7 +261,7 @@ export default function MentorProfilePage() {
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge variant={isCompleted ? 'default' : 'outline'}>
+                          <Badge variant={isCompleted ? 'default' : 'outline'} className={isCompleted ? '' : 'border-accent/40 text-accent'}>
                             {isCompleted ? 'Completed' : 'Upcoming'}
                           </Badge>
                           {!isCompleted && session.meetingLink && (

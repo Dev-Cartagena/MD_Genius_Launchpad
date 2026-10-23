@@ -16,6 +16,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, X, Star, Clock, Users, Save, CheckCircle } from "lucide-react";
+import { BlockLoader } from "@/components/brand";
 import type { MentorProfile } from "@shared/schema";
 
 // Mentor Profile Form Schema
@@ -118,16 +119,16 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
       apiRequest('POST', '/api/mentor/profile', data),
     onSuccess: () => {
       toast({
-        title: "Profile Created!",
-        description: "Your mentor profile has been successfully created.",
+        title: "Profile created",
+        description: "Your mentor profile is ready.",
       });
       onComplete?.();
       queryClient.invalidateQueries({ queryKey: ['/api/mentor/profile'] });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create profile. Please try again.",
+        title: "Could not create profile",
+        description: error.message || "The profile could not be created. Please try again.",
         variant: "destructive",
       });
     },
@@ -139,8 +140,8 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
       apiRequest('PUT', '/api/mentor/profile', data),
     onSuccess: () => {
       toast({
-        title: "Profile Updated!",
-        description: "Your mentor profile has been successfully updated.",
+        title: "Profile saved",
+        description: "Your mentor profile changes are saved.",
       });
       onComplete?.();
       queryClient.invalidateQueries({ queryKey: ['/api/mentor/profile'] });
@@ -148,8 +149,8 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update profile. Please try again.",
+        title: "Could not save profile",
+        description: error.message || "The profile could not be saved. Please try again.",
         variant: "destructive",
       });
     },
@@ -204,36 +205,34 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
 
   if (profileLoading && isEditing) {
     return (
-      <Card className="glass-card">
+      <Card>
         <CardContent className="p-6">
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="text-muted-foreground mt-2">Loading your profile...</p>
-          </div>
+          <BlockLoader label="Loading your profile" className="py-8" />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Star className="w-5 h-5 text-accent" />
-          <span>{isEditing ? "Edit Mentor Profile" : "Create Mentor Profile"}</span>
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle className="flex items-center space-x-2 font-display font-medium">
+          <Star className="w-5 h-5" />
+          <span>{isEditing ? "Edit mentor profile" : "Create mentor profile"}</span>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           {isEditing 
-            ? "Update your mentor profile information and availability"
-            : "Set up your mentor profile to start connecting with participants"
+            ? "Update your profile details and availability."
+            : "Set up your profile so participants can find and book you."
           }
         </p>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="space-y-6 min-w-0">
             {/* Bio Section */}
             <FormField
               control={form.control}
@@ -242,12 +241,12 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
                 <FormItem>
                   <FormLabel className="flex items-center space-x-1">
                     <Users className="w-4 h-4" />
-                    <span>Professional Bio</span>
+                    <span>Professional bio</span>
                   </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Tell participants about your background, experience, and what you're passionate about mentoring..."
-                      className="min-h-[100px]"
+                      placeholder="Tell participants about your background, experience, and the areas you like to advise on."
+                      className="min-h-[140px]"
                       data-testid="input-mentor-bio"
                       {...field}
                     />
@@ -265,19 +264,19 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
             <div className="space-y-3">
               <Label className="flex items-center space-x-1">
                 <Star className="w-4 h-4" />
-                <span>Areas of Expertise</span>
+                <span>Areas of expertise</span>
               </Label>
               
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                 {expertiseOptions.map((expertise) => {
                   const isSelected = form.watch("expertise").includes(expertise);
                   return (
                     <div
                       key={expertise}
-                      className={`p-2 border rounded-lg cursor-pointer transition-colors ${
+                      className={`px-3 py-2 border rounded-md cursor-pointer transition-colors ${
                         isSelected 
-                          ? "border-primary bg-primary/10 text-primary" 
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/5 text-primary font-medium" 
+                          : "border-border hover:border-accent/50"
                       }`}
                       onClick={() => {
                         const currentExpertise = form.getValues("expertise");
@@ -297,7 +296,7 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
 
               <div className="flex space-x-2">
                 <Input
-                  placeholder="Add custom expertise..."
+                  placeholder="Add other expertise"
                   value={customExpertise}
                   onChange={(e) => setCustomExpertise(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomExpertise())}
@@ -337,19 +336,21 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
               )}
             </div>
 
+            </div>
+            <div className="space-y-6 min-w-0">
             {/* Industries Section */}
             <div className="space-y-3">
-              <Label>Industry Focus</Label>
+              <Label>Industry focus</Label>
               
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
                 {industryOptions.map((industry) => {
                   const isSelected = form.watch("industries").includes(industry);
                   return (
                     <div
                       key={industry}
-                      className={`p-2 border rounded-lg cursor-pointer transition-colors ${
+                      className={`px-3 py-2 border rounded-md cursor-pointer transition-colors ${
                         isSelected 
-                          ? "border-accent bg-accent/10 text-accent" 
+                          ? "border-primary bg-primary/5 text-primary font-medium" 
                           : "border-border hover:border-accent/50"
                       }`}
                       onClick={() => {
@@ -370,7 +371,7 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
 
               <div className="flex space-x-2">
                 <Input
-                  placeholder="Add custom industry..."
+                  placeholder="Add other industry"
                   value={customIndustry}
                   onChange={(e) => setCustomIndustry(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomIndustry())}
@@ -414,16 +415,16 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
             <div className="space-y-3">
               <Label>Availability</Label>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {availabilityOptions.map((availability) => {
                   const isSelected = form.watch("availability").includes(availability);
                   return (
                     <div
                       key={availability}
-                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      className={`px-3 py-2 border rounded-md cursor-pointer transition-colors ${
                         isSelected 
-                          ? "border-primary bg-primary/10 text-primary" 
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/5 text-primary font-medium" 
+                          : "border-border hover:border-accent/50"
                       }`}
                       onClick={() => toggleAvailability(availability)}
                       data-testid={`availability-${availability.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
@@ -454,18 +455,21 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
                   </FormControl>
                   <div className="space-y-1 leading-none">
                     <FormLabel>
-                      Active Mentoring Status
+                      Available for mentoring
                     </FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Check this to make your profile visible to participants for booking sessions
+                      When checked, participants can see your profile and book sessions.
                     </p>
                   </div>
                 </FormItem>
               )}
             />
 
+            </div>
+            </div>
+
             {/* Submit Button */}
-            <div className="flex justify-end space-x-3 pt-6">
+            <div className="flex justify-end gap-3 pt-6 border-t border-border">
               <Button
                 type="submit"
                 disabled={createProfile.isPending || updateProfile.isPending}
@@ -474,13 +478,13 @@ export default function MentorProfileForm({ onComplete, isEditing = false }: Men
               >
                 {createProfile.isPending || updateProfile.isPending ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
                     <span>{isEditing ? "Updating..." : "Creating..."}</span>
                   </>
                 ) : (
                   <>
                     {isEditing ? <Save className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                    <span>{isEditing ? "Update Profile" : "Create Profile"}</span>
+                    <span>{isEditing ? "Save profile" : "Create profile"}</span>
                   </>
                 )}
               </Button>

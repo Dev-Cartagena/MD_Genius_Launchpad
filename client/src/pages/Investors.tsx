@@ -41,6 +41,16 @@ import {
 
 type ExtendedInvestor = Investor;
 
+// Display labels for project stages (values stay as stored)
+const STAGE_LABELS: Record<string, string> = {
+  ideation: "Ideation",
+  validation: "Validation",
+  mvp_build: "MVP build",
+  pilot_traction: "Pilot traction",
+  pitch_ready: "Pitch ready",
+};
+const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage.replace(/_/g, " ");
+
 // Session booking form schema
 const investorSessionBookingSchema = z.object({
   title: z.string().min(5, "Session title must be at least 5 characters"),
@@ -121,8 +131,8 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     },
     onSuccess: () => {
       toast({
-        title: "Session Booked!",
-        description: `Your session with ${investor.organization} has been scheduled successfully.`,
+        title: "Session booked",
+        description: `Your session with ${investor.organization} is scheduled.`,
       });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
@@ -132,8 +142,8 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     },
     onError: (error) => {
       toast({
-        title: "Booking Failed",
-        description: getApiErrorMessage(error, "Failed to book session. Please try again."),
+        title: "Could not book session",
+        description: getApiErrorMessage(error, "The session could not be booked. Please try again."),
         variant: "destructive",
       });
     },
@@ -147,7 +157,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Schedule Session with {investor.organization}</DialogTitle>
+          <DialogTitle>Schedule a session with {investor.organization}</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -157,10 +167,10 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Title</FormLabel>
+                  <FormLabel>Session title</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., Funding Discussion"
+                      placeholder="e.g., Funding discussion"
                       {...field}
                       data-testid={`input-session-title-${investor.id}`}
                     />
@@ -175,7 +185,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="sessionType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Type</FormLabel>
+                  <FormLabel>Session type</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-session-type-${investor.id}`}>
@@ -183,10 +193,10 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="pitch">Pitch Session</SelectItem>
-                      <SelectItem value="feedback">Feedback Session</SelectItem>
-                      <SelectItem value="due_diligence">Due Diligence</SelectItem>
-                      <SelectItem value="demo_day">Demo Day Practice</SelectItem>
+                      <SelectItem value="pitch">Pitch session</SelectItem>
+                      <SelectItem value="feedback">Feedback session</SelectItem>
+                      <SelectItem value="due_diligence">Due diligence</SelectItem>
+                      <SelectItem value="demo_day">Demo day practice</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -199,7 +209,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="startTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Available Time Slots</FormLabel>
+                  <FormLabel>Available time slots</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-timeslot-${investor.id}`}>
@@ -224,7 +234,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Duration</FormLabel>
+                  <FormLabel>Session duration</FormLabel>
                   <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-duration-${investor.id}`}>
@@ -248,10 +258,10 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="agenda"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Agenda</FormLabel>
+                  <FormLabel>Session agenda</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="What would you like to discuss? Include specific questions or topics for the session..."
+                      placeholder="What would you like to discuss? Include specific questions or topics."
                       className="min-h-[80px]"
                       {...field}
                       data-testid={`textarea-session-agenda-${investor.id}`}
@@ -278,7 +288,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
                 className="flex-1"
                 data-testid={`button-confirm-booking-${investor.id}`}
               >
-                {bookSession.isPending ? "Booking..." : "Book Session"}
+                {bookSession.isPending ? "Booking..." : "Book session"}
               </Button>
             </div>
           </form>
@@ -333,16 +343,16 @@ export default function Investors() {
     onSuccess: () => {
       setMeetingDialogFor(null);
       toast({
-        title: "Meeting Requested!",
-        description: "Your meeting request has been sent. The startup will respond soon.",
+        title: "Meeting requested",
+        description: "Your request has been sent to the startup team.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/investor/interests"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized", 
-          description: "You are logged out. Logging in again...",
+          title: "Session expired", 
+          description: "You have been signed out. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -351,8 +361,8 @@ export default function Investors() {
         return;
       }
       toast({
-        title: "Error",
-        description: getApiErrorMessage(error, "Failed to request meeting. Please try again."),
+        title: "Could not send request",
+        description: getApiErrorMessage(error, "The meeting request could not be sent. Please try again."),
         variant: "destructive",
       });
     }
@@ -397,7 +407,7 @@ export default function Investors() {
       <AppLayout title="Investors" subtitle="Loading...">
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="glass-card animate-pulse">
+            <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
                 <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
                 <div className="h-4 bg-muted rounded w-full mb-2"></div>
@@ -413,45 +423,42 @@ export default function Investors() {
   return (
     <AppLayout 
       title="Investors" 
-      subtitle={isInvestor ? "Discover promising AI startups" : "Connect with potential investors"}
+      subtitle={isInvestor ? "Review the AI startups in the current Launchpad cohort" : "Find investors whose focus matches your venture"}
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="mb-6">
             <TabsTrigger value="directory" data-testid="tab-startup-directory">
-              {isInvestor ? "Startup Directory" : "Investor Directory"}
+              {isInvestor ? "Startup directory" : "Investor directory"}
             </TabsTrigger>
             <TabsTrigger value="events" data-testid="tab-events">
-              Events & Demo Days
+              Events and demo days
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="directory" className="space-y-6">
             {/* Search and Filters */}
-            <Card className="glass-card">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <div className="panel p-3 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                  <div className="relative flex-1 min-w-0 sm:min-w-[240px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        placeholder={isInvestor ? "Search startups..." : "Search investors..."} 
-                        className="pl-10 bg-secondary border-border"
+                        placeholder={isInvestor ? "Search startups" : "Search investors"} 
+                        className="pl-10"
+                        aria-label={isInvestor ? "Search startups" : "Search investors"}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         data-testid="input-search-directory"
                       />
-                    </div>
                   </div>
                   
                   {isInvestor && (
-                    <div className="flex gap-2">
+                    <>
                       <Select value={selectedSector} onValueChange={setSelectedSector}>
-                        <SelectTrigger className="w-40 bg-secondary border-border" data-testid="select-sector-filter">
+                        <SelectTrigger className="w-full sm:w-44" aria-label="Filter by sector" data-testid="select-sector-filter">
                           <SelectValue placeholder="Sector" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Sectors</SelectItem>
+                          <SelectItem value="all">All sectors</SelectItem>
                           {sectors.map((sector) => (
                             <SelectItem key={sector} value={sector}>{sector}</SelectItem>
                           ))}
@@ -459,59 +466,58 @@ export default function Investors() {
                       </Select>
                       
                       <Select value={selectedStage} onValueChange={setSelectedStage}>
-                        <SelectTrigger className="w-40 bg-secondary border-border" data-testid="select-stage-filter">
+                        <SelectTrigger className="w-full sm:w-44" aria-label="Filter by stage" data-testid="select-stage-filter">
                           <SelectValue placeholder="Stage" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All Stages</SelectItem>
+                          <SelectItem value="all">All stages</SelectItem>
                           {stages.map((stage) => (
                             <SelectItem key={stage} value={stage}>
-                              {stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              {stageLabel(stage)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+            </div>
 
             {/* Directory Content */}
             {isInvestor ? (
               // Startup Directory for Investors
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredStartups.map((startup: any) => (
-                  <Card key={startup.id} className="glass-card hover:scale-105 transition-transform duration-200">
+                  <Card key={startup.id} className="transition-colors hover:border-accent/40">
                     <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="w-12 h-12">
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="h-11 w-11 rounded-lg">
+                            <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-display">
                               {(startup.name || "S").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2)}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <CardTitle className="text-lg" data-testid={`startup-name-${startup.id}`}>
+                          <div className="min-w-0">
+                            <CardTitle className="font-display text-lg font-medium break-words" data-testid={`startup-name-${startup.id}`}>
                               {startup.name}
                             </CardTitle>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end space-y-1">
+                        <div className="flex flex-col items-end gap-1 shrink-0">
                           {startup.aiComponents?.[0] && (
-                            <Badge variant="outline" data-testid={`startup-sector-${startup.id}`}>
+                            <Badge variant="secondary" data-testid={`startup-sector-${startup.id}`}>
                               {startup.aiComponents[0]}
                             </Badge>
                           )}
                           <Badge 
+                            variant="outline"
                             className={`${
-                              startup.stage === 'pitch_ready' ? 'bg-green-400/20 text-green-400' :
-                              startup.stage === 'mvp_build' ? 'bg-primary/20 text-primary' :
-                              'bg-accent/20 text-accent'
+                              startup.stage === 'pitch_ready' ? 'border-success/40 bg-success/10 text-success' :
+                              startup.stage === 'mvp_build' ? 'border-primary/30 text-primary' :
+                              'border-accent/40 text-accent'
                             }`}
                             data-testid={`startup-stage-${startup.id}`}
                           >
-                            {(startup.stage || "ideation").replace(/_/g, ' ')}
+                            {stageLabel(startup.stage || "ideation")}
                           </Badge>
                         </div>
                       </div>
@@ -524,15 +530,15 @@ export default function Investors() {
                       
                       <div className="space-y-3 mb-4">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Readiness:</span>
+                          <span className="font-display text-muted-foreground">Readiness</span>
                           <div className="flex items-center space-x-2">
-                            <div className="w-12 h-2 bg-secondary rounded-full">
+                            <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
                               <div 
-                                className="h-2 bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
+                                className="h-1.5 bg-primary rounded-full transition-all duration-500"
                                 style={{ width: `${startup.readinessScore || 0}%` }}
                               ></div>
                             </div>
-                            <span className="font-medium" data-testid={`startup-readiness-${startup.id}`}>
+                            <span className="font-display font-medium" data-testid={`startup-readiness-${startup.id}`}>
                               {startup.readinessScore || 0}%
                             </span>
                           </div>
@@ -557,11 +563,11 @@ export default function Investors() {
                             </DialogTrigger>
                             <DialogContent>
                               <DialogHeader>
-                                <DialogTitle>Request Meeting with {startup.name}</DialogTitle>
+                                <DialogTitle>Request a meeting with {startup.name}</DialogTitle>
                               </DialogHeader>
                               <div className="space-y-4">
                                 <Textarea 
-                                  placeholder="Introduce yourself and explain your interest in this startup..."
+                                  placeholder="Introduce yourself and explain your interest in this startup."
                                   className="min-h-[100px]"
                                   value={meetingMessages[startup.id] ?? ""}
                                   onChange={(e) => setMeetingMessages(prev => ({ ...prev, [startup.id]: e.target.value }))}
@@ -576,7 +582,7 @@ export default function Investors() {
                                   disabled={requestMeeting.isPending}
                                   data-testid={`button-send-meeting-request-${startup.id}`}
                                 >
-                                  {requestMeeting.isPending ? "Sending..." : "Send Meeting Request"}
+                                  {requestMeeting.isPending ? "Sending..." : "Send meeting request"}
                                 </Button>
                               </div>
                             </DialogContent>
@@ -591,22 +597,32 @@ export default function Investors() {
               // Investor Directory for Participants
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {filteredInvestors.map((investor: any) => (
-                  <Card key={investor.id} className="glass-card hover:scale-105 transition-transform duration-200">
+                  <Card key={investor.id} className="transition-colors hover:border-accent/40">
                     <CardHeader>
-                      <CardTitle className="text-lg" data-testid={`investor-name-${investor.id}`}>
-                        {investor.organization}
-                      </CardTitle>
-                      {investor.contactEmail && (
-                        <p className="text-sm text-muted-foreground" data-testid={`investor-description-${investor.id}`}>
-                          {investor.contactEmail}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="h-11 w-11 shrink-0 rounded-lg bg-primary text-primary-foreground font-display flex items-center justify-center"
+                          aria-hidden="true"
+                        >
+                          {(investor.organization || "I").split(' ').map((n: string) => n[0] || "").join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <CardTitle className="font-display text-lg font-medium break-words" data-testid={`investor-name-${investor.id}`}>
+                            {investor.organization}
+                          </CardTitle>
+                          {investor.contactEmail && (
+                            <p className="text-sm text-muted-foreground break-all" data-testid={`investor-description-${investor.id}`}>
+                              {investor.contactEmail}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </CardHeader>
                     
                     <CardContent>
                       <div className="space-y-4">
                         <div>
-                          <h4 className="text-sm font-medium mb-2">Investment Focus</h4>
+                          <h4 className="font-display text-sm text-muted-foreground mb-2">Investment focus</h4>
                           <div className="flex flex-wrap gap-1">
                             {(investor.sectors || []).map((sector: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
@@ -618,13 +634,13 @@ export default function Investors() {
                         
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Check Size:</span>
+                            <span className="font-display text-muted-foreground">Check size</span>
                             <p className="font-medium" data-testid={`investor-check-size-${investor.id}`}>
                               {investor.checkSize || "Not specified"}
                             </p>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Geography:</span>
+                            <span className="font-display text-muted-foreground">Geography</span>
                             <p className="font-medium">
                               {(investor.geography || []).length > 0 ? investor.geography.join(", ") : "Not specified"}
                             </p>
@@ -633,7 +649,7 @@ export default function Investors() {
                         
                         {(investor.stages || []).length > 0 && (
                           <div>
-                            <h4 className="text-sm font-medium mb-2">Stages</h4>
+                            <h4 className="font-display text-sm text-muted-foreground mb-2">Stages</h4>
                             <div className="flex flex-wrap gap-1">
                               {investor.stages.map((stage: string, index: number) => (
                                 <Badge key={index} variant="outline" className="text-xs">
@@ -644,7 +660,7 @@ export default function Investors() {
                           </div>
                         )}
                         
-                        <div className="flex space-x-2 pt-4 border-t border-border">
+                        <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
                           <Button 
                             size="sm"
                             variant="outline"
@@ -662,7 +678,7 @@ export default function Investors() {
                               data-testid={`button-book-session-${investor.id}`}
                             >
                               <Calendar className="w-3 h-3 mr-1" />
-                              Book Session
+                              Book session
                             </Button>
                           )}
                         </div>
@@ -675,32 +691,28 @@ export default function Investors() {
 
             {/* Empty State */}
             {((isInvestor && filteredStartups.length === 0) || (!isInvestor && filteredInvestors.length === 0)) && (
-              <Card className="glass-card">
-                <CardContent className="p-8 text-center">
-                  <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
+              <div className="rounded-xl border border-dashed border-steel/50 p-8 text-center">
+                  <TrendingUp className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg mb-2">
                     {isInvestor ? "No startups found" : "No investors found"}
                   </h3>
                   <p className="text-muted-foreground">
-                    Try adjusting your search criteria or filters.
+                    Try a different search or adjust the filters.
                   </p>
-                </CardContent>
-              </Card>
+              </div>
             )}
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
-            <Card className="glass-card">
-              <CardContent className="p-8 text-center">
-                <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2" data-testid="events-empty-title">
+            <div className="rounded-xl border border-dashed border-steel/50 p-8 text-center">
+                <Calendar className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg mb-2" data-testid="events-empty-title">
                   No events scheduled yet
                 </h3>
                 <p className="text-muted-foreground">
                   Demo days and investor events will be listed here once the program team announces them.
                 </p>
-              </CardContent>
-            </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

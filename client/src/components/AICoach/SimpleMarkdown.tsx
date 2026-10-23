@@ -120,7 +120,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     const key = `${keyPrefix}-${n++}`;
     if (m[1]) {
       out.push(
-        <code key={key} className="rounded bg-background/60 px-1 py-0.5 font-mono text-[0.85em]">
+        <code key={key} className="rounded bg-secondary px-1 py-0.5 font-mono text-[0.85em] text-foreground">
           {token.slice(1, -1)}
         </code>,
       );
@@ -145,7 +145,7 @@ export default function SimpleMarkdown({ content, className }: { content: string
         switch (block.kind) {
           case "h":
             return (
-              <p key={key} className={block.level <= 2 ? "font-semibold text-base" : "font-semibold"}>
+              <p key={key} className={block.level <= 2 ? "font-display font-medium text-base pt-1" : "font-display font-medium"}>
                 {renderInline(block.text, key)}
               </p>
             );
@@ -167,7 +167,7 @@ export default function SimpleMarkdown({ content, className }: { content: string
             );
           case "code":
             return (
-              <pre key={key} className="overflow-x-auto rounded bg-background/60 p-2 font-mono text-xs">
+              <pre key={key} className="overflow-x-auto rounded-md border border-border bg-secondary p-2 font-mono text-xs text-foreground">
                 <code>{block.text}</code>
               </pre>
             );
