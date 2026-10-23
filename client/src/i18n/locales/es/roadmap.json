@@ -1,1 +1,58 @@
-{}
+{
+  "page": {
+    "title": "Hoja de ruta del programa",
+    "subtitle": "Tu plan semana a semana durante el programa"
+  },
+  "restricted": "La hoja de ruta está disponible para participantes del programa.",
+  "noProject": "Aún no tienes un proyecto. Crea tu proyecto para ver tu hoja de ruta.",
+  "empty": {
+    "title": "Aún no tienes una hoja de ruta asignada",
+    "body": "Todavía no se ha asignado la hoja de ruta de tu programa. Vuelve a revisar más tarde o contacta a la coordinación del programa."
+  },
+  "toast": {
+    "updated": {
+      "title": "Estado actualizado",
+      "description": "Se actualizó la actividad de la hoja de ruta."
+    },
+    "updateFailed": {
+      "title": "No se pudo actualizar el estado",
+      "description": "La actividad no se actualizó. Inténtalo de nuevo."
+    }
+  },
+  "stats": {
+    "pending": "Pendientes",
+    "doneOf": "{{done}} de {{total}} listas"
+  },
+  "weeks": {
+    "all": "Todas las semanas",
+    "current": "Semana actual",
+    "done": "{{done}}/{{total}} listas"
+  },
+  "progress": {
+    "score": "Puntaje: {{score}} %",
+    "module_one": "Progreso: {{completed}}/{{count}} lección ({{percent}} %)",
+    "module_other": "Progreso: {{completed}}/{{count}} lecciones ({{percent}} %)"
+  },
+  "linked": {
+    "lesson": "Lección: {{title}}",
+    "module": "Módulo: {{title}}"
+  },
+  "itemType": {
+    "lesson": "Lección",
+    "mentor_session": "Sesión de mentoría"
+  },
+  "autoCompleted": "Completada automáticamente",
+  "estimatedHours": "~{{hours}} h",
+  "due": "Vence el {{date}}",
+  "actions": {
+    "viewLesson": "Ver lección",
+    "viewModule": "Ver módulo",
+    "start": "Iniciar",
+    "complete": "Completar",
+    "more": "Más acciones",
+    "moreFor": "Más acciones para {{title}}",
+    "block": "Marcar como bloqueada",
+    "waive": "Exonerar",
+    "reset": "Restablecer a sin iniciar"
+  }
+}

@@ -1,1 +1,203 @@
-{}
+{
+  "page": {
+    "title": "My project",
+    "subtitle": "Your startup project, its materials and its progress through the program"
+  },
+  "restricted": {
+    "subtitle": "Access restricted",
+    "title": "Access restricted",
+    "body": "Project management is available to program participants and administrators. Apply to the program, or contact the program team if you think you should have access.",
+    "toast": {
+      "title": "Access restricted",
+      "description": "Project management is only available to program participants and administrators."
+    }
+  },
+  "toast": {
+    "milestoneUpdated": {
+      "title": "Status updated",
+      "description": "The milestone has been updated."
+    },
+    "milestoneFailed": {
+      "title": "Could not update status",
+      "description": "The milestone was not updated. Please try again."
+    },
+    "signedOut": {
+      "title": "Signed out",
+      "description": "Your session has ended. Taking you to sign in."
+    },
+    "created": {
+      "title": "Project created",
+      "description": "Your project has been created."
+    },
+    "createFailed": {
+      "title": "Could not create project",
+      "description": "The project was not created. Please try again."
+    },
+    "saved": {
+      "title": "Project saved",
+      "description": "Your changes have been saved."
+    },
+    "saveFailed": {
+      "title": "Could not save project",
+      "description": "Your changes were not saved. Please try again.",
+      "noProject": "There is no project to update."
+    },
+    "uploaded": {
+      "title": "File uploaded",
+      "description": "{{type}} has been saved to your project."
+    },
+    "uploadSaveFailed": {
+      "title": "File not saved",
+      "description": "The file was uploaded but could not be added to your project. Please try again."
+    }
+  },
+  "empty": {
+    "title": "No project yet",
+    "body": "Create your project to start working through the program.",
+    "create": "Create your project"
+  },
+  "header": {
+    "readiness": "Readiness",
+    "edit": "Edit project"
+  },
+  "lifecycle": {
+    "title": "Project lifecycle",
+    "state": {
+      "done": "(completed)",
+      "current": "(current stage)",
+      "upcoming": "(upcoming)"
+    },
+    "descriptions": {
+      "ideation": "Exploring and refining the core idea",
+      "validation": "Testing assumptions and validating market need",
+      "mvp_build": "Building the minimum viable product",
+      "pilot_traction": "Testing with real users and gaining traction",
+      "pitch_ready": "Ready for investor presentations"
+    }
+  },
+  "fields": {
+    "name": "Project name",
+    "summary": "Project summary",
+    "problem": "Problem statement",
+    "solution": "Solution approach",
+    "market": "Target market",
+    "aiComponents": "AI components",
+    "dataNeeds": "Data requirements",
+    "ethics": "Ethics and considerations"
+  },
+  "form": {
+    "titleEdit": "Edit project",
+    "titleCreate": "Create your project",
+    "placeholders": {
+      "summary": "Brief overview of your AI startup project...",
+      "problem": "What specific problem does your project solve?",
+      "solution": "How does your AI solution address this problem?",
+      "market": "Who is your target customer and what is the market size?",
+      "dataNeeds": "What data do you need for your AI solution?",
+      "ethics": "What ethical considerations and responsible AI practices will you implement?"
+    },
+    "errors": {
+      "name_one": "Project name must be at least {{count}} character",
+      "name_other": "Project name must be at least {{count}} characters",
+      "summary_one": "Summary must be at least {{count}} character",
+      "summary_other": "Summary must be at least {{count}} characters",
+      "problem_one": "Problem description must be at least {{count}} character",
+      "problem_other": "Problem description must be at least {{count}} characters",
+      "solution_one": "Solution description must be at least {{count}} character",
+      "solution_other": "Solution description must be at least {{count}} characters",
+      "market_one": "Market description must be at least {{count}} character",
+      "market_other": "Market description must be at least {{count}} characters",
+      "aiComponents": "Please specify at least one AI component",
+      "dataNeeds_one": "Data needs must be at least {{count}} character",
+      "dataNeeds_other": "Data needs must be at least {{count}} characters",
+      "ethics_one": "Ethics considerations must be at least {{count}} character",
+      "ethics_other": "Ethics considerations must be at least {{count}} characters"
+    },
+    "cohort": {
+      "label": "Cohort",
+      "placeholder": "Pick the cohort this project belongs to",
+      "hint": "Your cohort's roadmap is assigned to the project automatically.",
+      "fallback": "Your accepted cohort"
+    },
+    "save": "Save project",
+    "saving": "Saving..."
+  },
+  "aiComponents": {
+    "machineLearningModels": "Machine Learning Models",
+    "naturalLanguageProcessing": "Natural Language Processing",
+    "computerVision": "Computer Vision",
+    "aiAgentsChatbots": "AI Agents/Chatbots",
+    "predictiveAnalytics": "Predictive Analytics",
+    "recommendationSystems": "Recommendation Systems",
+    "generativeAi": "Generative AI",
+    "reinforcementLearning": "Reinforcement Learning",
+    "speechRecognition": "Speech Recognition",
+    "dataMining": "Data Mining"
+  },
+  "details": {
+    "problemSolution": "Problem and solution",
+    "marketTech": "Market and technology",
+    "dataEthics": "Data and ethics",
+    "notSpecified": "Not specified",
+    "noneSpecified": "None specified"
+  },
+  "artifactTypes": {
+    "pitchDeck": "Pitch deck",
+    "onePager": "One-pager",
+    "demoVideo": "Demo video",
+    "modelDocumentation": "Model documentation"
+  },
+  "files": {
+    "title": "Project files",
+    "notUploaded": "Not uploaded yet",
+    "uploadTitle": "Upload {{type}}",
+    "selectFile": "Select file"
+  },
+  "deliverables": {
+    "title": "Deliverables",
+    "status": "Status: {{status}}",
+    "submitted": "Submitted {{date}}",
+    "statuses": {
+      "not_started": "not started",
+      "in_progress": "in progress",
+      "submitted": "submitted",
+      "needs_revision": "needs revision",
+      "approved": "approved"
+    }
+  },
+  "milestones": {
+    "title": "Roadmap milestones",
+    "noneInRoadmap": "Your roadmap has no milestone items.",
+    "onlyMilestones_one": "This section lists only milestone-type items. Your roadmap has {{count}} item.",
+    "onlyMilestones_other": "This section lists only milestone-type items. Your roadmap has {{count}} items.",
+    "onlyMilestonesNamed_one": "This section lists only milestone-type items. Your roadmap \"{{name}}\" has {{count}} item.",
+    "onlyMilestonesNamed_other": "This section lists only milestone-type items. Your roadmap \"{{name}}\" has {{count}} items.",
+    "viewRoadmap": "View full roadmap",
+    "noRoadmap": "No roadmap is assigned to this project yet.",
+    "noRoadmapHint": "Milestones will appear here once a roadmap is assigned to your project.",
+    "start": "Start",
+    "starting": "Starting...",
+    "complete": "Complete",
+    "completing": "Completing...",
+    "notAssigned": "Not assigned"
+  },
+  "uploader": {
+    "fileGroup": "{{type}} files",
+    "tooLarge": {
+      "title": "File too large",
+      "description_one": "Files must be smaller than {{count}}MB.",
+      "description_other": "Files must be smaller than {{count}}MB."
+    },
+    "failed": {
+      "title": "Upload failed",
+      "description": "Could not upload the file. Please try again.",
+      "status": "Upload failed ({{status}})"
+    },
+    "uploading": "Uploading...",
+    "uploadingHint": "Uploading your file. This can take a moment.",
+    "hint_one": "One file, up to {{count}}MB.",
+    "hint_other": "One file, up to {{count}}MB.",
+    "hintWithFormats_one": "{{formats}}. One file, up to {{count}}MB.",
+    "hintWithFormats_other": "{{formats}}. One file, up to {{count}}MB."
+  }
+}

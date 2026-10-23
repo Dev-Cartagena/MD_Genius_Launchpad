@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocalized } from "@/lib/localized";
+import { intlLocale, type resources } from "@/i18n";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,18 +78,35 @@ function getErrorStatus(error: unknown): number | null {
   return match ? Number(match[1]) : null;
 }
 
-function getMediaLabel(url: string): { label: string; icon: "video" | "pdf" | "link" } {
+function getMediaLabel(url: string, t: TFunction<["curriculum", "common"]>): { label: string; icon: "video" | "pdf" | "link" } {
   const lower = url.toLowerCase();
   if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com") || lower.endsWith(".mp4")) {
-    return { label: "Video", icon: "video" };
+    return { label: t("media.video"), icon: "video" };
   }
-  if (lower.includes(".pdf")) return { label: "PDF", icon: "pdf" };
-  return { label: "Resource", icon: "link" };
+  if (lower.includes(".pdf")) return { label: t("media.pdf"), icon: "pdf" };
+  return { label: t("media.resource"), icon: "link" };
+}
+
+type CommonItemType = keyof (typeof resources)["en"]["common"]["itemType"];
+type ExtraItemType = keyof (typeof resources)["en"]["curriculum"]["itemType"];
+const COMMON_ITEM_TYPES = ["task", "assignment", "deliverable", "milestone", "checkin", "learning"] as const;
+const EXTRA_ITEM_TYPES = ["lesson", "mentor_session"] as const;
+
+/** Label for a stored roadmap item type; the stored value itself is never changed. */
+function itemTypeLabel(itemType: string, t: TFunction<["curriculum", "common"]>): string {
+  if ((COMMON_ITEM_TYPES as readonly string[]).includes(itemType)) {
+    return t(`common:itemType.${itemType as CommonItemType}`);
+  }
+  if ((EXTRA_ITEM_TYPES as readonly string[]).includes(itemType)) {
+    return t(`itemType.${itemType as ExtraItemType}`);
+  }
+  return itemType.replace(/_/g, " ");
 }
 
 type ParticipantQuiz = {
   id: string;
   title: string;
+  translations?: unknown;
   passThreshold: number;
   maxAttempts: number | null;
   questions: { question: string; options: string[] }[];
@@ -114,6 +135,8 @@ function LessonQuiz({
   onPassed: () => void;
 }) {
   const { toast } = useToast();
+  const { t } = useTranslation(["curriculum", "common"]);
+  const localized = useLocalized();
   const [answers, setAnswers] = useState<Record<number, number>>({});
   // `result` is the result currently on screen; `lastResult` survives "Try again"
   // so the attempt counter stays accurate while the quiz is retaken.
@@ -134,23 +157,25 @@ function LessonQuiz({
       setResult(data);
       setLastResult(data);
       if (data.passed) {
-        toast({ title: "Quiz passed", description: `You scored ${data.score}%. Lesson marked complete.` });
+        toast({ title: t("quiz.toast.passed.title"), description: t("quiz.toast.passed.description", { score: data.score }) });
         onPassed();
       } else {
         toast({
-          title: "Quiz not passed",
-          description: `You scored ${data.score}%. ${quiz ? `You need ${quiz.passThreshold}% to pass.` : ""}`,
+          title: t("quiz.toast.notPassed.title"),
+          description: quiz
+            ? t("quiz.toast.notPassed.descriptionWithThreshold", { score: data.score, threshold: quiz.passThreshold })
+            : t("quiz.toast.notPassed.description", { score: data.score }),
           variant: "destructive",
         });
       }
     },
     onError: (err) => {
-      const message = getErrorMessage(err, "Your answers were not submitted. Please try again.");
+      const message = getErrorMessage(err, t("quiz.toast.submitFailed.description"));
       if (getErrorStatus(err) === 409) {
         setAttemptsExhausted(message);
         return;
       }
-      toast({ title: "Could not submit quiz", description: message, variant: "destructive" });
+      toast({ title: t("quiz.toast.submitFailed.title"), description: message, variant: "destructive" });
     },
   });
 
@@ -161,12 +186,14 @@ function LessonQuiz({
   if (error || !quiz) {
     return (
       <p className="text-sm text-muted-foreground">
-        The quiz for this lesson could not be loaded.
+        {t("quiz.loadFailed")}
       </p>
     );
   }
 
   const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+  // Display text only; answers are submitted by index against the base questions.
+  const displayQuestions = localized.questions<ParticipantQuiz["questions"][number]>(quiz);
   const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i] !== undefined);
   const maxAttempts = lastResult?.maxAttempts ?? quiz.maxAttempts;
   const noAttemptsLeft =
@@ -191,23 +218,25 @@ function LessonQuiz({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h5 className="font-display font-medium text-sm flex items-center space-x-2">
           <HelpCircle className="w-4 h-4 text-primary" />
-          <span>{quiz.title}</span>
+          <span>{localized.text(quiz, "title")}</span>
         </h5>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="text-xs">Pass mark {quiz.passThreshold}%</Badge>
+          <Badge variant="outline" className="text-xs">{t("quiz.passMark", { threshold: quiz.passThreshold })}</Badge>
           {maxAttempts != null && (
             <Badge variant="outline" className="text-xs">
-              {attemptNumber !== undefined ? `Attempt ${attemptNumber} of ${maxAttempts}` : `Max attempts: ${maxAttempts}`}
+              {attemptNumber !== undefined
+                ? t("quiz.attemptOf", { attempt: attemptNumber, max: maxAttempts })
+                : t("quiz.maxAttempts", { max: maxAttempts })}
             </Badge>
           )}
         </div>
       </div>
 
       {lessonCompleted && !result && (
-        <p className="text-sm text-success">You have already completed this lesson.</p>
+        <p className="text-sm text-success">{t("quiz.alreadyCompleted")}</p>
       )}
 
-      {questions.map((q, qIndex) => (
+      {displayQuestions.map((q, qIndex) => (
         <div key={qIndex} className="space-y-2">
           <p className="text-sm font-medium">
             {qIndex + 1}. {q.question}
@@ -237,14 +266,16 @@ function LessonQuiz({
         >
           {result.passed ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
           <span>
-            {result.passed ? "Passed" : "Not passed"}: {result.correct} of {result.total} correct ({result.score}%).
+            {result.passed
+              ? t("quiz.result.passed", { correct: result.correct, total: result.total, score: result.score })
+              : t("quiz.result.notPassed", { correct: result.correct, total: result.total, score: result.score })}
           </span>
         </div>
       )}
 
       {noAttemptsLeft && !result?.passed && (
         <p className="text-sm text-destructive" data-testid={`quiz-no-attempts-${lessonId}`}>
-          {attemptsExhausted || "You have no attempts left for this quiz."}
+          {attemptsExhausted || t("quiz.noAttemptsLeft")}
         </p>
       )}
 
@@ -257,7 +288,7 @@ function LessonQuiz({
               onClick={handleTryAgain}
               data-testid={`button-retry-quiz-${lessonId}`}
             >
-              Try again
+              {t("common:actions.tryAgain")}
             </Button>
           ) : (
             <Button
@@ -266,12 +297,12 @@ function LessonQuiz({
               disabled={!allAnswered || submitMutation.isPending}
               data-testid={`button-submit-quiz-${lessonId}`}
             >
-              {submitMutation.isPending ? "Submitting..." : "Submit answers"}
+              {submitMutation.isPending ? t("quiz.submitting") : t("quiz.submit")}
             </Button>
           )
         )
       ) : (
-        <p className="text-xs text-muted-foreground">Quizzes are taken by program participants.</p>
+        <p className="text-xs text-muted-foreground">{t("quiz.participantsOnly")}</p>
       )}
     </div>
   );
@@ -280,6 +311,8 @@ function LessonQuiz({
 export default function CurriculumView() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation(["curriculum", "common"]);
+  const localized = useLocalized();
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
@@ -393,8 +426,8 @@ export default function CurriculumView() {
     },
     onError: (error) => {
       toast({
-        title: "Could not mark lesson complete",
-        description: getErrorMessage(error, "Please try again."),
+        title: t("toast.completeFailed.title"),
+        description: getErrorMessage(error, t("toast.completeFailed.description")),
         variant: "destructive",
       });
     }
@@ -408,15 +441,15 @@ export default function CurriculumView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject?.id, 'roadmap'] });
       toast({
-        title: "Status updated",
-        description: "The roadmap item has been updated.",
+        title: t("toast.statusUpdated.title"),
+        description: t("toast.statusUpdated.description"),
       });
     },
     onError: (error) => {
       console.error('Failed to update roadmap status:', error);
       toast({
-        title: "Could not update status",
-        description: "The roadmap item was not updated. Please try again.",
+        title: t("toast.statusFailed.title"),
+        description: t("toast.statusFailed.description"),
         variant: "destructive",
       });
     }
@@ -525,9 +558,9 @@ export default function CurriculumView() {
       <Card>
         <CardContent className="p-8 text-center">
           <AlertCircle className="w-10 h-10 mx-auto text-primary mb-4" />
-          <h3 className="text-xl mb-2">No cohorts available</h3>
+          <h3 className="text-xl mb-2">{t("empty.noCohorts.title")}</h3>
           <p className="text-muted-foreground">
-            There are no active cohorts at the moment. Contact an administrator to set up the curriculum.
+            {t("empty.noCohorts.body")}
           </p>
         </CardContent>
       </Card>
@@ -539,11 +572,11 @@ export default function CurriculumView() {
       <Card>
         <CardContent className="p-8 text-center">
           <AlertCircle className="w-10 h-10 mx-auto text-primary mb-4" />
-          <h3 className="text-xl mb-2">No cohort assigned</h3>
+          <h3 className="text-xl mb-2">{t("empty.noCohort.title")}</h3>
           <p className="text-muted-foreground">
             {user?.role === 'administrator'
-              ? 'Select a cohort to view its curriculum.'
-              : 'You have not been assigned to a cohort yet. Contact an administrator for help.'
+              ? t("empty.noCohort.admin")
+              : t("empty.noCohort.participant")
             }
           </p>
         </CardContent>
@@ -561,18 +594,18 @@ export default function CurriculumView() {
       {user?.role === 'administrator' && cohorts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Admin controls</CardTitle>
+            <CardTitle className="text-lg">{t("admin.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <label className="font-display text-sm font-medium">Cohort to view</label>
+              <label className="font-display text-sm font-medium">{t("admin.cohortLabel")}</label>
               <Select
                 value={selectedCohortId || currentCohort.id}
                 onValueChange={setSelectedCohortId}
                 data-testid="select-admin-cohort"
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a cohort" />
+                  <SelectValue placeholder={t("admin.cohortPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {cohorts.map((cohort: any) => (
@@ -582,11 +615,11 @@ export default function CurriculumView() {
                       data-testid={`select-item-cohort-${cohort.id}`}
                     >
                       <div className="flex items-center space-x-2">
-                        <span>{cohort.name}</span>
+                        <span>{localized.text(cohort, "name")}</span>
                         {cohort.isActive ? (
-                          <Badge variant="secondary" className="text-xs">Active</Badge>
+                          <Badge variant="secondary" className="text-xs">{t("admin.active")}</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-xs">Inactive</Badge>
+                          <Badge variant="outline" className="text-xs">{t("admin.inactive")}</Badge>
                         )}
                       </div>
                     </SelectItem>
@@ -594,7 +627,7 @@ export default function CurriculumView() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                You are viewing the curriculum as an administrator.
+                {t("admin.viewingAs")}
               </p>
             </div>
           </CardContent>
@@ -606,10 +639,10 @@ export default function CurriculumView() {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-xl">
-              {currentCohort.name}: curriculum progress
+              {t("overview.title", { cohort: localized.text(currentCohort, "name") })}
             </CardTitle>
             <Badge variant="outline" className="bg-secondary text-primary border-transparent" data-testid="completion-badge">
-              {user?.role === 'administrator' ? 'Admin view' : `${completionPercentage}% complete`}
+              {user?.role === 'administrator' ? t("overview.adminView") : t("overview.percentComplete", { percent: completionPercentage })}
             </Badge>
           </div>
         </CardHeader>
@@ -620,23 +653,23 @@ export default function CurriculumView() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="font-display text-3xl font-medium" data-testid="stat-modules">{modules.length}</p>
-                <p className="font-display text-sm text-muted-foreground">Modules</p>
+                <p className="font-display text-sm text-muted-foreground">{t("overview.stats.modules", { count: modules.length })}</p>
               </div>
               <div>
                 <p className="font-display text-3xl font-medium" data-testid="stat-lessons">
                   {lessons.length}
                 </p>
-                <p className="font-display text-sm text-muted-foreground">Lessons</p>
+                <p className="font-display text-sm text-muted-foreground">{t("overview.stats.lessons", { count: lessons.length })}</p>
               </div>
               <div>
                 <p className="font-display text-3xl font-medium" data-testid="stat-completed">
                   {userProgress.filter(p => p.isCompleted).length}
                 </p>
-                <p className="font-display text-sm text-muted-foreground">Completed</p>
+                <p className="font-display text-sm text-muted-foreground">{t("overview.stats.completed")}</p>
               </div>
               <div>
                 <p className="font-display text-3xl font-medium" data-testid="stat-milestones">{milestones.length}</p>
-                <p className="font-display text-sm text-muted-foreground">Milestones</p>
+                <p className="font-display text-sm text-muted-foreground">{t("overview.stats.milestones", { count: milestones.length })}</p>
               </div>
             </div>
           </div>
@@ -648,9 +681,9 @@ export default function CurriculumView() {
         <Card className="lg:col-start-3 lg:row-start-1">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-lg">Program timeline</CardTitle>
+              <CardTitle className="text-lg">{t("timeline.title")}</CardTitle>
               <span className="font-display text-sm text-muted-foreground">
-                Week {selectedWeek} of {totalWeeks}
+                {t("common:weekOf", { week: selectedWeek, total: totalWeeks })}
               </span>
             </div>
           </CardHeader>
@@ -675,11 +708,11 @@ export default function CurriculumView() {
                       data-testid={`button-week-${week}`}
                     >
                       <span className={cn("font-display text-sm", isSelected ? "font-medium" : "text-foreground")}>
-                        Week {week}
-                        {state === "current" && <span className="ml-2 text-xs text-accent">Current</span>}
+                        {t("common:week", { week })}
+                        {state === "current" && <span className="ml-2 text-xs text-accent">{t("timeline.current")}</span>}
                       </span>
                       <span className="shrink-0 text-xs text-muted-foreground">
-                        {moduleCount} {moduleCount === 1 ? "module" : "modules"}
+                        {t("timeline.moduleCount", { count: moduleCount })}
                       </span>
                     </button>
                   </li>
@@ -699,17 +732,17 @@ export default function CurriculumView() {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-xl flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
-              <span>Week {selectedWeek} modules</span>
+              <span>{t("week.modules", { week: selectedWeek })}</span>
             </h3>
             {isProgramWeekSelected && (
-              <span className="font-display text-xs text-accent">Current week</span>
+              <span className="font-display text-xs text-accent">{t("week.current")}</span>
             )}
           </div>
 
           {weekModules.length === 0 ? (
             <DropZone className="bg-card p-8">
               <BookOpen className="w-8 h-8 text-primary" />
-              <p className="text-muted-foreground">No modules for this week yet.</p>
+              <p className="text-muted-foreground">{t("week.noModules")}</p>
             </DropZone>
           ) : (
             <div className="space-y-4">
@@ -717,11 +750,11 @@ export default function CurriculumView() {
                 <Card key={module.id}>
                   <CardHeader>
                     <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-                      <span data-testid={`module-title-${module.id}`}>{module.title}</span>
-                      <Badge variant="outline">Week {module.week}</Badge>
+                      <span data-testid={`module-title-${module.id}`}>{localized.text(module, "title")}</span>
+                      <Badge variant="outline">{t("common:week", { week: module.week })}</Badge>
                     </CardTitle>
                     <p className="text-sm text-muted-foreground" data-testid={`module-description-${module.id}`}>
-                      {module.description}
+                      {localized.text(module, "description")}
                     </p>
                   </CardHeader>
                   
@@ -730,10 +763,10 @@ export default function CurriculumView() {
                     <div className="mb-4">
                       <h4 className="font-display font-medium text-sm mb-2 flex items-center space-x-1">
                         <Target className="w-4 h-4 text-primary" />
-                        <span>Learning objectives</span>
+                        <span>{t("module.objectives")}</span>
                       </h4>
                       <ul className="space-y-1">
-                        {module.objectives?.map((objective, index) => (
+                        {localized.list(module, "objectives").map((objective, index) => (
                           <li key={index} className="text-sm text-muted-foreground flex items-start space-x-2">
                             <span className="w-1 h-1 bg-primary rounded-full mt-2 flex-shrink-0"></span>
                             <span>{objective}</span>
@@ -749,7 +782,7 @@ export default function CurriculumView() {
                           className="font-display text-sm font-medium"
                           onClick={() => setSelectedModule(module.id)}
                         >
-                          Lessons ({selectedModule === module.id ? lessons.length : 0})
+                          {t("module.lessons", { count: selectedModule === module.id ? lessons.length : 0 })}
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="divide-y divide-border">
@@ -768,11 +801,11 @@ export default function CurriculumView() {
                                       <div className="flex-1 space-y-3">
                                           <div>
                                             <h4 className="font-display font-medium text-base leading-tight mb-2" data-testid={`lesson-title-${lesson.id}`}>
-                                              {lesson.title}
+                                              {localized.text(lesson, "title")}
                                             </h4>
                                             <div className="space-y-4">
                                               {(() => {
-                                                const content = lesson.content || '';
+                                                const content = localized.text(lesson, "content");
                                                 
                                                 // Production-ready line-based content parser with robust state machine
                                                 const parseContent = (rawContent: string) => {
@@ -858,17 +891,17 @@ export default function CurriculumView() {
                                                       const headingLower = headingText.toLowerCase();
                                                       
                                                       // Determine section type based on heading content
-                                                      if (/learning\s*objectives?/i.test(headingLower)) {
+                                                      if (/learning\s*objectives?|objetivos?\s*de\s*aprendizaje/i.test(headingLower)) {
                                                         currentSection = {
                                                           type: 'objectives',
-                                                          title: 'Learning Objectives',
+                                                          title: t("lessonContent.objectives"),
                                                           content: [],
                                                           icon: 'target'
                                                         };
-                                                      } else if (/overview/i.test(headingLower)) {
+                                                      } else if (/overview|resumen|descripci[oó]n\s*general/i.test(headingLower)) {
                                                         currentSection = {
                                                           type: 'overview',
-                                                          title: 'Overview',
+                                                          title: t("lessonContent.overview"),
                                                           content: [],
                                                           icon: 'info'
                                                         };
@@ -934,7 +967,7 @@ export default function CurriculumView() {
                                                     if (!currentSection) {
                                                       currentSection = {
                                                         type: isFirstContent ? 'overview' : 'content',
-                                                        title: isFirstContent ? 'Overview' : undefined,
+                                                        title: isFirstContent ? t("lessonContent.overview") : undefined,
                                                         content: [],
                                                         icon: isFirstContent ? 'info' : undefined
                                                       };
@@ -1123,7 +1156,7 @@ export default function CurriculumView() {
                                       {lesson.media && lesson.media.filter(m => m && isSafeLinkUrl(m)).length > 0 && (
                                         <div className="flex flex-wrap items-center gap-2">
                                           {lesson.media.filter(m => m && isSafeLinkUrl(m)).map((media, mediaIndex) => {
-                                            const { label, icon } = getMediaLabel(media);
+                                            const { label, icon } = getMediaLabel(media, t);
                                             return (
                                               <Button key={mediaIndex} size="sm" variant="outline" asChild>
                                                 <a
@@ -1165,10 +1198,10 @@ export default function CurriculumView() {
                                             <div className={cn("flex items-center gap-2 text-sm", progress?.isCompleted ? "text-success" : "text-muted-foreground")}>
                                               {progress?.isCompleted && <CheckCircle className="w-4 h-4" />}
                                               {progress?.isCompleted
-                                                ? "Lesson completed"
+                                                ? t("lesson.completed")
                                                 : lesson.quizId
-                                                ? "Pass the quiz above to complete this lesson"
-                                                : "Mark this lesson as completed when you're done"}
+                                                ? t("lesson.passQuiz")
+                                                : t("lesson.markWhenDone")}
                                             </div>
                                             {(progress?.isCompleted || !lesson.quizId) && (
                                               <Button
@@ -1181,14 +1214,14 @@ export default function CurriculumView() {
                                               >
                                                 <CheckCircle className="w-4 h-4 mr-2" />
                                                 {progress?.isCompleted
-                                                  ? 'Completed'
-                                                  : markCompleteMutation.isPending ? 'Marking...' : 'Mark as complete'}
+                                                  ? t("common:assignmentStatus.completed")
+                                                  : markCompleteMutation.isPending ? t("lesson.marking") : t("lesson.markComplete")}
                                               </Button>
                                             )}
                                           </div>
                                         ) : (
                                           <p className="text-xs text-muted-foreground">
-                                            Lesson completion is tracked for program participants.
+                                            {t("lesson.participantsOnly")}
                                           </p>
                                         )}
                                       </div>
@@ -1207,10 +1240,10 @@ export default function CurriculumView() {
                       <div className="mt-4">
                         <h4 className="font-display font-medium text-sm mb-2 flex items-center space-x-1">
                           <FileText className="w-4 h-4 text-primary" />
-                          <span>Additional resources</span>
+                          <span>{t("module.resources")}</span>
                         </h4>
                         <div className="flex flex-wrap gap-2">
-                          {module.resources.map((resource, index) => (
+                          {localized.list(module, "resources").map((resource, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {resource}
                             </Badge>
@@ -1232,12 +1265,12 @@ export default function CurriculumView() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Award className="w-5 h-5 text-primary" />
-                <span>Week {selectedWeek} milestones</span>
+                <span>{t("week.milestones", { week: selectedWeek })}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {getCurrentWeekMilestones().length === 0 ? (
-                <p className="text-sm text-muted-foreground">No milestones this week.</p>
+                <p className="text-sm text-muted-foreground">{t("week.noMilestones")}</p>
               ) : (
                 <div className="divide-y divide-border">
                   {getCurrentWeekMilestones().map((milestone: Milestone) => (
@@ -1247,16 +1280,16 @@ export default function CurriculumView() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm" data-testid={`milestone-title-${milestone.id}`}>
-                          {milestone.title}
+                          {localized.text(milestone, "title")}
                         </p>
                         {milestone.description && (
                           <p className="text-xs text-muted-foreground mb-1">
-                            {milestone.description}
+                            {localized.text(milestone, "description")}
                           </p>
                         )}
                         {milestone.dueDate && (
                           <p className="font-display text-xs text-accent">
-                            Due {new Date(milestone.dueDate).toLocaleDateString()}
+                            {t("due", { date: new Date(milestone.dueDate).toLocaleDateString(intlLocale()) })}
                           </p>
                         )}
                       </div>
@@ -1273,7 +1306,7 @@ export default function CurriculumView() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <ListTodo className="w-5 h-5 text-primary" />
-                  <span>Week {selectedWeek} roadmap</span>
+                  <span>{t("week.roadmap", { week: selectedWeek })}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1287,7 +1320,7 @@ export default function CurriculumView() {
                     ))}
                   </div>
                 ) : getCurrentWeekRoadmapItems().length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No roadmap items this week.</p>
+                  <p className="text-sm text-muted-foreground">{t("week.noRoadmapItems")}</p>
                 ) : (
                   <div className="divide-y divide-border">
                     {getCurrentWeekRoadmapItems().map((item: RoadmapItemWithAssignment) => (
@@ -1310,20 +1343,20 @@ export default function CurriculumView() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm mb-1" data-testid={`roadmap-title-${item.id}`}>
-                            {item.title}
+                            {localized.text(item, "title")}
                           </p>
                           {item.description && (
                             <p className="text-xs text-muted-foreground mb-2">
-                              {item.description}
+                              {localized.text(item, "description")}
                             </p>
                           )}
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <Badge
                               variant="outline"
-                              className="text-xs capitalize"
+                              className="text-xs"
                               data-testid={`roadmap-type-${item.id}`}
                             >
-                              {item.type.replace(/_/g, ' ')}
+                              {itemTypeLabel(item.type, t)}
                             </Badge>
                             {item.assignment ? (
                               (() => {
@@ -1350,9 +1383,9 @@ export default function CurriculumView() {
                                     data-testid={`button-roadmap-${assignment.status}-${item.id}`}
                                   >
                                     {assignment.status === 'in_progress' ? (
-                                      updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
+                                      updateRoadmapStatusMutation.isPending ? t("roadmap.completing") : t("roadmap.complete")
                                     ) : (
-                                      updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
+                                      updateRoadmapStatusMutation.isPending ? t("roadmap.starting") : t("roadmap.start")
                                     )}
                                   </Button>
                                   </div>
@@ -1360,7 +1393,7 @@ export default function CurriculumView() {
                               })()
                             ) : (
                               <Badge variant="secondary" className="text-xs">
-                                Not assigned
+                                {t("roadmap.notAssigned")}
                               </Badge>
                             )}
                           </div>
@@ -1377,19 +1410,19 @@ export default function CurriculumView() {
           {user?.role === 'participant' && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Quick actions</CardTitle>
+                <CardTitle className="text-lg">{t("quickActions.title")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button className="w-full justify-start" variant="outline" asChild>
                   <Link href="/mentors" data-testid="button-schedule-session">
                     <Users className="w-4 h-4 mr-2" />
-                    Schedule a mentor session
+                    {t("quickActions.scheduleSession")}
                   </Link>
                 </Button>
                 <Button className="w-full justify-start" variant="outline" asChild>
                   <Link href="/roadmap" data-testid="button-view-assignments">
                     <ListTodo className="w-4 h-4 mr-2" />
-                    View roadmap
+                    {t("quickActions.viewRoadmap")}
                   </Link>
                 </Button>
               </CardContent>

@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocalized } from "@/lib/localized";
+import { intlLocale } from "@/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,28 +55,27 @@ import {
   FileVideo
 } from "lucide-react";
 
-const projectSchema = z.object({
-  name: z.string().min(3, "Project name must be at least 3 characters"),
-  summary: z.string().min(50, "Summary must be at least 50 characters"),
-  problem: z.string().min(50, "Problem description must be at least 50 characters"),
-  solution: z.string().min(50, "Solution description must be at least 50 characters"),
-  market: z.string().min(30, "Market description must be at least 30 characters"),
-  aiComponents: z.array(z.string()).min(1, "Please specify at least one AI component"),
-  dataNeeds: z.string().min(30, "Data needs must be at least 30 characters"),
-  risks: z.array(z.string()),
-  ethics: z.string().min(30, "Ethics considerations must be at least 30 characters"),
-});
+function makeProjectSchema(t: TFunction<["project", "common"]>) {
+  return z.object({
+    name: z.string().min(3, t("form.errors.name", { count: 3 })),
+    summary: z.string().min(50, t("form.errors.summary", { count: 50 })),
+    problem: z.string().min(50, t("form.errors.problem", { count: 50 })),
+    solution: z.string().min(50, t("form.errors.solution", { count: 50 })),
+    market: z.string().min(30, t("form.errors.market", { count: 30 })),
+    aiComponents: z.array(z.string()).min(1, t("form.errors.aiComponents")),
+    dataNeeds: z.string().min(30, t("form.errors.dataNeeds", { count: 30 })),
+    risks: z.array(z.string()),
+    ethics: z.string().min(30, t("form.errors.ethics", { count: 30 })),
+  });
+}
 
-type ProjectFormData = z.infer<typeof projectSchema>;
+type ProjectFormData = z.infer<ReturnType<typeof makeProjectSchema>>;
 
-const stageOptions = [
-  { value: "ideation", label: "Ideation", description: "Exploring and refining the core idea" },
-  { value: "validation", label: "Market validation", description: "Testing assumptions and validating market need" },
-  { value: "mvp_build", label: "MVP development", description: "Building the minimum viable product" },
-  { value: "pilot_traction", label: "Pilot and traction", description: "Testing with real users and gaining traction" },
-  { value: "pitch_ready", label: "Pitch ready", description: "Ready for investor presentations" },
-];
+/** Stored stage values, in lifecycle order. Labels come from common:projectStage. */
+const STAGES = ["ideation", "validation", "mvp_build", "pilot_traction", "pitch_ready"] as const;
+type Stage = (typeof STAGES)[number];
 
+/** Stored AI component values (shown through project:aiComponents.<slug>). */
 const aiComponentOptions = [
   "Machine Learning Models",
   "Natural Language Processing",
@@ -86,13 +89,40 @@ const aiComponentOptions = [
   "Data Mining"
 ];
 
-/** Display names for artifact types (the type strings themselves are stored data). */
-const artifactTypeLabels: Record<string, string> = {
-  "Pitch Deck": "Pitch deck",
-  "One-Pager": "One-pager",
-  "Demo Video": "Demo video",
-  "Model Documentation": "Model documentation",
-};
+/** Stable slug for a stored value, e.g. "Pitch Deck" -> "pitchDeck", "AI Agents/Chatbots" -> "aiAgentsChatbots". */
+function slugKey(value: string): string {
+  const words = value.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  return words
+    .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .join("");
+}
+
+const ARTIFACT_TYPES = ["Pitch Deck", "One-Pager", "Demo Video", "Model Documentation"] as const;
+const ARTIFACT_TYPE_KEYS = ["pitchDeck", "onePager", "demoVideo", "modelDocumentation"] as const;
+type ArtifactTypeKey = (typeof ARTIFACT_TYPE_KEYS)[number];
+
+const AI_COMPONENT_KEYS = [
+  "machineLearningModels", "naturalLanguageProcessing", "computerVision", "aiAgentsChatbots",
+  "predictiveAnalytics", "recommendationSystems", "generativeAi", "reinforcementLearning",
+  "speechRecognition", "dataMining",
+] as const;
+type AiComponentKey = (typeof AI_COMPONENT_KEYS)[number];
+
+/** Display name for an artifact type (the type strings themselves are stored data). */
+function artifactTypeLabel(type: string, t: TFunction<["project", "common"]>): string {
+  const key = slugKey(type);
+  return (ARTIFACT_TYPE_KEYS as readonly string[]).includes(key) ? t(`artifactTypes.${key as ArtifactTypeKey}`) : type;
+}
+
+/** Display name for a stored AI component value; unknown values are shown as stored. */
+function aiComponentLabel(component: string, t: TFunction<["project", "common"]>): string {
+  const key = slugKey(component);
+  return (AI_COMPONENT_KEYS as readonly string[]).includes(key) ? t(`aiComponents.${key as AiComponentKey}`) : component;
+}
+
+/** Stored deliverable statuses with a label; others are shown as stored. */
+const DELIVERABLE_STATUSES = ["not_started", "in_progress", "submitted", "needs_revision", "approved"] as const;
+type DeliverableStatus = (typeof DELIVERABLE_STATUSES)[number];
 
 /** Lucide icon for a project file, from its extension or else its artifact type. */
 function getFileIcon(artifactType: string, fileName?: string | null) {
@@ -113,6 +143,9 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const [openUploadDialog, setOpenUploadDialog] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation(["project", "common"]);
+  const localized = useLocalized();
+  const projectSchema = useMemo(() => makeProjectSchema(t), [t]);
 
   // Fetch user's projects
   const { data: projects = [], isLoading } = useQuery<Project[]>({
@@ -129,7 +162,10 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   const acceptedCohortIds = Array.from(new Set(
     myApplications.filter((app) => app.status === "accepted").map((app) => app.cohortId),
   ));
-  const cohortLabel = (id: string) => openCohorts.find((c) => c.id === id)?.name ?? "Your accepted cohort";
+  const cohortLabel = (id: string) => {
+    const cohort = openCohorts.find((c) => c.id === id);
+    return cohort ? localized.text(cohort, "name") : t("form.cohort.fallback");
+  };
   const [selectedCohortId, setSelectedCohortId] = useState<string>("");
 
   // Fetch deliverables for current project
@@ -169,15 +205,15 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', currentProject?.id, 'roadmap'] });
       toast({
-        title: "Status updated",
-        description: "The milestone has been updated.",
+        title: t("toast.milestoneUpdated.title"),
+        description: t("toast.milestoneUpdated.description"),
       });
     },
     onError: (error) => {
       console.error('Failed to update milestone status:', error);
       toast({
-        title: "Could not update status",
-        description: "The milestone was not updated. Please try again.",
+        title: t("toast.milestoneFailed.title"),
+        description: t("toast.milestoneFailed.description"),
         variant: "destructive",
       });
     }
@@ -226,8 +262,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Project created",
-        description: "Your project has been created.",
+        title: t("toast.created.title"),
+        description: t("toast.created.description"),
       });
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects/my"] });
@@ -237,8 +273,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("toast.signedOut.title"),
+          description: t("toast.signedOut.description"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -247,8 +283,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         return;
       }
       toast({
-        title: "Could not create project",
-        description: getApiErrorMessage(error, "The project was not created. Please try again."),
+        title: t("toast.createFailed.title"),
+        description: getApiErrorMessage(error, t("toast.createFailed.description")),
         variant: "destructive",
       });
     }
@@ -257,7 +293,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
   // Update project mutation
   const updateProject = useMutation({
     mutationFn: async (data: ProjectFormData) => {
-      if (!currentProject?.id) throw new Error("No project to update");
+      if (!currentProject?.id) throw new Error(t("toast.saveFailed.noProject"));
       const cohortChanged = !!selectedCohortId && selectedCohortId !== currentProject.cohortId;
       const response = await apiRequest("PUT", `/api/projects/${currentProject.id}`, {
         ...data,
@@ -267,8 +303,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Project saved",
-        description: "Your changes have been saved.",
+        title: t("toast.saved.title"),
+        description: t("toast.saved.description"),
       });
       setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ["/api/projects/my"] });
@@ -277,8 +313,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("toast.signedOut.title"),
+          description: t("toast.signedOut.description"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -287,8 +323,8 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
         return;
       }
       toast({
-        title: "Could not save project",
-        description: getApiErrorMessage(error, "Your changes were not saved. Please try again."),
+        title: t("toast.saveFailed.title"),
+        description: getApiErrorMessage(error, t("toast.saveFailed.description")),
         variant: "destructive",
       });
     }
@@ -308,14 +344,14 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       setOpenUploadDialog(null);
 
       toast({
-        title: "File uploaded",
-        description: `${artifactTypeLabels[artifactType] ?? artifactType} has been saved to your project.`,
+        title: t("toast.uploaded.title"),
+        description: t("toast.uploaded.description", { type: artifactTypeLabel(artifactType, t) }),
       });
     } catch (error) {
       console.error('Failed to save artifact:', error);
       toast({
-        title: "File not saved",
-        description: "The file was uploaded but could not be added to your project. Please try again.",
+        title: t("toast.uploadSaveFailed.title"),
+        description: t("toast.uploadSaveFailed.description"),
         variant: "destructive"
       });
     }
@@ -372,16 +408,16 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-secondary text-primary flex items-center justify-center">
               <Lightbulb className="w-6 h-6" />
             </div>
-            <h3 className="text-xl mb-2">No project yet</h3>
+            <h3 className="text-xl mb-2">{t("empty.title")}</h3>
             <p className="text-muted-foreground mb-6">
-              Create your project to start working through the program.
+              {t("empty.body")}
             </p>
             <Button
               onClick={() => setIsEditing(true)}
               data-testid="button-create-project"
             >
               <Lightbulb className="w-4 h-4 mr-2" />
-              Create your project
+              {t("empty.create")}
             </Button>
           </CardContent>
         </Card>
@@ -389,7 +425,9 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
     );
   }
 
-  const currentStageIndex = stageOptions.findIndex(s => s.value === currentProject?.stage);
+  const stageLabel = (stage: string) =>
+    (STAGES as readonly string[]).includes(stage) ? t(`common:projectStage.${stage as Stage}`) : stage;
+  const currentStageIndex = STAGES.findIndex(s => s === currentProject?.stage);
   const stageState = (index: number): "done" | "current" | "upcoming" => {
     if (currentStageIndex < 0) return "upcoming";
     if (index < currentStageIndex) return "done";
@@ -418,7 +456,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                       className="bg-secondary text-primary border-transparent"
                       data-testid="project-stage"
                     >
-                      {stageOptions.find(s => s.value === currentProject.stage)?.label || currentProject.stage}
+                      {currentProject.stage ? stageLabel(currentProject.stage) : currentProject.stage}
                     </Badge>
                   </div>
                   <p className="text-muted-foreground" data-testid="project-summary">
@@ -430,7 +468,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                 <ProgressRing
                   value={currentProject.readinessScore || 0}
                   size={104}
-                  caption="Readiness"
+                  caption={t("header.readiness")}
                 />
                 <Button
                   onClick={() => setIsEditing(true)}
@@ -438,7 +476,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   data-testid="button-edit-project"
                 >
                   <Edit className="w-4 h-4 mr-2" />
-                  Edit project
+                  {t("header.edit")}
                 </Button>
               </div>
             </div>
@@ -446,13 +484,13 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           <CardContent>
             {/* Lifecycle stages as connected blocks */}
             <div className="border-t border-border pt-6">
-              <h3 className="font-display text-sm text-muted-foreground mb-4">Project lifecycle</h3>
+              <h3 className="font-display text-sm text-muted-foreground mb-4">{t("lifecycle.title")}</h3>
               <ol className="grid gap-4 lg:grid-cols-5 lg:gap-0">
-                {stageOptions.map((stage, index) => {
+                {STAGES.map((stage, index) => {
                   const state = stageState(index);
                   return (
-                    <li key={stage.value} className="relative flex gap-3 lg:flex-col lg:pr-4">
-                      {index < stageOptions.length - 1 && (
+                    <li key={stage} className="relative flex gap-3 lg:flex-col lg:pr-4">
+                      {index < STAGES.length - 1 && (
                         <span
                           aria-hidden="true"
                           className="absolute left-[17px] top-10 -bottom-3 w-px bg-primary/20 lg:left-12 lg:right-2 lg:top-[18px] lg:bottom-auto lg:h-px lg:w-auto"
@@ -466,12 +504,13 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                             state === "upcoming" ? "text-muted-foreground" : "text-foreground",
                           )}
                         >
-                          {stage.label}
+                          {t(`common:projectStage.${stage}`)}
                           <span className="sr-only">
-                            {state === "done" ? " (completed)" : state === "current" ? " (current stage)" : " (upcoming)"}
+                            {" "}
+                            {state === "done" ? t("lifecycle.state.done") : state === "current" ? t("lifecycle.state.current") : t("lifecycle.state.upcoming")}
                           </span>
                         </p>
-                        <p className="text-xs text-muted-foreground">{stage.description}</p>
+                        <p className="text-xs text-muted-foreground">{t(`lifecycle.descriptions.${stage}`)}</p>
                       </div>
                     </li>
                   );
@@ -489,7 +528,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {currentProject ? "Edit project" : "Create your project"}
+                  {currentProject ? t("form.titleEdit") : t("form.titleCreate")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -498,7 +537,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project name</FormLabel>
+                      <FormLabel>{t("fields.name")}</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
@@ -515,11 +554,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="summary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Project summary</FormLabel>
+                      <FormLabel>{t("fields.summary")}</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
-                          placeholder="Brief overview of your AI startup project..."
+                          placeholder={t("form.placeholders.summary")}
                           className="min-h-[100px]"
                           data-testid="textarea-project-summary"
                         />
@@ -535,11 +574,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="problem"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Problem statement</FormLabel>
+                        <FormLabel>{t("fields.problem")}</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
-                            placeholder="What specific problem does your project solve?"
+                            placeholder={t("form.placeholders.problem")}
                             className="min-h-[120px]"
                             data-testid="textarea-problem-statement"
                           />
@@ -554,11 +593,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="solution"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Solution approach</FormLabel>
+                        <FormLabel>{t("fields.solution")}</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
-                            placeholder="How does your AI solution address this problem?"
+                            placeholder={t("form.placeholders.solution")}
                             className="min-h-[120px]"
                             data-testid="textarea-solution"
                           />
@@ -574,11 +613,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="market"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Target market</FormLabel>
+                      <FormLabel>{t("fields.market")}</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
-                          placeholder="Who is your target customer and what is the market size?"
+                          placeholder={t("form.placeholders.market")}
                           data-testid="textarea-target-market"
                         />
                       </FormControl>
@@ -592,7 +631,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                   name="aiComponents"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>AI components</FormLabel>
+                      <FormLabel>{t("fields.aiComponents")}</FormLabel>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {aiComponentOptions.map((component) => (
                           <div key={component} className="flex items-center space-x-2">
@@ -610,7 +649,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                               data-testid={`checkbox-ai-${component.toLowerCase().replace(/\s+/g, '-')}`}
                             />
                             <label htmlFor={component} className="text-sm">
-                              {component}
+                              {aiComponentLabel(component, t)}
                             </label>
                           </div>
                         ))}
@@ -626,11 +665,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="dataNeeds"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data requirements</FormLabel>
+                        <FormLabel>{t("fields.dataNeeds")}</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
-                            placeholder="What data do you need for your AI solution?"
+                            placeholder={t("form.placeholders.dataNeeds")}
                             data-testid="textarea-data-needs"
                           />
                         </FormControl>
@@ -644,11 +683,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     name="ethics"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Ethics and considerations</FormLabel>
+                        <FormLabel>{t("fields.ethics")}</FormLabel>
                         <FormControl>
                           <Textarea 
                             {...field}
-                            placeholder="What ethical considerations and responsible AI practices will you implement?"
+                            placeholder={t("form.placeholders.ethics")}
                             data-testid="textarea-ethics"
                           />
                         </FormControl>
@@ -660,10 +699,10 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
 
                 {acceptedCohortIds.length > 0 && (
                   <div className="space-y-2">
-                    <label className="font-display text-sm font-medium">Cohort</label>
+                    <label className="font-display text-sm font-medium">{t("form.cohort.label")}</label>
                     <Select value={selectedCohortId} onValueChange={setSelectedCohortId}>
                       <SelectTrigger data-testid="select-project-cohort">
-                        <SelectValue placeholder="Pick the cohort this project belongs to" />
+                        <SelectValue placeholder={t("form.cohort.placeholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         {acceptedCohortIds.map((id) => (
@@ -672,7 +711,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Your cohort's roadmap is assigned to the project automatically.
+                      {t("form.cohort.hint")}
                     </p>
                   </div>
                 )}
@@ -684,7 +723,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     data-testid="button-save-project"
                   >
                     <Save className="w-4 h-4 mr-2" />
-                    {createProject.isPending || updateProject.isPending ? "Saving..." : "Save project"}
+                    {createProject.isPending || updateProject.isPending ? t("form.saving") : t("form.save")}
                   </Button>
                   <Button 
                     type="button" 
@@ -692,7 +731,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     onClick={() => setIsEditing(false)}
                     data-testid="button-cancel-edit"
                   >
-                    Cancel
+                    {t("common:actions.cancel")}
                   </Button>
                 </div>
               </CardContent>
@@ -709,20 +748,20 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="w-5 h-5 text-primary" />
-                <span>Problem and solution</span>
+                <span>{t("details.problemSolution")}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-display text-sm text-muted-foreground mb-1">Problem statement</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-1">{t("fields.problem")}</h4>
                 <p className="text-sm text-foreground" data-testid="display-problem">
-                  {currentProject.problem || "Not specified"}
+                  {currentProject.problem || t("details.notSpecified")}
                 </p>
               </div>
               <div>
-                <h4 className="font-display text-sm text-muted-foreground mb-1">Solution approach</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-1">{t("fields.solution")}</h4>
                 <p className="text-sm text-foreground" data-testid="display-solution">
-                  {currentProject.solution || "Not specified"}
+                  {currentProject.solution || t("details.notSpecified")}
                 </p>
               </div>
             </CardContent>
@@ -733,24 +772,24 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-primary" />
-                <span>Market and technology</span>
+                <span>{t("details.marketTech")}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-display text-sm text-muted-foreground mb-1">Target market</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-1">{t("fields.market")}</h4>
                 <p className="text-sm text-foreground" data-testid="display-market">
-                  {currentProject.market || "Not specified"}
+                  {currentProject.market || t("details.notSpecified")}
                 </p>
               </div>
               <div>
-                <h4 className="font-display text-sm text-muted-foreground mb-2">AI components</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-2">{t("fields.aiComponents")}</h4>
                 <div className="flex flex-wrap gap-1">
                   {currentProject.aiComponents?.map((component: string, index: number) => (
                     <Badge key={index} variant="outline" className="text-xs">
-                      {component}
+                      {aiComponentLabel(component, t)}
                     </Badge>
-                  )) || <span className="text-sm text-muted-foreground">None specified</span>}
+                  )) || <span className="text-sm text-muted-foreground">{t("details.noneSpecified")}</span>}
                 </div>
               </div>
             </CardContent>
@@ -761,20 +800,20 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
-                <span>Data and ethics</span>
+                <span>{t("details.dataEthics")}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-display text-sm text-muted-foreground mb-1">Data requirements</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-1">{t("fields.dataNeeds")}</h4>
                 <p className="text-sm text-foreground" data-testid="display-data-needs">
-                  {currentProject.dataNeeds || "Not specified"}
+                  {currentProject.dataNeeds || t("details.notSpecified")}
                 </p>
               </div>
               <div>
-                <h4 className="font-display text-sm text-muted-foreground mb-1">Ethics and considerations</h4>
+                <h4 className="font-display text-sm text-muted-foreground mb-1">{t("fields.ethics")}</h4>
                 <p className="text-sm text-foreground" data-testid="display-ethics">
-                  {currentProject.ethics || "Not specified"}
+                  {currentProject.ethics || t("details.notSpecified")}
                 </p>
               </div>
             </CardContent>
@@ -785,12 +824,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
-                <span>Project files</span>
+                <span>{t("files.title")}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="divide-y divide-border">
-                {["Pitch Deck", "One-Pager", "Demo Video", "Model Documentation"].map((artifactType) => {
+                {ARTIFACT_TYPES.map((artifactType) => {
                   const latest = artifacts
                     .filter(a => a.type === artifactType && !!a.fileRef)
                     .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0];
@@ -801,7 +840,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                       <FileIcon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{artifactTypeLabels[artifactType] ?? artifactType}</p>
+                      <p className="text-sm font-medium">{artifactTypeLabel(artifactType, t)}</p>
                       {latest ? (
                         <p className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                           <a
@@ -814,11 +853,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                             {latest.title}
                           </a>
                           {latest.createdAt && (
-                            <span className="shrink-0">· {new Date(latest.createdAt).toLocaleDateString()}</span>
+                            <span className="shrink-0">· {new Date(latest.createdAt).toLocaleDateString(intlLocale())}</span>
                           )}
                         </p>
                       ) : (
-                        <p className="text-xs text-muted-foreground">Not uploaded yet</p>
+                        <p className="text-xs text-muted-foreground">{t("files.notUploaded")}</p>
                       )}
                     </div>
                       <Dialog
@@ -828,12 +867,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                         <DialogTrigger asChild>
                           <Button size="sm" variant="outline" className="shrink-0" data-testid={`button-upload-${artifactType.toLowerCase().replace(/ /g, '-')}`}>
                             <Upload className="w-3 h-3 mr-1" />
-                            {artifacts.some(a => a.type === artifactType) ? "Replace" : "Upload"}
+                            {artifacts.some(a => a.type === artifactType) ? t("common:actions.replace") : t("common:actions.upload")}
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Upload {(artifactTypeLabels[artifactType] ?? artifactType).toLowerCase()}</DialogTitle>
+                            <DialogTitle>{t("files.uploadTitle", { type: artifactTypeLabel(artifactType, t).toLowerCase() })}</DialogTitle>
                           </DialogHeader>
                           <ObjectUploader
                             maxFileSize={10 * 1024 * 1024}
@@ -841,7 +880,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                             buttonClassName="w-full sm:w-auto"
                           >
                             <Upload className="w-4 h-4 mr-2" />
-                            Select file
+                            {t("files.selectFile")}
                           </ObjectUploader>
                         </DialogContent>
                       </Dialog>
@@ -860,7 +899,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
-              <span>Deliverables</span>
+              <span>{t("deliverables.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -889,8 +928,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                       {deliverable.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Status: {deliverable.status?.replace('_', ' ')}
-                      {deliverable.submittedAt && ` · Submitted ${new Date(deliverable.submittedAt).toLocaleDateString()}`}
+                      {t("deliverables.status", {
+                        status: (DELIVERABLE_STATUSES as readonly string[]).includes(deliverable.status)
+                          ? t(`deliverables.statuses.${deliverable.status as DeliverableStatus}`)
+                          : deliverable.status?.replace('_', ' ') ?? "",
+                      })}
+                      {deliverable.submittedAt && ` · ${t("deliverables.submitted", { date: new Date(deliverable.submittedAt).toLocaleDateString(intlLocale()) })}`}
                     </p>
                   </div>
                 </div>
@@ -906,7 +949,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="w-5 h-5 text-primary" />
-              <span>Roadmap milestones</span>
+              <span>{t("milestones.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -925,22 +968,22 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                 {roadmap && roadmap.items.length > 0 ? (
                   <>
                     <p className="text-muted-foreground" data-testid="text-no-milestone-items">
-                      Your roadmap has no milestone items.
+                      {t("milestones.noneInRoadmap")}
                     </p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      This section lists only milestone-type items. Your roadmap
-                      {roadmap.template?.name ? ` "${roadmap.template.name}"` : ""} has{" "}
-                      {roadmap.items.length} {roadmap.items.length === 1 ? "item" : "items"}.
+                      {roadmap.template?.name
+                        ? t("milestones.onlyMilestonesNamed", { name: localized.text(roadmap.template, "name"), count: roadmap.items.length })
+                        : t("milestones.onlyMilestones", { count: roadmap.items.length })}
                     </p>
                     <Button asChild size="sm" variant="outline" className="mt-4">
-                      <Link href="/roadmap" data-testid="link-full-roadmap">View full roadmap</Link>
+                      <Link href="/roadmap" data-testid="link-full-roadmap">{t("milestones.viewRoadmap")}</Link>
                     </Button>
                   </>
                 ) : (
                   <>
-                    <p className="text-muted-foreground">No roadmap is assigned to this project yet.</p>
+                    <p className="text-muted-foreground">{t("milestones.noRoadmap")}</p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Milestones will appear here once a roadmap is assigned to your project.
+                      {t("milestones.noRoadmapHint")}
                     </p>
                   </>
                 )}
@@ -963,11 +1006,11 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                     <div className="flex min-w-0 flex-1 flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <h4 className="font-medium text-base mb-1" data-testid={`milestone-title-${milestone.id}`}>
-                          {milestone.title}
+                          {localized.text(milestone, "title")}
                         </h4>
                         {milestone.description && (
                           <p className="text-sm text-muted-foreground mb-2">
-                            {milestone.description}
+                            {localized.text(milestone, "description")}
                           </p>
                         )}
                         <div className="flex flex-wrap items-center gap-2">
@@ -976,7 +1019,7 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                             className="text-xs"
                             data-testid={`milestone-week-${milestone.id}`}
                           >
-                            Week {milestone.week}
+                            {t("common:week", { week: milestone.week })}
                           </Badge>
                           <span data-testid={`milestone-status-${milestone.id}`}>
                             <StatusChip status={milestone.assignment?.status} />
@@ -994,15 +1037,15 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                               data-testid={`button-milestone-${milestone.assignment.status}-${milestone.id}`}
                             >
                               {milestone.assignment.status !== 'in_progress' ? (
-                                updateRoadmapStatusMutation.isPending ? 'Starting...' : 'Start'
+                                updateRoadmapStatusMutation.isPending ? t("milestones.starting") : t("milestones.start")
                               ) : (
-                                updateRoadmapStatusMutation.isPending ? 'Completing...' : 'Complete'
+                                updateRoadmapStatusMutation.isPending ? t("milestones.completing") : t("milestones.complete")
                               )}
                             </Button>
                           )
                         ) : (
                           <Badge variant="secondary" className="text-xs">
-                            Not assigned
+                            {t("milestones.notAssigned")}
                           </Badge>
                         )}
                       </div>

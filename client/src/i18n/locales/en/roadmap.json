@@ -1,1 +1,58 @@
-{}
+{
+  "page": {
+    "title": "Program roadmap",
+    "subtitle": "Your week-by-week plan through the program"
+  },
+  "restricted": "The roadmap is available to program participants.",
+  "noProject": "You don't have a project yet. Create your project to see your roadmap.",
+  "empty": {
+    "title": "No roadmap assigned yet",
+    "body": "Your program roadmap has not been assigned yet. Check back later or contact your program coordinator."
+  },
+  "toast": {
+    "updated": {
+      "title": "Status updated",
+      "description": "The roadmap item has been updated."
+    },
+    "updateFailed": {
+      "title": "Could not update status",
+      "description": "The roadmap item was not updated. Please try again."
+    }
+  },
+  "stats": {
+    "pending": "Pending",
+    "doneOf": "{{done}} of {{total}} done"
+  },
+  "weeks": {
+    "all": "All weeks",
+    "current": "Current week",
+    "done": "{{done}}/{{total}} done"
+  },
+  "progress": {
+    "score": "Score: {{score}}%",
+    "module_one": "Progress: {{completed}}/{{count}} lesson ({{percent}}%)",
+    "module_other": "Progress: {{completed}}/{{count}} lessons ({{percent}}%)"
+  },
+  "linked": {
+    "lesson": "Lesson: {{title}}",
+    "module": "Module: {{title}}"
+  },
+  "itemType": {
+    "lesson": "Lesson",
+    "mentor_session": "Mentoring session"
+  },
+  "autoCompleted": "Auto-completed",
+  "estimatedHours": "~{{hours}}h",
+  "due": "Due {{date}}",
+  "actions": {
+    "viewLesson": "View lesson",
+    "viewModule": "View module",
+    "start": "Start",
+    "complete": "Complete",
+    "more": "More actions",
+    "moreFor": "More actions for {{title}}",
+    "block": "Mark blocked",
+    "waive": "Waive",
+    "reset": "Reset to not started"
+  }
+}

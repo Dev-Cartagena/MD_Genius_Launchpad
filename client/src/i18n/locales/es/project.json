@@ -1,1 +1,203 @@
-{}
+{
+  "page": {
+    "title": "Mi proyecto",
+    "subtitle": "Tu proyecto de startup, sus materiales y su avance en el programa"
+  },
+  "restricted": {
+    "subtitle": "Acceso restringido",
+    "title": "Acceso restringido",
+    "body": "La gestión de proyectos está disponible para participantes y administradores del programa. Postúlate al programa o, si crees que deberías tener acceso, contacta al equipo del programa.",
+    "toast": {
+      "title": "Acceso restringido",
+      "description": "La gestión de proyectos solo está disponible para participantes y administradores del programa."
+    }
+  },
+  "toast": {
+    "milestoneUpdated": {
+      "title": "Estado actualizado",
+      "description": "Se actualizó el hito."
+    },
+    "milestoneFailed": {
+      "title": "No se pudo actualizar el estado",
+      "description": "El hito no se actualizó. Inténtalo de nuevo."
+    },
+    "signedOut": {
+      "title": "Sesión cerrada",
+      "description": "Tu sesión terminó. Te llevamos a iniciar sesión."
+    },
+    "created": {
+      "title": "Proyecto creado",
+      "description": "Se creó tu proyecto."
+    },
+    "createFailed": {
+      "title": "No se pudo crear el proyecto",
+      "description": "El proyecto no se creó. Inténtalo de nuevo."
+    },
+    "saved": {
+      "title": "Proyecto guardado",
+      "description": "Se guardaron tus cambios."
+    },
+    "saveFailed": {
+      "title": "No se pudo guardar el proyecto",
+      "description": "Tus cambios no se guardaron. Inténtalo de nuevo.",
+      "noProject": "No hay ningún proyecto para actualizar."
+    },
+    "uploaded": {
+      "title": "Archivo subido",
+      "description": "Se guardó {{type}} en tu proyecto."
+    },
+    "uploadSaveFailed": {
+      "title": "Archivo no guardado",
+      "description": "El archivo se subió, pero no se pudo agregar a tu proyecto. Inténtalo de nuevo."
+    }
+  },
+  "empty": {
+    "title": "Aún no tienes un proyecto",
+    "body": "Crea tu proyecto para empezar a avanzar en el programa.",
+    "create": "Crear tu proyecto"
+  },
+  "header": {
+    "readiness": "Preparación",
+    "edit": "Editar proyecto"
+  },
+  "lifecycle": {
+    "title": "Ciclo de vida del proyecto",
+    "state": {
+      "done": "(completada)",
+      "current": "(etapa actual)",
+      "upcoming": "(próxima)"
+    },
+    "descriptions": {
+      "ideation": "Explorar y afinar la idea central",
+      "validation": "Probar supuestos y validar la necesidad del mercado",
+      "mvp_build": "Construir el producto mínimo viable",
+      "pilot_traction": "Probar con usuarios reales y ganar tracción",
+      "pitch_ready": "Listo para presentar a inversionistas"
+    }
+  },
+  "fields": {
+    "name": "Nombre del proyecto",
+    "summary": "Resumen del proyecto",
+    "problem": "Planteamiento del problema",
+    "solution": "Enfoque de la solución",
+    "market": "Mercado objetivo",
+    "aiComponents": "Componentes de IA",
+    "dataNeeds": "Requisitos de datos",
+    "ethics": "Ética y consideraciones"
+  },
+  "form": {
+    "titleEdit": "Editar proyecto",
+    "titleCreate": "Crea tu proyecto",
+    "placeholders": {
+      "summary": "Breve descripción de tu startup de IA...",
+      "problem": "¿Qué problema concreto resuelve tu proyecto?",
+      "solution": "¿Cómo resuelve este problema tu solución de IA?",
+      "market": "¿Quién es tu cliente objetivo y qué tamaño tiene el mercado?",
+      "dataNeeds": "¿Qué datos necesitas para tu solución de IA?",
+      "ethics": "¿Qué consideraciones éticas y prácticas de IA responsable vas a aplicar?"
+    },
+    "errors": {
+      "name_one": "El nombre del proyecto debe tener al menos {{count}} carácter",
+      "name_other": "El nombre del proyecto debe tener al menos {{count}} caracteres",
+      "summary_one": "El resumen debe tener al menos {{count}} carácter",
+      "summary_other": "El resumen debe tener al menos {{count}} caracteres",
+      "problem_one": "La descripción del problema debe tener al menos {{count}} carácter",
+      "problem_other": "La descripción del problema debe tener al menos {{count}} caracteres",
+      "solution_one": "La descripción de la solución debe tener al menos {{count}} carácter",
+      "solution_other": "La descripción de la solución debe tener al menos {{count}} caracteres",
+      "market_one": "La descripción del mercado debe tener al menos {{count}} carácter",
+      "market_other": "La descripción del mercado debe tener al menos {{count}} caracteres",
+      "aiComponents": "Indica al menos un componente de IA",
+      "dataNeeds_one": "Los requisitos de datos deben tener al menos {{count}} carácter",
+      "dataNeeds_other": "Los requisitos de datos deben tener al menos {{count}} caracteres",
+      "ethics_one": "Las consideraciones éticas deben tener al menos {{count}} carácter",
+      "ethics_other": "Las consideraciones éticas deben tener al menos {{count}} caracteres"
+    },
+    "cohort": {
+      "label": "Cohorte",
+      "placeholder": "Elige la cohorte de este proyecto",
+      "hint": "La hoja de ruta de tu cohorte se asigna al proyecto automáticamente.",
+      "fallback": "Tu cohorte aceptada"
+    },
+    "save": "Guardar proyecto",
+    "saving": "Guardando..."
+  },
+  "aiComponents": {
+    "machineLearningModels": "Modelos de machine learning",
+    "naturalLanguageProcessing": "Procesamiento de lenguaje natural",
+    "computerVision": "Visión por computadora",
+    "aiAgentsChatbots": "Agentes de IA/chatbots",
+    "predictiveAnalytics": "Analítica predictiva",
+    "recommendationSystems": "Sistemas de recomendación",
+    "generativeAi": "IA generativa",
+    "reinforcementLearning": "Aprendizaje por refuerzo",
+    "speechRecognition": "Reconocimiento de voz",
+    "dataMining": "Minería de datos"
+  },
+  "details": {
+    "problemSolution": "Problema y solución",
+    "marketTech": "Mercado y tecnología",
+    "dataEthics": "Datos y ética",
+    "notSpecified": "Sin especificar",
+    "noneSpecified": "Ninguno especificado"
+  },
+  "artifactTypes": {
+    "pitchDeck": "Pitch deck",
+    "onePager": "One-pager",
+    "demoVideo": "Video demo",
+    "modelDocumentation": "Documentación del modelo"
+  },
+  "files": {
+    "title": "Archivos del proyecto",
+    "notUploaded": "Aún no se ha subido",
+    "uploadTitle": "Subir {{type}}",
+    "selectFile": "Seleccionar archivo"
+  },
+  "deliverables": {
+    "title": "Entregables",
+    "status": "Estado: {{status}}",
+    "submitted": "Enviado el {{date}}",
+    "statuses": {
+      "not_started": "sin iniciar",
+      "in_progress": "en curso",
+      "submitted": "enviado",
+      "needs_revision": "requiere cambios",
+      "approved": "aprobado"
+    }
+  },
+  "milestones": {
+    "title": "Hitos de la hoja de ruta",
+    "noneInRoadmap": "Tu hoja de ruta no tiene hitos.",
+    "onlyMilestones_one": "Esta sección solo muestra actividades de tipo hito. Tu hoja de ruta tiene {{count}} actividad.",
+    "onlyMilestones_other": "Esta sección solo muestra actividades de tipo hito. Tu hoja de ruta tiene {{count}} actividades.",
+    "onlyMilestonesNamed_one": "Esta sección solo muestra actividades de tipo hito. Tu hoja de ruta «{{name}}» tiene {{count}} actividad.",
+    "onlyMilestonesNamed_other": "Esta sección solo muestra actividades de tipo hito. Tu hoja de ruta «{{name}}» tiene {{count}} actividades.",
+    "viewRoadmap": "Ver hoja de ruta completa",
+    "noRoadmap": "Este proyecto aún no tiene una hoja de ruta asignada.",
+    "noRoadmapHint": "Los hitos aparecerán aquí cuando se asigne una hoja de ruta a tu proyecto.",
+    "start": "Iniciar",
+    "starting": "Iniciando...",
+    "complete": "Completar",
+    "completing": "Completando...",
+    "notAssigned": "Sin asignar"
+  },
+  "uploader": {
+    "fileGroup": "archivos ({{type}})",
+    "tooLarge": {
+      "title": "Archivo demasiado grande",
+      "description_one": "Los archivos deben pesar menos de {{count}} MB.",
+      "description_other": "Los archivos deben pesar menos de {{count}} MB."
+    },
+    "failed": {
+      "title": "No se pudo subir",
+      "description": "No se pudo subir el archivo. Inténtalo de nuevo.",
+      "status": "No se pudo subir ({{status}})"
+    },
+    "uploading": "Subiendo...",
+    "uploadingHint": "Subiendo tu archivo. Puede tardar un momento.",
+    "hint_one": "Un archivo, hasta {{count}} MB.",
+    "hint_other": "Un archivo, hasta {{count}} MB.",
+    "hintWithFormats_one": "{{formats}}. Un archivo, hasta {{count}} MB.",
+    "hintWithFormats_other": "{{formats}}. Un archivo, hasta {{count}} MB."
+  }
+}

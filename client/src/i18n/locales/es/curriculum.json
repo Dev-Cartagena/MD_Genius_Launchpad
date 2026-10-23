@@ -1,1 +1,152 @@
-{}
+{
+  "page": {
+    "title": "Currículo",
+    "subtitle": "Módulos de aprendizaje semanales del programa y tu progreso"
+  },
+  "restricted": {
+    "subtitle": "No disponible para tu rol",
+    "title": "Currículo no disponible",
+    "applicant": {
+      "message": "El currículo se habilita cuando aceptan tu postulación y te unes a una cohorte como participante.",
+      "action": "Ver mi postulación"
+    },
+    "investor": {
+      "message": "El currículo es para participantes y mentores del programa. Como inversionista, puedes seguir a las startups de la cohorte desde el área de Inversionistas.",
+      "action": "Ir a Inversionistas"
+    },
+    "other": {
+      "message": "El currículo está disponible para participantes, mentores y administradores del programa. Si crees que deberías tener acceso, contacta al equipo del programa."
+    }
+  },
+  "media": {
+    "video": "Video",
+    "pdf": "PDF",
+    "resource": "Recurso"
+  },
+  "itemType": {
+    "lesson": "Lección",
+    "mentor_session": "Sesión de mentoría"
+  },
+  "quiz": {
+    "toast": {
+      "passed": {
+        "title": "Quiz aprobado",
+        "description": "Obtuviste {{score}} %. La lección quedó completada."
+      },
+      "notPassed": {
+        "title": "Quiz no aprobado",
+        "description": "Obtuviste {{score}} %.",
+        "descriptionWithThreshold": "Obtuviste {{score}} %. Necesitas {{threshold}} % para aprobar."
+      },
+      "submitFailed": {
+        "title": "No se pudo enviar el quiz",
+        "description": "Tus respuestas no se enviaron. Inténtalo de nuevo."
+      }
+    },
+    "loadFailed": "No se pudo cargar el quiz de esta lección.",
+    "passMark": "Para aprobar: {{threshold}} %",
+    "attemptOf": "Intento {{attempt}} de {{max}}",
+    "maxAttempts": "Máximo de intentos: {{max}}",
+    "alreadyCompleted": "Ya completaste esta lección.",
+    "result": {
+      "passed": "Aprobado: {{correct}} de {{total}} correctas ({{score}} %).",
+      "notPassed": "No aprobado: {{correct}} de {{total}} correctas ({{score}} %)."
+    },
+    "noAttemptsLeft": "Ya no te quedan intentos para este quiz.",
+    "submit": "Enviar respuestas",
+    "submitting": "Enviando...",
+    "participantsOnly": "Los quizzes los responden participantes del programa."
+  },
+  "toast": {
+    "completeFailed": {
+      "title": "No se pudo marcar la lección como completada",
+      "description": "Inténtalo de nuevo."
+    },
+    "statusUpdated": {
+      "title": "Estado actualizado",
+      "description": "Se actualizó la actividad de la hoja de ruta."
+    },
+    "statusFailed": {
+      "title": "No se pudo actualizar el estado",
+      "description": "La actividad no se actualizó. Inténtalo de nuevo."
+    }
+  },
+  "empty": {
+    "noCohorts": {
+      "title": "No hay cohortes disponibles",
+      "body": "En este momento no hay cohortes activas. Contacta a un administrador para configurar el currículo."
+    },
+    "noCohort": {
+      "title": "Sin cohorte asignada",
+      "admin": "Selecciona una cohorte para ver su currículo.",
+      "participant": "Aún no tienes una cohorte asignada. Contacta a un administrador si necesitas ayuda."
+    }
+  },
+  "admin": {
+    "title": "Controles de administración",
+    "cohortLabel": "Cohorte a consultar",
+    "cohortPlaceholder": "Selecciona una cohorte",
+    "active": "Activa",
+    "inactive": "Inactiva",
+    "viewingAs": "Estás viendo el currículo como administrador."
+  },
+  "overview": {
+    "title": "{{cohort}}: progreso del currículo",
+    "adminView": "Vista de administración",
+    "percentComplete": "{{percent}} % completado",
+    "stats": {
+      "modules_one": "Módulo",
+      "modules_other": "Módulos",
+      "lessons_one": "Lección",
+      "lessons_other": "Lecciones",
+      "completed": "Completadas",
+      "milestones_one": "Hito",
+      "milestones_other": "Hitos"
+    }
+  },
+  "timeline": {
+    "title": "Cronograma del programa",
+    "current": "Actual",
+    "moduleCount_one": "{{count}} módulo",
+    "moduleCount_other": "{{count}} módulos"
+  },
+  "week": {
+    "modules": "Módulos de la semana {{week}}",
+    "current": "Semana actual",
+    "noModules": "Aún no hay módulos para esta semana.",
+    "milestones": "Hitos de la semana {{week}}",
+    "noMilestones": "No hay hitos esta semana.",
+    "roadmap": "Hoja de ruta de la semana {{week}}",
+    "noRoadmapItems": "No hay actividades esta semana."
+  },
+  "module": {
+    "objectives": "Objetivos de aprendizaje",
+    "lessons": "Lecciones ({{count}})",
+    "resources": "Recursos adicionales"
+  },
+  "lessonContent": {
+    "objectives": "Objetivos de aprendizaje",
+    "overview": "Resumen"
+  },
+  "lesson": {
+    "completed": "Lección completada",
+    "passQuiz": "Aprueba el quiz de arriba para completar esta lección",
+    "markWhenDone": "Marca esta lección como completada cuando termines",
+    "marking": "Marcando...",
+    "markComplete": "Marcar como completada",
+    "participantsOnly": "El avance de las lecciones se registra para participantes del programa."
+  },
+  "due": "Vence el {{date}}",
+  "roadmap": {
+    "start": "Iniciar",
+    "starting": "Iniciando...",
+    "complete": "Completar",
+    "completing": "Completando...",
+    "notAssigned": "Sin asignar"
+  },
+  "quickActions": {
+    "title": "Acciones rápidas",
+    "scheduleSession": "Agendar una sesión de mentoría",
+    "viewRoadmap": "Ver hoja de ruta"
+  }
+}
