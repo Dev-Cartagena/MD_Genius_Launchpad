@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { intlLocale } from "@/i18n";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,26 +44,50 @@ import {
 
 type ExtendedInvestor = Investor;
 
-// Display labels for project stages (values stay as stored)
-const STAGE_LABELS: Record<string, string> = {
-  ideation: "Ideation",
-  validation: "Validation",
-  mvp_build: "MVP build",
-  pilot_traction: "Pilot traction",
-  pitch_ready: "Pitch ready",
-};
-const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage.replace(/_/g, " ");
+type InvestorsT = TFunction<["investors", "common"]>;
 
-// Session booking form schema
-const investorSessionBookingSchema = z.object({
-  title: z.string().min(5, "Session title must be at least 5 characters"),
-  agenda: z.string().min(10, "Please provide at least 10 characters for the session agenda"),
-  startTime: z.string().min(1, "Please select a start time"),
-  duration: z.number().min(30, "Session must be at least 30 minutes").max(120, "Session cannot exceed 2 hours").default(60),
-  sessionType: z.string().default("pitch"),
-});
+/** Stable catalog key for a stored value, e.g. "Web3/Blockchain" -> "web3_blockchain". */
+const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
-type InvestorSessionBookingFormData = z.infer<typeof investorSessionBookingSchema>;
+/**
+ * Display labels for stored values (project stages, sectors, funding stages, geography).
+ * Stored values never change; unknown values are shown as written.
+ */
+function useValueLabels() {
+  const { t, i18n } = useTranslation(["investors", "common"]);
+  const lookup = useCallback(
+    (key: string, fallback: string) => (i18n.exists(key) ? String(t(key as never)) : fallback),
+    [t, i18n],
+  );
+  return useMemo(
+    () => ({
+      stage: (stage: string) => lookup(`common:projectStage.${stage}`, stage.replace(/_/g, " ")),
+      sector: (sector: string) => lookup(`investors:sectors.${slug(sector)}`, sector),
+      fundingStage: (stage: string) => lookup(`investors:fundingStages.${slug(stage)}`, stage),
+      geography: (region: string) => lookup(`investors:geography.${slug(region)}`, region),
+    }),
+    [lookup],
+  );
+}
+
+const SESSION_TYPES = ["pitch", "feedback", "due_diligence", "demo_day"] as const;
+const DURATIONS = [30, 60, 90, 120];
+
+// Session booking form schema (messages follow the UI language)
+const investorSessionBookingSchema = (t: InvestorsT) =>
+  z.object({
+    title: z.string().min(5, t("booking.validation.titleMin")),
+    agenda: z.string().min(10, t("booking.validation.agendaMin")),
+    startTime: z.string().min(1, t("booking.validation.startTimeRequired")),
+    duration: z
+      .number()
+      .min(30, t("booking.validation.durationMin"))
+      .max(120, t("booking.validation.durationMax"))
+      .default(60),
+    sessionType: z.string().default("pitch"),
+  });
+
+type InvestorSessionBookingFormData = z.infer<ReturnType<typeof investorSessionBookingSchema>>;
 
 // Investor Session Booking Dialog Component
 function InvestorSessionBookingDialog({ investor, isOpen, onClose }: { 
@@ -70,9 +97,11 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation(["investors", "common"]);
+  const schema = useMemo(() => investorSessionBookingSchema(t), [t]);
   
   const form = useForm<InvestorSessionBookingFormData>({
-    resolver: zodResolver(investorSessionBookingSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       title: "",
       agenda: "",
@@ -90,8 +119,8 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     // Generate slots for next 7 days
     for (let day = 1; day <= 7; day++) {
       const date = new Date(now.getTime() + day * 24 * 60 * 60 * 1000);
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dayLabel = date.toLocaleDateString(intlLocale(), { weekday: "long", month: "short", day: "numeric" });
+      const time = (slot: Date) => slot.toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" });
       
       // Add morning and afternoon slots
       const morningSlot = new Date(date);
@@ -102,12 +131,12 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
       
       slots.push({
         value: morningSlot.toISOString(),
-        label: `${dayName} ${dateStr} at 10:00 AM`
+        label: t("booking.slot", { day: dayLabel, time: time(morningSlot) })
       });
       
       slots.push({
         value: afternoonSlot.toISOString(),
-        label: `${dayName} ${dateStr} at 2:00 PM`
+        label: t("booking.slot", { day: dayLabel, time: time(afternoonSlot) })
       });
     }
     
@@ -131,8 +160,8 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     },
     onSuccess: () => {
       toast({
-        title: "Session booked",
-        description: `Your session with ${investor.organization} is scheduled.`,
+        title: t("toast.booked.title"),
+        description: t("toast.booked.description", { name: investor.organization }),
       });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/investors"] });
@@ -142,8 +171,8 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     },
     onError: (error) => {
       toast({
-        title: "Could not book session",
-        description: getApiErrorMessage(error, "The session could not be booked. Please try again."),
+        title: t("toast.bookFailed.title"),
+        description: getApiErrorMessage(error, t("toast.bookFailed.description")),
         variant: "destructive",
       });
     },
@@ -157,7 +186,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Schedule a session with {investor.organization}</DialogTitle>
+          <DialogTitle>{t("booking.title", { name: investor.organization })}</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -167,10 +196,10 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session title</FormLabel>
+                  <FormLabel>{t("booking.titleLabel")}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., Funding discussion"
+                      placeholder={t("booking.titlePlaceholder")}
                       {...field}
                       data-testid={`input-session-title-${investor.id}`}
                     />
@@ -185,18 +214,19 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="sessionType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session type</FormLabel>
+                  <FormLabel>{t("booking.typeLabel")}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-session-type-${investor.id}`}>
-                        <SelectValue placeholder="Select session type" />
+                        <SelectValue placeholder={t("booking.typePlaceholder")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="pitch">Pitch session</SelectItem>
-                      <SelectItem value="feedback">Feedback session</SelectItem>
-                      <SelectItem value="due_diligence">Due diligence</SelectItem>
-                      <SelectItem value="demo_day">Demo day practice</SelectItem>
+                      {SESSION_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {t(`booking.types.${type}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -209,11 +239,11 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="startTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Available time slots</FormLabel>
+                  <FormLabel>{t("booking.slotLabel")}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-timeslot-${investor.id}`}>
-                        <SelectValue placeholder="Select a time slot" />
+                        <SelectValue placeholder={t("booking.slotPlaceholder")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -234,7 +264,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session duration</FormLabel>
+                  <FormLabel>{t("booking.durationLabel")}</FormLabel>
                   <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-duration-${investor.id}`}>
@@ -242,10 +272,11 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">60 minutes</SelectItem>
-                      <SelectItem value="90">90 minutes</SelectItem>
-                      <SelectItem value="120">120 minutes</SelectItem>
+                      {DURATIONS.map((minutes) => (
+                        <SelectItem key={minutes} value={String(minutes)}>
+                          {t("booking.minutes", { count: minutes })}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -258,10 +289,10 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
               name="agenda"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session agenda</FormLabel>
+                  <FormLabel>{t("booking.agendaLabel")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="What would you like to discuss? Include specific questions or topics."
+                      placeholder={t("booking.agendaPlaceholder")}
                       className="min-h-[80px]"
                       {...field}
                       data-testid={`textarea-session-agenda-${investor.id}`}
@@ -280,7 +311,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
                 className="flex-1"
                 data-testid={`button-cancel-booking-${investor.id}`}
               >
-                Cancel
+                {t("common:actions.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -288,7 +319,7 @@ function InvestorSessionBookingDialog({ investor, isOpen, onClose }: {
                 className="flex-1"
                 data-testid={`button-confirm-booking-${investor.id}`}
               >
-                {bookSession.isPending ? "Booking..." : "Book session"}
+                {bookSession.isPending ? t("booking.submitting") : t("booking.submit")}
               </Button>
             </div>
           </form>
@@ -308,6 +339,8 @@ export default function Investors() {
   // Which startup's meeting dialog is open (null = none).
   const [meetingDialogFor, setMeetingDialogFor] = useState<string | null>(null);
   const { user } = useAuth();
+  const { t } = useTranslation(["investors", "common"]);
+  const labels = useValueLabels();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -343,16 +376,16 @@ export default function Investors() {
     onSuccess: () => {
       setMeetingDialogFor(null);
       toast({
-        title: "Meeting requested",
-        description: "Your request has been sent to the startup team.",
+        title: t("toast.meetingRequested.title"),
+        description: t("toast.meetingRequested.description"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/investor/interests"] });
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Session expired", 
-          description: "You have been signed out. Taking you to sign in.",
+          title: t("toast.sessionExpired.title"),
+          description: t("toast.sessionExpired.description"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -361,8 +394,8 @@ export default function Investors() {
         return;
       }
       toast({
-        title: "Could not send request",
-        description: getApiErrorMessage(error, "The meeting request could not be sent. Please try again."),
+        title: t("toast.requestFailed.title"),
+        description: getApiErrorMessage(error, t("toast.requestFailed.description")),
         variant: "destructive",
       });
     }
@@ -404,7 +437,7 @@ export default function Investors() {
 
   if (projectsLoading || investorsLoading) {
     return (
-      <AppLayout title="Investors" subtitle="Loading...">
+      <AppLayout title={t("page.title")} subtitle={t("page.loading")}>
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -422,17 +455,17 @@ export default function Investors() {
 
   return (
     <AppLayout 
-      title="Investors" 
-      subtitle={isInvestor ? "Review the AI startups in the current Launchpad cohort" : "Find investors whose focus matches your venture"}
+      title={t("page.title")}
+      subtitle={isInvestor ? t("page.subtitleInvestor") : t("page.subtitleParticipant")}
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="directory" data-testid="tab-startup-directory">
-              {isInvestor ? "Startup directory" : "Investor directory"}
+              {isInvestor ? t("tabs.startups") : t("tabs.investors")}
             </TabsTrigger>
             <TabsTrigger value="events" data-testid="tab-events">
-              Events and demo days
+              {t("tabs.events")}
             </TabsTrigger>
           </TabsList>
 
@@ -442,9 +475,9 @@ export default function Investors() {
                   <div className="relative flex-1 min-w-0 sm:min-w-[240px]">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
-                        placeholder={isInvestor ? "Search startups" : "Search investors"} 
+                        placeholder={isInvestor ? t("filters.searchStartups") : t("filters.searchInvestors")}
                         className="pl-10"
-                        aria-label={isInvestor ? "Search startups" : "Search investors"}
+                        aria-label={isInvestor ? t("filters.searchStartups") : t("filters.searchInvestors")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         data-testid="input-search-directory"
@@ -454,26 +487,26 @@ export default function Investors() {
                   {isInvestor && (
                     <>
                       <Select value={selectedSector} onValueChange={setSelectedSector}>
-                        <SelectTrigger className="w-full sm:w-44" aria-label="Filter by sector" data-testid="select-sector-filter">
-                          <SelectValue placeholder="Sector" />
+                        <SelectTrigger className="w-full sm:w-44" aria-label={t("filters.sectorLabel")} data-testid="select-sector-filter">
+                          <SelectValue placeholder={t("filters.sectorPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All sectors</SelectItem>
+                          <SelectItem value="all">{t("filters.allSectors")}</SelectItem>
                           {sectors.map((sector) => (
-                            <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                            <SelectItem key={sector} value={sector}>{labels.sector(sector)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       
                       <Select value={selectedStage} onValueChange={setSelectedStage}>
-                        <SelectTrigger className="w-full sm:w-44" aria-label="Filter by stage" data-testid="select-stage-filter">
-                          <SelectValue placeholder="Stage" />
+                        <SelectTrigger className="w-full sm:w-44" aria-label={t("filters.stageLabel")} data-testid="select-stage-filter">
+                          <SelectValue placeholder={t("filters.stagePlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All stages</SelectItem>
+                          <SelectItem value="all">{t("filters.allStages")}</SelectItem>
                           {stages.map((stage) => (
                             <SelectItem key={stage} value={stage}>
-                              {stageLabel(stage)}
+                              {labels.stage(stage)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -505,7 +538,7 @@ export default function Investors() {
                         <div className="flex flex-wrap items-center gap-1">
                           {startup.aiComponents?.[0] && (
                             <Badge variant="secondary" data-testid={`startup-sector-${startup.id}`}>
-                              {startup.aiComponents[0]}
+                              {labels.sector(startup.aiComponents[0])}
                             </Badge>
                           )}
                           <Badge 
@@ -517,7 +550,7 @@ export default function Investors() {
                             }`}
                             data-testid={`startup-stage-${startup.id}`}
                           >
-                            {stageLabel(startup.stage || "ideation")}
+                            {labels.stage(startup.stage || "ideation")}
                           </Badge>
                         </div>
                       </div>
@@ -530,7 +563,7 @@ export default function Investors() {
                       
                       <div className="space-y-3 mb-4">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="font-display text-muted-foreground">Readiness</span>
+                          <span className="font-display text-muted-foreground">{t("startup.readiness")}</span>
                           <div className="flex items-center space-x-2">
                             <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
                               <div 
@@ -558,16 +591,16 @@ export default function Investors() {
                                 data-testid={`button-request-meeting-${startup.id}`}
                               >
                                 <Calendar className="w-3 h-3 mr-1" />
-                                Meet
+                                {t("startup.meet")}
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
                               <DialogHeader>
-                                <DialogTitle>Request a meeting with {startup.name}</DialogTitle>
+                                <DialogTitle>{t("meeting.title", { name: startup.name })}</DialogTitle>
                               </DialogHeader>
                               <div className="space-y-4">
                                 <Textarea 
-                                  placeholder="Introduce yourself and explain your interest in this startup."
+                                  placeholder={t("meeting.placeholder")}
                                   className="min-h-[100px]"
                                   value={meetingMessages[startup.id] ?? ""}
                                   onChange={(e) => setMeetingMessages(prev => ({ ...prev, [startup.id]: e.target.value }))}
@@ -577,12 +610,12 @@ export default function Investors() {
                                   className="w-full"
                                   onClick={() => requestMeeting.mutate({ 
                                     startupId: startup.id, 
-                                    message: meetingMessages[startup.id]?.trim() || "Meeting request" 
+                                    message: meetingMessages[startup.id]?.trim() || t("meeting.defaultMessage") 
                                   })}
                                   disabled={requestMeeting.isPending}
                                   data-testid={`button-send-meeting-request-${startup.id}`}
                                 >
-                                  {requestMeeting.isPending ? "Sending..." : "Send meeting request"}
+                                  {requestMeeting.isPending ? t("meeting.sending") : t("meeting.send")}
                                 </Button>
                               </div>
                             </DialogContent>
@@ -622,11 +655,11 @@ export default function Investors() {
                     <CardContent>
                       <div className="space-y-4">
                         <div>
-                          <h4 className="font-display text-sm text-muted-foreground mb-2">Investment focus</h4>
+                          <h4 className="font-display text-sm text-muted-foreground mb-2">{t("investor.focus")}</h4>
                           <div className="flex flex-wrap gap-1">
                             {(investor.sectors || []).map((sector: string, index: number) => (
                               <Badge key={index} variant="secondary" className="text-xs">
-                                {sector}
+                                {labels.sector(sector)}
                               </Badge>
                             ))}
                           </div>
@@ -634,26 +667,28 @@ export default function Investors() {
                         
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="font-display text-muted-foreground">Check size</span>
+                            <span className="font-display text-muted-foreground">{t("investor.checkSize")}</span>
                             <p className="font-medium" data-testid={`investor-check-size-${investor.id}`}>
-                              {investor.checkSize || "Not specified"}
+                              {investor.checkSize || t("investor.notSpecified")}
                             </p>
                           </div>
                           <div>
-                            <span className="font-display text-muted-foreground">Geography</span>
+                            <span className="font-display text-muted-foreground">{t("investor.geography")}</span>
                             <p className="font-medium">
-                              {(investor.geography || []).length > 0 ? investor.geography.join(", ") : "Not specified"}
+                              {(investor.geography || []).length > 0
+                                ? investor.geography.map((region: string) => labels.geography(region)).join(", ")
+                                : t("investor.notSpecified")}
                             </p>
                           </div>
                         </div>
                         
                         {(investor.stages || []).length > 0 && (
                           <div>
-                            <h4 className="font-display text-sm text-muted-foreground mb-2">Stages</h4>
+                            <h4 className="font-display text-sm text-muted-foreground mb-2">{t("investor.stages")}</h4>
                             <div className="flex flex-wrap gap-1">
                               {investor.stages.map((stage: string, index: number) => (
                                 <Badge key={index} variant="outline" className="text-xs">
-                                  {stage}
+                                  {labels.fundingStage(stage)}
                                 </Badge>
                               ))}
                             </div>
@@ -669,7 +704,7 @@ export default function Investors() {
                             data-testid={`button-contact-investor-${investor.id}`}
                           >
                             <Mail className="w-3 h-3 mr-1" />
-                            Contact
+                            {t("investor.contact")}
                           </Button>
                           {canBookSessions && (
                             <Button 
@@ -678,7 +713,7 @@ export default function Investors() {
                               data-testid={`button-book-session-${investor.id}`}
                             >
                               <Calendar className="w-3 h-3 mr-1" />
-                              Book session
+                              {t("investor.book")}
                             </Button>
                           )}
                         </div>
@@ -694,11 +729,9 @@ export default function Investors() {
               <div className="rounded-xl border border-dashed border-steel/50 p-8 text-center">
                   <TrendingUp className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg mb-2">
-                    {isInvestor ? "No startups found" : "No investors found"}
+                    {isInvestor ? t("empty.startups") : t("empty.investors")}
                   </h3>
-                  <p className="text-muted-foreground">
-                    Try a different search or adjust the filters.
-                  </p>
+                  <p className="text-muted-foreground">{t("empty.body")}</p>
               </div>
             )}
           </TabsContent>
@@ -707,11 +740,9 @@ export default function Investors() {
             <div className="rounded-xl border border-dashed border-steel/50 p-8 text-center">
                 <Calendar className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg mb-2" data-testid="events-empty-title">
-                  No events scheduled yet
+                  {t("events.emptyTitle")}
                 </h3>
-                <p className="text-muted-foreground">
-                  Demo days and investor events will be listed here once the program team announces them.
-                </p>
+                <p className="text-muted-foreground">{t("events.emptyBody")}</p>
             </div>
           </TabsContent>
         </Tabs>

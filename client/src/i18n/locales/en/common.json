@@ -98,7 +98,9 @@
     "deliverable": "Deliverable",
     "milestone": "Milestone",
     "checkin": "Check-in",
-    "learning": "Learning"
+    "learning": "Learning",
+    "lesson": "Lesson",
+    "mentor_session": "Mentor session"
   },
   "interestLevel": {
     "viewed": "Viewed",
@@ -129,5 +131,8 @@
     "required": "English is required.",
     "optional": "Spanish is optional. Empty fields show the English text.",
     "missing": "No Spanish yet"
+  },
+  "application": {
+    "untitled": "No project idea yet"
   }
 }

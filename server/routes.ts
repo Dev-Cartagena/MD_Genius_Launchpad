@@ -10,7 +10,7 @@ import {
   MAX_UPLOAD_BYTES,
   StorageNotConfiguredError,
 } from "./fileStorage.js";
-import { sendEmail, passwordResetEmail, inviteEmail, appBaseUrl } from "./email.js";
+import { sendEmail, passwordResetEmail, inviteEmail, appBaseUrl, emailLocale } from "./email.js";
 import { rateLimit } from "./rateLimit.js";
 import { z } from "zod";
 import {
@@ -185,7 +185,7 @@ export function registerRoutes(app: Express): void {
       
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
-        return res.status(400).json({ message: "User with this email already exists" });
+        return res.status(400).json({ code: "email_taken", message: "User with this email already exists" });
       }
       
       const passwordHash = await bcrypt.hash(password, 12);
@@ -195,7 +195,7 @@ export function registerRoutes(app: Express): void {
       } catch (insertError: any) {
         // Lost a race with a concurrent sign-up for the same email.
         if (insertError?.code === "23505" || insertError?.cause?.code === "23505") {
-          return res.status(400).json({ message: "User with this email already exists" });
+          return res.status(400).json({ code: "email_taken", message: "User with this email already exists" });
         }
         throw insertError;
       }
@@ -285,7 +285,7 @@ export function registerRoutes(app: Express): void {
       
       const link = `${appBaseUrl()}/reset-password?token=${resetToken}`;
       try {
-        await sendEmail(passwordResetEmail(user.email!, link));
+        await sendEmail(passwordResetEmail(user.email!, link, emailLocale(user.locale)));
       } catch (emailError) {
         // Same response either way, so failures don't reveal which emails exist.
         console.error("Password reset email failed:", emailError);
@@ -872,7 +872,7 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Error archiving roadmap template:", error);
       if (respondDbError(res, error)) return;
-      res.status(500).json({ message: "Failed to archiving roadmap template" });
+      res.status(500).json({ message: "Failed to archive roadmap template" });
     }
   });
   
@@ -1646,10 +1646,14 @@ export function registerRoutes(app: Express): void {
       
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
-        return res.status(400).json({ message: "User with this email already exists" });
+        return res.status(400).json({ code: "email_taken", message: "User with this email already exists" });
       }
       
-      const newUser = await storage.createLocalUser(userData);
+      // Without an explicit choice, the invite uses the inviting admin's language.
+      const newUser = await storage.createLocalUser({
+        ...userData,
+        locale: userData.locale ?? emailLocale(currentUser(req).locale),
+      });
       
       const inviteToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = crypto.createHash('sha256').update(inviteToken).digest('hex');
@@ -1659,7 +1663,7 @@ export function registerRoutes(app: Express): void {
       const inviterName = [admin.firstName, admin.lastName].filter(Boolean).join(" ");
       let inviteEmailSent = false;
       try {
-        inviteEmailSent = await sendEmail(inviteEmail(newUser.email!, `${appBaseUrl()}/reset-password?token=${inviteToken}`, inviterName));
+        inviteEmailSent = await sendEmail(inviteEmail(newUser.email!, `${appBaseUrl()}/reset-password?token=${inviteToken}`, inviterName, emailLocale(newUser.locale)));
       } catch (emailError) {
         console.error("Invite email failed:", emailError);
       }
@@ -2454,7 +2458,7 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Error canceling investor session:", error);
       if (respondDbError(res, error)) return;
-      res.status(500).json({ message: "Failed to canceling investor session" });
+      res.status(500).json({ message: "Failed to cancel investor session" });
     }
   });
 
@@ -2535,7 +2539,7 @@ export function registerRoutes(app: Express): void {
     } catch (error) {
       console.error("Error removing cohort assignment:", error);
       if (respondDbError(res, error)) return;
-      res.status(500).json({ message: "Failed to removing cohort assignment" });
+      res.status(500).json({ message: "Failed to remove cohort assignment" });
     }
   });
 
@@ -2709,7 +2713,7 @@ export function registerRoutes(app: Express): void {
         return res.status(503).json({ message: "The AI Coach is not configured yet." });
       }
       
-      const analysis = await aiCoachService.analyzeProject(project);
+      const analysis = await aiCoachService.analyzeProject(project, user.locale || "en");
       res.json(analysis);
     } catch (error) {
       if (error instanceof z.ZodError) {

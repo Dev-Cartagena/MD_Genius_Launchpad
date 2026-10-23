@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocalized } from "@/lib/localized";
+import { intlLocale, type resources } from "@/i18n";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -37,8 +40,14 @@ import {
   TrendingUp
 } from "lucide-react";
 
+type CommonItemType = keyof (typeof resources)["en"]["common"]["itemType"];
+type ExtraItemType = keyof (typeof resources)["en"]["roadmap"]["itemType"];
+const COMMON_ITEM_TYPES = ["task", "assignment", "deliverable", "milestone", "checkin", "learning"] as const;
+const EXTRA_ITEM_TYPES = ["lesson", "mentor_session"] as const;
+
 interface RoadmapItemWithAssignment {
   id: string;
+  translations?: unknown;
   title: string;
   description: string;
   type: string;
@@ -55,11 +64,13 @@ interface RoadmapItemWithAssignment {
   lesson?: {
     id: string;
     title: string;
+    translations?: unknown;
     content?: string;
   };
   module?: {
     id: string;
     title: string;
+    translations?: unknown;
     description?: string;
     week?: number;
   };
@@ -84,6 +95,7 @@ interface ProjectRoadmap {
     id: string;
     name: string;
     description: string | null;
+    translations?: unknown;
   };
   items: RoadmapItemWithAssignment[];
 }
@@ -91,6 +103,8 @@ interface ProjectRoadmap {
 export default function Roadmap() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation(["roadmap", "common"]);
+  const localized = useLocalized();
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
 
   // Get user's project ID (assuming participant has one project)
@@ -115,14 +129,14 @@ export default function Roadmap() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'roadmap'] });
       toast({
-        title: "Status updated",
-        description: "The roadmap item has been updated.",
+        title: t("toast.updated.title"),
+        description: t("toast.updated.description"),
       });
     },
     onError: () => {
       toast({
-        title: "Could not update status",
-        description: "The roadmap item was not updated. Please try again.",
+        title: t("toast.updateFailed.title"),
+        description: t("toast.updateFailed.description"),
         variant: "destructive",
       });
     }
@@ -152,6 +166,17 @@ export default function Roadmap() {
     }
   };
 
+  // Stored item types stay as they are; only the label is translated.
+  const itemTypeLabel = (itemType: string) => {
+    if ((COMMON_ITEM_TYPES as readonly string[]).includes(itemType)) {
+      return t(`common:itemType.${itemType as CommonItemType}`);
+    }
+    if ((EXTRA_ITEM_TYPES as readonly string[]).includes(itemType)) {
+      return t(`itemType.${itemType as ExtraItemType}`);
+    }
+    return itemType.replace(/_/g, ' ');
+  };
+
   const isLearningItem = (item: RoadmapItemWithAssignment) => {
     return item.autoCompletionType === 'lesson' || item.autoCompletionType === 'module' || item.lesson || item.module;
   };
@@ -171,15 +196,15 @@ export default function Roadmap() {
     if (item.progressData.type === 'lesson') {
       return (
         <div className="text-xs text-muted-foreground">
-          {item.progressData.isCompleted ? 'Completed' : 'Not started'}
-          {item.progressData.score && ` • Score: ${item.progressData.score}%`}
+          {item.progressData.isCompleted ? t('common:assignmentStatus.completed') : t('common:assignmentStatus.not_started')}
+          {item.progressData.score && ` • ${t('progress.score', { score: item.progressData.score })}`}
         </div>
       );
     } else if (item.progressData.type === 'module') {
       const { completedLessons = 0, totalLessons = 0, completionRate = 0 } = item.progressData;
       return (
         <div className="text-xs text-muted-foreground">
-          Progress: {completedLessons}/{totalLessons} lessons ({Math.round(completionRate)}%)
+          {t('progress.module', { count: totalLessons, completed: completedLessons, percent: Math.round(completionRate) })}
         </div>
       );
     }
@@ -188,11 +213,11 @@ export default function Roadmap() {
 
   if (!user || user.role !== 'participant') {
     return (
-      <AppLayout title="Roadmap">
+      <AppLayout title={t("common:nav.roadmap")}>
         <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">The roadmap is available to program participants.</p>
+              <p className="text-muted-foreground">{t("restricted")}</p>
             </CardContent>
           </Card>
         </div>
@@ -202,7 +227,7 @@ export default function Roadmap() {
 
   if (projectsLoading) {
     return (
-      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
+      <AppLayout title={t("page.title")} subtitle={t("page.subtitle")}>
         <div className="md:p-6 space-y-6">
           <Card>
             <CardHeader>
@@ -221,11 +246,11 @@ export default function Roadmap() {
 
   if (!projectId) {
     return (
-      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
+      <AppLayout title={t("page.title")} subtitle={t("page.subtitle")}>
         <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">You don't have a project yet. Create your project to see your roadmap.</p>
+              <p className="text-muted-foreground">{t("noProject")}</p>
             </CardContent>
           </Card>
         </div>
@@ -235,7 +260,7 @@ export default function Roadmap() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
+      <AppLayout title={t("page.title")} subtitle={t("page.subtitle")}>
         <div className="md:p-6 space-y-6">
           <Card>
             <CardHeader>
@@ -265,14 +290,14 @@ export default function Roadmap() {
 
   if (!roadmap || !roadmap.items.length) {
     return (
-      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
+      <AppLayout title={t("page.title")} subtitle={t("page.subtitle")}>
         <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
               <Target className="w-10 h-10 mx-auto text-primary mb-4" />
-              <h3 className="text-lg mb-2">No roadmap assigned yet</h3>
+              <h3 className="text-lg mb-2">{t("empty.title")}</h3>
               <p className="text-muted-foreground">
-                Your program roadmap has not been assigned yet. Check back later or contact your program coordinator.
+                {t("empty.body")}
               </p>
             </CardContent>
           </Card>
@@ -309,25 +334,25 @@ export default function Roadmap() {
   };
 
   const statTiles = [
-    { label: "Completed", value: counts.completed },
-    { label: "Waived", value: counts.waived },
-    { label: "In progress", value: counts.inProgress },
-    { label: "Blocked", value: counts.blocked },
-    { label: "Pending", value: counts.pending },
+    { key: "completed", label: t("common:assignmentStatus.completed"), value: counts.completed },
+    { key: "waived", label: t("common:assignmentStatus.waived"), value: counts.waived },
+    { key: "in_progress", label: t("common:assignmentStatus.in_progress"), value: counts.inProgress },
+    { key: "blocked", label: t("common:assignmentStatus.blocked"), value: counts.blocked },
+    { key: "pending", label: t("stats.pending"), value: counts.pending },
   ];
 
   return (
-    <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
+    <AppLayout title={t("page.title")} subtitle={t("page.subtitle")}>
       <div className="md:p-6 space-y-6">
         {/* Progress Overview */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              {roadmap.template.name}
+              {localized.text(roadmap.template, "name")}
             </CardTitle>
             {roadmap.template.description && (
-              <p className="text-muted-foreground">{roadmap.template.description}</p>
+              <p className="text-muted-foreground">{localized.text(roadmap.template, "description")}</p>
             )}
           </CardHeader>
           <CardContent>
@@ -335,19 +360,19 @@ export default function Roadmap() {
               <ProgressRing
                 value={progressPercentage}
                 size={112}
-                caption={`${doneItems} of ${totalItems} done`}
+                caption={t("stats.doneOf", { done: doneItems, total: totalItems })}
                 className="self-center sm:self-auto"
               />
               <div className="grid flex-1 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px overflow-hidden rounded-xl border border-border bg-border">
                 {statTiles.map((tile, i) => (
                   <div
-                    key={tile.label}
+                    key={tile.key}
                     className={cn("bg-card p-3", i === statTiles.length - 1 && "col-span-2 lg:col-span-1")}
                   >
                     <div
                       className={cn(
                         "font-display text-3xl font-medium",
-                        tile.label === "Blocked" && tile.value > 0 ? "text-destructive" : "text-foreground",
+                        tile.key === "blocked" && tile.value > 0 ? "text-destructive" : "text-foreground",
                       )}
                     >
                       {tile.value}
@@ -368,7 +393,7 @@ export default function Roadmap() {
             className="whitespace-nowrap"
             data-testid="button-all-weeks"
           >
-            All weeks
+            {t("weeks.all")}
           </Button>
           {weeks.map((week) => (
             <Button
@@ -378,7 +403,7 @@ export default function Roadmap() {
               className="whitespace-nowrap"
               data-testid={`button-week-${week}`}
             >
-              Week {week}
+              {t("common:week", { week })}
             </Button>
           ))}
         </div>
@@ -402,12 +427,12 @@ export default function Roadmap() {
                 )}
               >
                 <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-6">
-                  <h3 className="font-display text-lg font-medium">Week {week}</h3>
+                  <h3 className="font-display text-lg font-medium">{t("common:week", { week })}</h3>
                   {state === "current" && (
-                    <span className="font-display text-xs text-accent">Current week</span>
+                    <span className="font-display text-xs text-accent">{t("weeks.current")}</span>
                   )}
                   <span className={cn("ml-auto font-display text-sm", state === "current" ? "text-foreground/80" : "text-muted-foreground")}>
-                    {doneCount}/{weekItems.length} done
+                    {t("weeks.done", { done: doneCount, total: weekItems.length })}
                   </span>
                 </div>
                 <div className={cn("divide-y divide-border", state === "current" && "rounded-b-xl bg-card")}>
@@ -424,41 +449,41 @@ export default function Roadmap() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium">{item.title}</h4>
+                          <h4 className="font-medium">{localized.text(item, "title")}</h4>
                           {item.description && (
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                            <p className="text-sm text-muted-foreground">{localized.text(item, "description")}</p>
                           )}
 
                           {/* Learning item specific info */}
                           {isLearningItem(item) && (
                             <div className="mt-1 space-y-0.5">
                               {item.lesson && (
-                                <p className="text-xs text-accent">Lesson: {item.lesson.title}</p>
+                                <p className="text-xs text-accent">{t("linked.lesson", { title: localized.text(item.lesson, "title") })}</p>
                               )}
                               {item.module && (
-                                <p className="text-xs text-accent">Module: {item.module.title}</p>
+                                <p className="text-xs text-accent">{t("linked.module", { title: localized.text(item.module, "title") })}</p>
                               )}
                               {getProgressDisplay(item)}
                             </div>
                           )}
 
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {item.type.replace(/_/g, ' ')}
+                            <Badge variant="outline" className="text-xs">
+                              {itemTypeLabel(item.type)}
                             </Badge>
                             {item.assignment?.autoCompleted && (
                               <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
-                                Auto-completed
+                                {t("autoCompleted")}
                               </Badge>
                             )}
                             {item.estimatedHours > 0 && (
                               <span className="text-xs text-muted-foreground">
-                                ~{item.estimatedHours}h
+                                {t("estimatedHours", { hours: item.estimatedHours })}
                               </span>
                             )}
                             {item.assignment?.dueDate && (
                               <span className="text-xs text-muted-foreground">
-                                Due {new Date(item.assignment.dueDate).toLocaleDateString()}
+                                {t("due", { date: new Date(item.assignment.dueDate).toLocaleDateString(intlLocale()) })}
                               </span>
                             )}
                           </div>
@@ -478,7 +503,7 @@ export default function Roadmap() {
                               data-testid={`button-curriculum-${item.id}`}
                             >
                               <BookOpen className="w-3 h-3 mr-1" />
-                              {item.lesson ? 'View lesson' : 'View module'}
+                              {item.lesson ? t('actions.viewLesson') : t('actions.viewModule')}
                             </Button>
                           </div>
                         ) : (
@@ -496,7 +521,7 @@ export default function Roadmap() {
                                       data-testid={`button-start-${item.id}`}
                                     >
                                       <Play className="w-3 h-3 mr-1" />
-                                      Start
+                                      {t("actions.start")}
                                     </Button>
                                   )}
                                   <Button
@@ -506,7 +531,7 @@ export default function Roadmap() {
                                     data-testid={`button-complete-${item.id}`}
                                   >
                                     <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    Complete
+                                    {t("actions.complete")}
                                   </Button>
                                 </>
                               )}
@@ -521,8 +546,8 @@ export default function Roadmap() {
                                 size="icon"
                                 variant="ghost"
                                 className="h-8 w-8"
-                                aria-label={`More actions for ${item.title}`}
-                                title="More actions"
+                                aria-label={t("actions.moreFor", { title: localized.text(item, "title") })}
+                                title={t("actions.more")}
                                 disabled={updateStatusMutation.isPending}
                                 data-testid={`button-actions-${item.id}`}
                               >
@@ -536,7 +561,7 @@ export default function Roadmap() {
                                 data-testid={`menu-block-${item.id}`}
                               >
                                 <Ban className="w-4 h-4 mr-2" />
-                                Mark blocked
+                                {t("actions.block")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 disabled={item.assignment.status === 'waived'}
@@ -544,7 +569,7 @@ export default function Roadmap() {
                                 data-testid={`menu-waive-${item.id}`}
                               >
                                 <SkipForward className="w-4 h-4 mr-2" />
-                                Waive
+                                {t("actions.waive")}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -553,7 +578,7 @@ export default function Roadmap() {
                                 data-testid={`menu-reset-${item.id}`}
                               >
                                 <RotateCcw className="w-4 h-4 mr-2" />
-                                Reset to not started
+                                {t("actions.reset")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

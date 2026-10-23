@@ -1,1 +1,314 @@
-{}
+{
+  "page": {
+    "title": {
+      "participant": "Participant dashboard",
+      "mentor": "Mentor dashboard",
+      "investor": "Investor dashboard",
+      "administrator": "Admin dashboard",
+      "applicant": "Application status",
+      "default": "Dashboard"
+    },
+    "subtitle": {
+      "participant": "Welcome back. Here is where your startup stands this week.",
+      "mentor": "Welcome back. Here are your sessions and mentees.",
+      "investor": "Welcome back. Here are the startups in the program and your pipeline.",
+      "administrator": "Welcome back. Here is an overview of the program.",
+      "applicant": "Thank you for applying to MD Genius Launchpad.",
+      "default": "Welcome back."
+    },
+    "subtitleName": {
+      "participant": "Welcome back, {{name}}. Here is where your startup stands this week.",
+      "mentor": "Welcome back, {{name}}. Here are your sessions and mentees.",
+      "investor": "Welcome back, {{name}}. Here are the startups in the program and your pipeline.",
+      "administrator": "Welcome back, {{name}}. Here is an overview of the program.",
+      "applicant": "Thank you for applying to MD Genius Launchpad, {{name}}.",
+      "default": "Welcome back, {{name}}."
+    },
+    "loadingSubtitle": "Loading your dashboard",
+    "submitted": {
+      "title": "Application submitted",
+      "body": "Thank you for applying to MD Genius Launchpad. We have received your application. Our team will review it and reply within 5–7 business days. You can follow its status here."
+    },
+    "applicant": {
+      "title": "Application under review",
+      "body": "Your application has been submitted and is being reviewed by our admissions team.",
+      "nextTitle": "What happens next",
+      "next1": "Our team will review your application within 5–7 business days.",
+      "next2": "You will receive an email with the decision.",
+      "next3": "If you are accepted, you will get access to the full participant dashboard.",
+      "next4": "Please check your email for updates."
+    },
+    "unavailable": {
+      "title": "Dashboard not available",
+      "body": "Your current role ({{role}}) doesn't have a dashboard available. Please contact support if you believe this is an error.",
+      "unknownRole": "unknown"
+    },
+    "unknownUser": "Unknown user",
+    "alerts": {
+      "pendingReviews": {
+        "title": "Applications pending review",
+        "message_one": "{{count}} application awaiting review",
+        "message_other": "{{count}} applications awaiting review"
+      },
+      "cohorts": {
+        "title": "Active cohorts",
+        "running_one": "{{count}} cohort currently running",
+        "running_other": "{{count}} cohorts currently running",
+        "upcoming_one": "{{count}} cohort starting soon",
+        "upcoming_other": "{{count}} cohorts starting soon",
+        "ended_one": "{{count}} cohort active but past the end date",
+        "ended_other": "{{count}} cohorts active but past the end date"
+      }
+    }
+  },
+  "sessions": {
+    "today": "Today {{time}}",
+    "tomorrow": "Tomorrow {{time}}",
+    "dayTime": "{{day}} {{time}}",
+    "defaultTitle": "Mentor session",
+    "defaultAgenda": "Mentoring session",
+    "join": "Join",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "completed": "Completed"
+  },
+  "participant": {
+    "defaultProject": {
+      "name": "No project yet",
+      "summary": "You haven't created a project yet. Start by defining your AI startup idea."
+    },
+    "toast": {
+      "updated": {
+        "title": "Status updated",
+        "description": "The roadmap item has been updated."
+      },
+      "updateFailed": {
+        "title": "Could not update status",
+        "description": "Please try again in a moment."
+      }
+    },
+    "roadmap": {
+      "eyebrow": "Your next step",
+      "title": "This week's roadmap",
+      "emptyWeek": "There are no roadmap items for this week.",
+      "noRoadmap": "No roadmap has been assigned to your project yet.",
+      "viewFull": "View full roadmap",
+      "hours": "About {{hours}}h",
+      "start": "Start",
+      "startItem": "Start {{title}}",
+      "complete": "Mark complete",
+      "completeItem": "Mark {{title}} complete"
+    },
+    "readiness": {
+      "title": "Venture readiness",
+      "caption": "Readiness",
+      "hasProject": "Your readiness score is updated by the program team as your project progresses.",
+      "noProject": "Create your project to start tracking venture readiness."
+    },
+    "progress": {
+      "title": "Program progress",
+      "cohortWeek": "{{cohort}} · {{week}}",
+      "noCohort": "No cohort yet",
+      "overall": "Overall completion",
+      "noMilestones": "No milestones have been set for your cohort yet.",
+      "completed": "Completed",
+      "inProgress": "In progress",
+      "upcoming": "Upcoming",
+      "milestoneMeta": "{{status}} · {{date}}",
+      "noDueDate": "No due date"
+    },
+    "schedule": {
+      "title": "This week",
+      "empty": "You have no sessions booked for the next seven days.",
+      "book": "Book a mentor session",
+      "mentors": "Mentors and sessions"
+    },
+    "project": {
+      "title": "Current project: {{name}}",
+      "stage": "{{stage}} stage",
+      "notStarted": "Not started",
+      "open": "Open project",
+      "create": "Create your project"
+    },
+    "coach": {
+      "title": "AI Coach",
+      "body": "Ask the AI Coach about program steps, ideation, technical questions, go-to-market or your pitch. It knows your project details.",
+      "open": "Open AI Coach"
+    }
+  },
+  "mentor": {
+    "kpi": {
+      "activeMentees": "Active mentees",
+      "activeMenteesHint": "Current mentees",
+      "totalSessions": "Total sessions",
+      "totalSessionsHint": "All time",
+      "upcomingSessions": "Upcoming sessions",
+      "upcomingSessionsHint": "Next 7 days",
+      "completedSessions": "Completed sessions",
+      "completedSessionsHint": "Past sessions"
+    },
+    "upcoming": {
+      "eyebrow": "Next 7 days",
+      "title": "Upcoming sessions",
+      "editAvailability": "Edit availability",
+      "empty": "Sessions will appear here once participants book time with you.",
+      "agendaParticipants_one": "{{agenda}} · {{count}} participant",
+      "agendaParticipants_other": "{{agenda}} · {{count}} participants",
+      "duration": "{{minutes}} min"
+    },
+    "feedback": {
+      "title": "Recent feedback",
+      "empty": "Notes you add to past sessions will appear here.",
+      "participant": "Participant",
+      "session": "Session",
+      "sessionNotes": "Session notes"
+    },
+    "mentees": {
+      "title": "Mentee progress",
+      "empty": "Participants appear here after they book a session with you.",
+      "fallbackName": "Participant {{id}}",
+      "noRecentSessions": "No recent sessions",
+      "sessions_one": "{{count}} session",
+      "sessions_other": "{{count}} sessions",
+      "lastSession": "Last session",
+      "nextSession": "Next session",
+      "noneYet": "None yet",
+      "noneScheduled": "None scheduled",
+      "hasNotes": "Has notes",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "updateProfile": "Update profile and availability",
+      "directory": "Mentor directory"
+    }
+  },
+  "investor": {
+    "kpi": {
+      "directory": "Startups in directory",
+      "meetings": "Meetings scheduled",
+      "diligence": "Due diligence",
+      "interest": "Startups of interest"
+    },
+    "sessions": {
+      "eyebrow": "Your next meetings",
+      "title": "Scheduled sessions",
+      "participantsLabel": "Participants",
+      "participants_one": "{{count}} participant",
+      "participants_other": "{{count}} participants",
+      "agenda": "Agenda",
+      "minutes_one": "{{count}} minute",
+      "minutes_other": "{{count}} minutes",
+      "empty": "Sessions will appear here when participants request time with you."
+    },
+    "sessionType": {
+      "pitch": "Pitch",
+      "feedback": "Feedback",
+      "due_diligence": "Due diligence",
+      "demo_day": "Demo day"
+    },
+    "filters": {
+      "search": "Search startups by name, sector or technology",
+      "sector": "Sector",
+      "allSectors": "All sectors",
+      "stage": "Stage",
+      "allStages": "All stages"
+    },
+    "featured": {
+      "title": "Featured startups",
+      "viewAll": "View all",
+      "noProjects": "Startups will appear here once participants create their projects.",
+      "noMatches": "No startups match your search. Try adjusting the filters.",
+      "untitled": "Untitled project",
+      "since": "Since {{year}}",
+      "readiness": "Readiness",
+      "requestMeeting": "Request meeting"
+    },
+    "events": {
+      "title": "Upcoming events",
+      "empty": "No demo days or events have been announced yet."
+    },
+    "activity": {
+      "title": "Recent activity",
+      "empty": "Request a meeting with a startup to start your pipeline.",
+      "item": "<level>{{level}}</level> {{project}}",
+      "aStartup": "a startup"
+    },
+    "pipeline": {
+      "title": "Investment pipeline",
+      "stage": "Stage {{number}}",
+      "initial": "Initial interest",
+      "meetings": "Meetings scheduled",
+      "diligence": "Due diligence",
+      "decisions": "Investment decisions"
+    }
+  },
+  "admin": {
+    "kpi": {
+      "applications": "Total applications",
+      "applicationsHint": "All time",
+      "acceptanceRate": "Acceptance rate",
+      "acceptanceRateHint": "Of all applications",
+      "projects": "Projects",
+      "projectsHint_one": "{{count}} active cohort",
+      "projectsHint_other": "{{count}} active cohorts",
+      "activeCohorts": "Active cohorts",
+      "activeCohortsHint": "{{count}} in total"
+    },
+    "applications": {
+      "eyebrow": "Latest submissions",
+      "title": "Recent applications",
+      "viewAll": "View all",
+      "empty": "New applications will appear here as they are submitted.",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago",
+      "review": "Review"
+    },
+    "dialog": {
+      "title": "Update application status",
+      "subtitle": "Application by {{applicant}} for {{project}}",
+      "currentStatus": "Current status",
+      "newStatus": "New status",
+      "selectStatus": "Select new status",
+      "notes": "Reviewer notes",
+      "notesPlaceholder": "Add reviewer notes (optional)",
+      "updating": "Updating...",
+      "update": "Update status"
+    },
+    "toast": {
+      "selectStatus": {
+        "title": "Select a status",
+        "description": "Choose a new status before saving."
+      },
+      "updated": {
+        "title": "Application updated",
+        "description": "The new status has been saved."
+      },
+      "unauthorized": {
+        "title": "Unauthorized",
+        "description": "You are logged out. Logging in again..."
+      },
+      "updateFailed": {
+        "title": "Could not update application",
+        "description": "Please try again in a moment."
+      }
+    },
+    "cohorts": {
+      "title": "Cohorts",
+      "empty": "Create a cohort in the Admin Panel to open applications.",
+      "meta": "{{dates}} · Capacity {{capacity}}",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "body": "Cohorts, applications, curriculum, roadmaps, mentors, investors and users are managed in the Admin Panel.",
+      "openAdmin": "Open Admin Panel"
+    },
+    "alerts": {
+      "title": "System alerts",
+      "empty": "Nothing needs attention right now."
+    }
+  }
+}

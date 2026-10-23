@@ -1,1 +1,152 @@
-{}
+{
+  "page": {
+    "title": "Curriculum",
+    "subtitle": "Weekly learning modules for the program, with your progress"
+  },
+  "restricted": {
+    "subtitle": "Not available for your role",
+    "title": "Curriculum not available",
+    "applicant": {
+      "message": "The curriculum opens once your application is accepted and you join a cohort as a participant.",
+      "action": "View my application"
+    },
+    "investor": {
+      "message": "The curriculum is for program participants and mentors. As an investor, you can follow cohort startups from the Investors area.",
+      "action": "Go to Investors"
+    },
+    "other": {
+      "message": "The curriculum is available to program participants, mentors, and administrators. Contact the program team if you think you should have access."
+    }
+  },
+  "media": {
+    "video": "Video",
+    "pdf": "PDF",
+    "resource": "Resource"
+  },
+  "itemType": {
+    "lesson": "Lesson",
+    "mentor_session": "Mentoring session"
+  },
+  "quiz": {
+    "toast": {
+      "passed": {
+        "title": "Quiz passed",
+        "description": "You scored {{score}}%. Lesson marked complete."
+      },
+      "notPassed": {
+        "title": "Quiz not passed",
+        "description": "You scored {{score}}%.",
+        "descriptionWithThreshold": "You scored {{score}}%. You need {{threshold}}% to pass."
+      },
+      "submitFailed": {
+        "title": "Could not submit quiz",
+        "description": "Your answers were not submitted. Please try again."
+      }
+    },
+    "loadFailed": "The quiz for this lesson could not be loaded.",
+    "passMark": "Pass mark {{threshold}}%",
+    "attemptOf": "Attempt {{attempt}} of {{max}}",
+    "maxAttempts": "Max attempts: {{max}}",
+    "alreadyCompleted": "You have already completed this lesson.",
+    "result": {
+      "passed": "Passed: {{correct}} of {{total}} correct ({{score}}%).",
+      "notPassed": "Not passed: {{correct}} of {{total}} correct ({{score}}%)."
+    },
+    "noAttemptsLeft": "You have no attempts left for this quiz.",
+    "submit": "Submit answers",
+    "submitting": "Submitting...",
+    "participantsOnly": "Quizzes are taken by program participants."
+  },
+  "toast": {
+    "completeFailed": {
+      "title": "Could not mark lesson complete",
+      "description": "Please try again."
+    },
+    "statusUpdated": {
+      "title": "Status updated",
+      "description": "The roadmap item has been updated."
+    },
+    "statusFailed": {
+      "title": "Could not update status",
+      "description": "The roadmap item was not updated. Please try again."
+    }
+  },
+  "empty": {
+    "noCohorts": {
+      "title": "No cohorts available",
+      "body": "There are no active cohorts at the moment. Contact an administrator to set up the curriculum."
+    },
+    "noCohort": {
+      "title": "No cohort assigned",
+      "admin": "Select a cohort to view its curriculum.",
+      "participant": "You have not been assigned to a cohort yet. Contact an administrator for help."
+    }
+  },
+  "admin": {
+    "title": "Admin controls",
+    "cohortLabel": "Cohort to view",
+    "cohortPlaceholder": "Select a cohort",
+    "active": "Active",
+    "inactive": "Inactive",
+    "viewingAs": "You are viewing the curriculum as an administrator."
+  },
+  "overview": {
+    "title": "{{cohort}}: curriculum progress",
+    "adminView": "Admin view",
+    "percentComplete": "{{percent}}% complete",
+    "stats": {
+      "modules_one": "Module",
+      "modules_other": "Modules",
+      "lessons_one": "Lesson",
+      "lessons_other": "Lessons",
+      "completed": "Completed",
+      "milestones_one": "Milestone",
+      "milestones_other": "Milestones"
+    }
+  },
+  "timeline": {
+    "title": "Program timeline",
+    "current": "Current",
+    "moduleCount_one": "{{count}} module",
+    "moduleCount_other": "{{count}} modules"
+  },
+  "week": {
+    "modules": "Week {{week}} modules",
+    "current": "Current week",
+    "noModules": "No modules for this week yet.",
+    "milestones": "Week {{week}} milestones",
+    "noMilestones": "No milestones this week.",
+    "roadmap": "Week {{week}} roadmap",
+    "noRoadmapItems": "No roadmap items this week."
+  },
+  "module": {
+    "objectives": "Learning objectives",
+    "lessons": "Lessons ({{count}})",
+    "resources": "Additional resources"
+  },
+  "lessonContent": {
+    "objectives": "Learning Objectives",
+    "overview": "Overview"
+  },
+  "lesson": {
+    "completed": "Lesson completed",
+    "passQuiz": "Pass the quiz above to complete this lesson",
+    "markWhenDone": "Mark this lesson as completed when you're done",
+    "marking": "Marking...",
+    "markComplete": "Mark as complete",
+    "participantsOnly": "Lesson completion is tracked for program participants."
+  },
+  "due": "Due {{date}}",
+  "roadmap": {
+    "start": "Start",
+    "starting": "Starting...",
+    "complete": "Complete",
+    "completing": "Completing...",
+    "notAssigned": "Not assigned"
+  },
+  "quickActions": {
+    "title": "Quick actions",
+    "scheduleSession": "Schedule a mentor session",
+    "viewRoadmap": "View roadmap"
+  }
+}

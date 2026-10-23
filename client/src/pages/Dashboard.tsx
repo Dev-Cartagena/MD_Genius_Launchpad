@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
-import { cohortStatusMessage } from "@/lib/cohorts";
+import { useTranslation } from "react-i18next";
+import { isCohortRunning, isCohortUpcoming } from "@/lib/cohorts";
 import ParticipantDashboard from "@/components/Dashboard/ParticipantDashboard";
 import MentorDashboard from "@/components/Dashboard/MentorDashboard";
 import InvestorDashboard from "@/components/Dashboard/InvestorDashboard";
@@ -14,7 +15,18 @@ import { AlertCircle, CheckCircle } from "lucide-react";
 import type { User, Application, Project, Cohort } from "@shared/schema";
 import { getApplicationTitle, getApplicationDescription } from "@/lib/applicationUtils";
 
+const DASHBOARD_ROLES = ["participant", "mentor", "investor", "administrator", "applicant"] as const;
+type DashboardRole = (typeof DASHBOARD_ROLES)[number];
+
+function dashboardRole(role: string | null | undefined): DashboardRole | "default" {
+  return (DASHBOARD_ROLES as readonly string[]).includes(role ?? "") ? (role as DashboardRole) : "default";
+}
+
+const KNOWN_ROLES = ["public_visitor", "applicant", "participant", "mentor", "investor", "administrator"] as const;
+type KnownRole = (typeof KNOWN_ROLES)[number];
+
 export default function Dashboard() {
+  const { t } = useTranslation(["dashboard", "common"]);
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
   const [showSubmissionSuccess, setShowSubmissionSuccess] = useState(false);
@@ -74,7 +86,7 @@ export default function Dashboard() {
       
       return {
         id: app.id!,
-        applicant: appUser ? `${appUser.firstName || ''} ${appUser.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User',
+        applicant: appUser ? `${appUser.firstName || ''} ${appUser.lastName || ''}`.trim() || t("page.unknownUser") : t("page.unknownUser"),
         project: getApplicationTitle(app.answers),
         status: app.status || 'draft',
         submittedDays: daysDiff,
@@ -84,7 +96,7 @@ export default function Dashboard() {
         reviewerNotes: app.reviewerNotes || []
       };
     }).sort((a, b) => a.submittedDays - b.submittedDays).slice(0, 5); // Show only recent 5
-  }, [applications, users, user?.role]);
+  }, [applications, users, user?.role, t]);
 
   // Generate dynamic system alerts from real data
   const systemAlerts = useMemo(() => {
@@ -98,26 +110,34 @@ export default function Dashboard() {
       alerts.push({
         id: "pending-reviews",
         type: "warning",
-        title: "Applications pending review",
-        message: `${pendingReviews} application${pendingReviews > 1 ? 's' : ''} awaiting review`,
+        title: t("page.alerts.pendingReviews.title"),
+        message: t("page.alerts.pendingReviews.message", { count: pendingReviews }),
         priority: pendingReviews > 5 ? "high" : "medium"
       });
     }
     
     // Check for active cohorts
-    const cohortMessage = cohortStatusMessage(cohorts);
+    const now = new Date();
+    const running = cohorts.filter((c) => isCohortRunning(c, now)).length;
+    const upcoming = cohorts.filter((c) => isCohortUpcoming(c, now)).length;
+    const ended = cohorts.filter((c) => c.isActive).length - running - upcoming;
+    const parts: string[] = [];
+    if (running > 0) parts.push(t("page.alerts.cohorts.running", { count: running }));
+    if (upcoming > 0) parts.push(t("page.alerts.cohorts.upcoming", { count: upcoming }));
+    if (ended > 0) parts.push(t("page.alerts.cohorts.ended", { count: ended }));
+    const cohortMessage = parts.length ? parts.join(", ") : null;
     if (cohortMessage) {
       alerts.push({
         id: "active-cohorts",
         type: "info",
-        title: "Active cohorts",
+        title: t("page.alerts.cohorts.title"),
         message: cohortMessage,
         priority: "low"
       });
     }
     
     return alerts;
-  }, [applications, cohorts, user?.role]);
+  }, [applications, cohorts, user?.role, t]);
 
   useEffect(() => {
     // wouter's location has no query string, so read it from window.location
@@ -131,7 +151,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Dashboard" subtitle="Loading your dashboard">
+      <AppLayout title={t("common:nav.dashboard")} subtitle={t("page.loadingSubtitle")}>
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -186,17 +206,17 @@ export default function Dashboard() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-primary">
                 <CheckCircle className="h-6 w-6" />
               </div>
-              <h3 className="font-display text-xl font-medium mb-2">Application under review</h3>
+              <h3 className="font-display text-xl font-medium mb-2">{t("page.applicant.title")}</h3>
               <p className="text-muted-foreground mb-6">
-                Your application has been submitted and is being reviewed by our admissions team.
+                {t("page.applicant.body")}
               </p>
               <div className="rounded-lg bg-secondary p-4">
-                <h4 className="font-display text-sm font-medium mb-2">What happens next</h4>
+                <h4 className="font-display text-sm font-medium mb-2">{t("page.applicant.nextTitle")}</h4>
                 <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                  <li>Our team will review your application within 5–7 business days.</li>
-                  <li>You will receive an email with the decision.</li>
-                  <li>If you are accepted, you will get access to the full participant dashboard.</li>
-                  <li>Please check your email for updates.</li>
+                  <li>{t("page.applicant.next1")}</li>
+                  <li>{t("page.applicant.next2")}</li>
+                  <li>{t("page.applicant.next3")}</li>
+                  <li>{t("page.applicant.next4")}</li>
                 </ul>
               </div>
             </CardContent>
@@ -207,10 +227,13 @@ export default function Dashboard() {
           <Card>
             <CardContent className="p-8 text-center">
               <AlertCircle className="w-10 h-10 mx-auto text-primary mb-4" />
-              <h3 className="font-display text-xl font-medium mb-2">Dashboard not available</h3>
+              <h3 className="font-display text-xl font-medium mb-2">{t("page.unavailable.title")}</h3>
               <p className="text-muted-foreground">
-                Your current role ({user?.role || 'unknown'}) doesn't have a dashboard available.
-                Please contact support if you believe this is an error.
+                {t("page.unavailable.body", {
+                  role: (KNOWN_ROLES as readonly string[]).includes(user?.role ?? "")
+                    ? t(`common:roles.${user!.role as KnownRole}`)
+                    : user?.role || t("page.unavailable.unknownRole"),
+                })}
               </p>
             </CardContent>
           </Card>
@@ -218,39 +241,13 @@ export default function Dashboard() {
     }
   };
 
-  const getDashboardTitle = () => {
-    switch (user?.role) {
-      case 'participant':
-        return "Participant dashboard";
-      case 'mentor':
-        return "Mentor dashboard";
-      case 'investor':
-        return "Investor dashboard";
-      case 'administrator':
-        return "Admin dashboard";
-      case 'applicant':
-        return "Application status";
-      default:
-        return "Dashboard";
-    }
-  };
+  const getDashboardTitle = () => t(`page.title.${dashboardRole(user?.role)}`);
 
   const getDashboardSubtitle = () => {
-    const name = user?.firstName ? `, ${user.firstName}` : '';
-    switch (user?.role) {
-      case 'participant':
-        return `Welcome back${name}. Here is where your startup stands this week.`;
-      case 'mentor':
-        return `Welcome back${name}. Here are your sessions and mentees.`;
-      case 'investor':
-        return `Welcome back${name}. Here are the startups in the program and your pipeline.`;
-      case 'administrator':
-        return `Welcome back${name}. Here is an overview of the program.`;
-      case 'applicant':
-        return `Thank you for applying to MD Genius Launchpad${name}.`;
-      default:
-        return `Welcome back${name}.`;
-    }
+    const role = dashboardRole(user?.role);
+    return user?.firstName
+      ? t(`page.subtitleName.${role}`, { name: user.firstName })
+      : t(`page.subtitle.${role}`);
   };
 
   return (
@@ -261,10 +258,9 @@ export default function Dashboard() {
       {showSubmissionSuccess && (
         <Alert className="mb-6 border-success/30 bg-success/10">
           <CheckCircle className="h-4 w-4 text-success" />
-          <AlertTitle className="font-display text-foreground">Application submitted</AlertTitle>
+          <AlertTitle className="font-display text-foreground">{t("page.submitted.title")}</AlertTitle>
           <AlertDescription className="text-foreground/80">
-            Thank you for applying to MD Genius Launchpad. We have received your application.
-            Our team will review it and reply within 5–7 business days. You can follow its status here.
+            {t("page.submitted.body")}
           </AlertDescription>
         </Alert>
       )}

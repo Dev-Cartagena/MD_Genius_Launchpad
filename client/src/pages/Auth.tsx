@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,19 +13,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getApiErrorMessage } from "@/lib/utils";
 import { Logo } from "@/components/brand";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { currentLocale } from "@/i18n";
 
 /** Split layout: brand gradient panel on the left (md and up), white form panel on the right. */
 function AuthShell({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation("auth");
   return (
     <div className="min-h-screen bg-background md:grid md:grid-cols-2">
       <div className="hidden md:flex hero-surface flex-col items-center justify-center gap-8 p-12">
         <Logo layout="vertical" tone="reversed" className="h-36" />
         <p className="font-display text-lg text-white/85 text-center max-w-xs leading-relaxed">
-          Your work in the program is saved to your account, so you can pick up where you left off.
+          {t("shell.tagline")}
         </p>
       </div>
-      <div className="flex min-h-screen md:min-h-0 flex-col items-center justify-center bg-card px-4 py-10 sm:px-8">
+      <div className="relative flex min-h-screen md:min-h-0 flex-col items-center justify-center bg-card px-4 py-10 sm:px-8">
+        <LanguageSwitcher className="absolute right-4 top-4 sm:right-8" />
         <Logo layout="compact" className="h-8 mb-8 md:hidden" />
         <div className="w-full max-w-md">{children}</div>
       </div>
@@ -31,28 +38,34 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Validation schemas
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-});
+// Validation schemas (built with the translator so messages follow the language)
+function makeSchemas(t: TFunction<"auth">) {
+  const email = z.string().email(t("validation.invalidEmail"));
+  return {
+    login: z.object({
+      email,
+      password: z.string().min(1, t("validation.passwordRequired")),
+    }),
+    register: z.object({
+      email,
+      password: z.string().min(8, t("validation.passwordMin")),
+      firstName: z.string().min(1, t("validation.firstNameRequired")),
+      lastName: z.string().optional(),
+    }),
+    forgotPassword: z.object({
+      email,
+    }),
+  };
+}
 
-const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().optional(),
-});
-
-const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address"),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
-type RegisterForm = z.infer<typeof registerSchema>;
-type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
+type Schemas = ReturnType<typeof makeSchemas>;
+type LoginForm = z.infer<Schemas["login"]>;
+type RegisterForm = z.infer<Schemas["register"]>;
+type ForgotPasswordForm = z.infer<Schemas["forgotPassword"]>;
 
 export default function Auth() {
+  const { t } = useTranslation("auth");
+  const schemas = useMemo(() => makeSchemas(t), [t]);
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("login");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -65,17 +78,17 @@ export default function Auth() {
 
   // Forms
   const loginForm = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(schemas.login),
     defaultValues: { email: "", password: "" },
   });
 
   const registerForm = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(schemas.register),
     defaultValues: { email: "", password: "", firstName: "", lastName: "" },
   });
 
   const forgotPasswordForm = useForm<ForgotPasswordForm>({
-    resolver: zodResolver(forgotPasswordSchema),
+    resolver: zodResolver(schemas.forgotPassword),
     defaultValues: { email: "" },
   });
 
@@ -83,30 +96,30 @@ export default function Auth() {
   const loginMutation = useMutation({
     mutationFn: (data: LoginForm) => apiRequest("POST", "/api/auth/login", data),
     onSuccess: () => {
-      toast({ title: "Signed in", description: "Welcome back." });
+      toast({ title: t("toast.signedIn.title"), description: t("toast.signedIn.description") });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       navigate(afterAuthPath);
     },
     onError: (error: any) => {
       toast({
-        title: "Sign-in failed",
-        description: error.message || "Please check your credentials and try again.",
+        title: t("toast.signInFailed.title"),
+        description: getApiErrorMessage(error, t("toast.signInFailed.description")),
         variant: "destructive",
       });
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: (data: RegisterForm) => apiRequest("POST", "/api/auth/register", data),
+    mutationFn: (data: RegisterForm) => apiRequest("POST", "/api/auth/register", { ...data, locale: currentLocale() }),
     onSuccess: () => {
-      toast({ title: "Account created", description: "Welcome to MD Genius Launchpad." });
+      toast({ title: t("toast.accountCreated.title"), description: t("toast.accountCreated.description") });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       navigate(afterAuthPath);
     },
     onError: (error: any) => {
       toast({
-        title: "Could not create account",
-        description: error.message || "Please try again.",
+        title: t("toast.registerFailed.title"),
+        description: getApiErrorMessage(error, t("toast.registerFailed.description")),
         variant: "destructive",
       });
     },
@@ -116,15 +129,15 @@ export default function Auth() {
     mutationFn: (data: ForgotPasswordForm) => apiRequest("POST", "/api/auth/forgot-password", data),
     onSuccess: () => {
       toast({
-        title: "Password reset requested",
-        description: "If an account exists for that email, you will receive reset instructions shortly.",
+        title: t("toast.resetRequested.title"),
+        description: t("toast.resetRequested.description"),
       });
       setShowForgotPassword(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Could not send reset email",
-        description: error.message || "Please try again.",
+        title: t("toast.resetEmailFailed.title"),
+        description: getApiErrorMessage(error, t("toast.resetEmailFailed.description")),
         variant: "destructive",
       });
     },
@@ -147,9 +160,9 @@ export default function Auth() {
       <AuthShell>
         <Card className="border-0 shadow-none md:border md:shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl font-medium">Reset your password</CardTitle>
+            <CardTitle className="text-2xl font-medium">{t("forgot.title")}</CardTitle>
             <CardDescription>
-              Enter your email address and we will send you instructions to reset your password.
+              {t("forgot.description")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -160,7 +173,7 @@ export default function Auth() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("fields.email")}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -178,7 +191,7 @@ export default function Auth() {
                   disabled={forgotPasswordMutation.isPending}
                   data-testid="button-send-reset-instructions"
                 >
-                  {forgotPasswordMutation.isPending ? "Sending..." : "Send reset instructions"}
+                  {forgotPasswordMutation.isPending ? t("forgot.submitting") : t("forgot.submit")}
                 </Button>
                 <Button
                   type="button"
@@ -187,7 +200,7 @@ export default function Auth() {
                   onClick={() => setShowForgotPassword(false)}
                   data-testid="button-back-to-login"
                 >
-                  Back to sign in
+                  {t("forgot.back")}
                 </Button>
               </form>
             </Form>
@@ -201,16 +214,16 @@ export default function Auth() {
     <AuthShell>
       <Card className="border-0 shadow-none md:border md:shadow-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-medium">Welcome to MD Genius Launchpad</CardTitle>
+          <CardTitle className="text-2xl font-medium">{t("welcome.title")}</CardTitle>
           <CardDescription>
-            Sign in or create an account with your email.
+            {t("welcome.description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" data-testid="tab-login">Sign in</TabsTrigger>
-              <TabsTrigger value="register" data-testid="tab-register">Create account</TabsTrigger>
+              <TabsTrigger value="login" data-testid="tab-login">{t("tabs.signIn")}</TabsTrigger>
+              <TabsTrigger value="register" data-testid="tab-register">{t("tabs.register")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="space-y-4">
@@ -222,7 +235,7 @@ export default function Auth() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>{t("fields.email")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -239,7 +252,7 @@ export default function Auth() {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Password</FormLabel>
+                          <FormLabel>{t("fields.password")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -257,7 +270,7 @@ export default function Auth() {
                       disabled={loginMutation.isPending}
                       data-testid="button-email-login"
                     >
-                      {loginMutation.isPending ? "Signing in..." : "Sign in"}
+                      {loginMutation.isPending ? t("login.submitting") : t("login.submit")}
                     </Button>
                   </form>
                 </Form>
@@ -269,7 +282,7 @@ export default function Auth() {
                     onClick={() => setShowForgotPassword(true)}
                     data-testid="link-forgot-password"
                   >
-                    Forgot your password?
+                    {t("login.forgot")}
                   </Button>
                 </div>
               </div>
@@ -284,7 +297,7 @@ export default function Auth() {
                       name="firstName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>First name</FormLabel>
+                          <FormLabel>{t("fields.firstName")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -300,7 +313,7 @@ export default function Auth() {
                       name="lastName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Last name (optional)</FormLabel>
+                          <FormLabel>{t("fields.lastNameOptional")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -316,7 +329,7 @@ export default function Auth() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>{t("fields.email")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -333,7 +346,7 @@ export default function Auth() {
                       name="password"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Password</FormLabel>
+                          <FormLabel>{t("fields.password")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -351,7 +364,7 @@ export default function Auth() {
                       disabled={registerMutation.isPending}
                       data-testid="button-email-register"
                     >
-                      {registerMutation.isPending ? "Creating account..." : "Create account"}
+                      {registerMutation.isPending ? t("register.submitting") : t("register.submit")}
                     </Button>
                   </form>
                 </Form>

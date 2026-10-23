@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { DropZone } from "@/components/brand";
@@ -31,7 +33,7 @@ export function fileUrl(path: string) {
 }
 
 /** Readable list of accepted formats, e.g. ".pdf,.docx" -> "PDF, DOCX". */
-function describeAccept(accept?: string): string | null {
+function describeAccept(accept: string | undefined, t: TFunction<"project">): string | null {
   if (!accept) return null;
   const parts = accept
     .split(",")
@@ -39,7 +41,7 @@ function describeAccept(accept?: string): string | null {
     .filter(Boolean)
     .map((part) => {
       if (part.startsWith(".")) return part.slice(1).toUpperCase();
-      if (part.endsWith("/*")) return `${part.slice(0, -2)} files`;
+      if (part.endsWith("/*")) return t("uploader.fileGroup", { type: part.slice(0, -2) });
       return part;
     });
   return parts.length > 0 ? parts.join(", ") : null;
@@ -60,6 +62,7 @@ export function ObjectUploader({
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { t } = useTranslation("project");
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -69,8 +72,8 @@ export function ObjectUploader({
 
     if (file.size > maxFileSize) {
       toast({
-        title: "File too large",
-        description: `Files must be smaller than ${Math.round(maxFileSize / 1024 / 1024)}MB.`,
+        title: t("uploader.tooLarge.title"),
+        description: t("uploader.tooLarge.description", { count: Math.round(maxFileSize / 1024 / 1024) }),
         variant: "destructive",
       });
       return;
@@ -92,15 +95,15 @@ export function ObjectUploader({
         body: file,
       });
       if (!putResponse.ok) {
-        throw new Error(`Upload failed (${putResponse.status})`);
+        throw new Error(t("uploader.failed.status", { status: putResponse.status }));
       }
 
       await onUploaded({ path, fileName: file.name, size: file.size, contentType });
     } catch (error) {
       console.error("Upload failed:", error);
       toast({
-        title: "Upload failed",
-        description: getApiErrorMessage(error, "Could not upload the file. Please try again."),
+        title: t("uploader.failed.title"),
+        description: getApiErrorMessage(error, t("uploader.failed.description")),
         variant: "destructive",
       });
     } finally {
@@ -109,7 +112,7 @@ export function ObjectUploader({
   };
 
   const maxSizeMb = Math.round(maxFileSize / 1024 / 1024);
-  const formats = describeAccept(accept);
+  const formats = describeAccept(accept, t);
 
   return (
     <DropZone className="w-full">
@@ -128,12 +131,14 @@ export function ObjectUploader({
         disabled={isUploading || disabled}
         data-testid="button-upload"
       >
-        {isUploading ? "Uploading..." : children}
+        {isUploading ? t("uploader.uploading") : children}
       </Button>
       <p className="text-xs text-muted-foreground" aria-live="polite">
         {isUploading
-          ? "Uploading your file. This can take a moment."
-          : `${formats ? `${formats}. ` : ""}One file, up to ${maxSizeMb}MB.`}
+          ? t("uploader.uploadingHint")
+          : formats
+            ? t("uploader.hintWithFormats", { formats, count: maxSizeMb })
+            : t("uploader.hint", { count: maxSizeMb })}
       </p>
     </DropZone>
   );

@@ -1,1 +1,255 @@
-{}
+{
+  "status": {
+    "title": "Application status",
+    "thanks": "Thank you for applying to MD Genius Launchpad.",
+    "yourApplication": "Your application",
+    "submittedOn": "Submitted on {{date}}",
+    "messages": {
+      "submitted": {
+        "title": "What happens next",
+        "body": "Our admissions team is reviewing your application. You will receive an email update within 5–7 business days."
+      },
+      "under_review": {
+        "title": "Under review",
+        "body": "Our team is evaluating your application. We will contact you soon with next steps."
+      },
+      "shortlisted": {
+        "title": "You have been shortlisted",
+        "body": "Congratulations. Our team will contact you soon to schedule an interview."
+      },
+      "interview": {
+        "title": "Interview scheduled",
+        "body": "Check your email for interview details and preparation materials."
+      },
+      "offer": {
+        "title": "You have an offer",
+        "body": "Congratulations. You have been offered a place in MD Genius Launchpad. Our team will contact you by email to confirm your place."
+      },
+      "accepted": {
+        "title": "Welcome to the cohort",
+        "body": "You are now part of MD Genius Launchpad. Open your participant dashboard to get started.",
+        "button": "Open dashboard"
+      },
+      "waitlist": {
+        "title": "On the waitlist",
+        "body": "You are on the waitlist for the current cohort. We will let you know if a place opens up, and we will automatically consider you for the next cohort."
+      }
+    },
+    "timeline": {
+      "title": "Application timeline",
+      "submitted": "Application submitted",
+      "underReview": "Under review",
+      "reviewCompleted": "Review completed",
+      "shortlisted": "Shortlisted",
+      "selectedForInterview": "Selected for interview",
+      "offer": "Offer extended",
+      "congratulations": "Congratulations"
+    },
+    "questions": {
+      "title": "Questions",
+      "body": "If you have any questions about your application status, reply to any email from our admissions team."
+    }
+  },
+  "apply": {
+    "title": "Apply to MD Genius Launchpad",
+    "lead": "An 8-week AI startup accelerator from MDGeniusAI, with mentorship and practical support to turn your idea into a business.",
+    "draft": {
+      "title": "Continue your draft application",
+      "started": "Started {{date}}"
+    },
+    "overview": {
+      "title": "Program overview",
+      "program": {
+        "title": "8-week program",
+        "body": "A curriculum covering AI fundamentals, business strategy and the essentials of starting a company."
+      },
+      "mentorship": {
+        "title": "Mentorship",
+        "body": "One-to-one guidance from industry practitioners and experienced AI founders."
+      },
+      "investors": {
+        "title": "Investor access",
+        "body": "Introductions to venture capital and angel investors at Demo Day."
+      }
+    },
+    "cohorts": {
+      "title": "Available cohorts",
+      "starts": "Starts {{date}}",
+      "places_one": "{{count}} place",
+      "places_other": "{{count}} places"
+    },
+    "signIn": {
+      "title": "Create an account to apply",
+      "body": "Applications are saved to your account, so you can come back to a draft and follow its status after you submit. Sign in, or create a free account, then return here to fill in the form.",
+      "button": "Sign in or create an account to apply"
+    }
+  },
+  "form": {
+    "header": "Your application",
+    "stepCounter": "Step {{current}} of {{total}}",
+    "stepsLabel": "Application steps",
+    "stepDone": "{{label}} (completed)",
+    "stepCurrent": "{{label}} (current step)",
+    "steps": {
+      "personal": "Personal details",
+      "experience": "Experience",
+      "idea": "Idea",
+      "commitment": "Commitment",
+      "documents": "Documents",
+      "review": "Review"
+    },
+    "minChars": "Minimum {{min}} characters required ({{length}}/{{min}})",
+    "autoPopulated": "Auto-populated from your profile",
+    "personal": {
+      "title": "Personal details",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email address",
+      "phone": "Phone number",
+      "location": "Location",
+      "locationPlaceholder": "City, State/Country",
+      "timezone": "Timezone",
+      "timezonePlaceholder": "Select your timezone",
+      "timezones": {
+        "PST": "Pacific Time (PST)",
+        "MST": "Mountain Time (MST)",
+        "CST": "Central Time (CST)",
+        "EST": "Eastern Time (EST)",
+        "GMT": "Greenwich Mean Time (GMT)",
+        "CET": "Central European Time (CET)"
+      }
+    },
+    "experience": {
+      "title": "Education and experience",
+      "education": "Educational background",
+      "educationPlaceholder": "Describe your educational background, including degree(s), institutions, and relevant coursework...",
+      "experience": "Professional experience",
+      "experiencePlaceholder": "Describe your professional experience, including roles, companies, and key achievements...",
+      "skills": "Skills and expertise",
+      "skillsHint": "Select at least 3 skills that best describe your expertise."
+    },
+    "skills": {
+      "ai": "Artificial Intelligence",
+      "aiAgents": "AI Agents",
+      "llms": "LLMs",
+      "ml": "Machine Learning",
+      "deepLearning": "Deep Learning",
+      "computerVision": "Computer Vision",
+      "nlp": "Natural Language Processing",
+      "dataScience": "Data Science",
+      "softwareEngineering": "Software Engineering",
+      "productManagement": "Product Management",
+      "design": "UI/UX Design",
+      "businessDevelopment": "Business Development",
+      "marketing": "Marketing",
+      "finance": "Finance",
+      "operations": "Operations",
+      "research": "Research",
+      "entrepreneurship": "Entrepreneurship",
+      "leadership": "Leadership",
+      "projectManagement": "Project Management"
+    },
+    "idea": {
+      "title": "Project and idea",
+      "hasIdea": "I have a startup idea I would like to develop",
+      "description": "Idea description",
+      "descriptionPlaceholder": "Briefly describe your startup idea, including the AI/technology components...",
+      "problem": "Problem statement",
+      "problemPlaceholder": "What specific problem does your idea solve? Who experiences this problem?",
+      "market": "Target market",
+      "marketPlaceholder": "Who is your target customer? What market are you addressing?",
+      "noIdeaTitle": "That is fine",
+      "noIdeaBody": "The program includes ideation workshops and will help you develop and validate startup ideas throughout the cohort."
+    },
+    "commitment": {
+      "title": "Availability and commitment",
+      "time": "Time commitment",
+      "timePlaceholder": "Select your availability",
+      "availability": {
+        "full-time": "Full-time (40+ hours a week), recommended",
+        "part-time": "Part-time (20–30 hours a week)",
+        "weekends": "Weekends only (10–15 hours a week)"
+      },
+      "why": "Why MD Genius Launchpad?",
+      "whyPlaceholder": "Why are you applying to this program? What do you hope to achieve? How does this align with your career goals?",
+      "cohort": "Preferred cohort",
+      "cohortPlaceholder": "Select a cohort",
+      "noCohorts": "No active cohorts available",
+      "cohortOption": "{{name}} - Starts {{date}}"
+    },
+    "documents": {
+      "title": "Documents and links",
+      "resume": "Resume or CV (required)",
+      "resumeHint": "Upload your current resume or CV.",
+      "uploadResume": "Upload resume",
+      "portfolio": "Portfolio URL (optional)",
+      "github": "GitHub profile (optional)",
+      "linkedin": "LinkedIn profile (optional)"
+    },
+    "review": {
+      "title": "Review and submit",
+      "terms": "I agree to the <link>terms and conditions</link>",
+      "termsHint": "By checking this box, you agree to our program terms, intellectual property policies, and code of conduct.",
+      "privacy": "I agree to the <link>privacy policy</link>",
+      "privacyHint": "We will handle your personal data in accordance with our privacy policy and applicable data protection laws.",
+      "howTitle": "How we review applications",
+      "howBody": "After you submit, our admissions team reviews your application and invites selected candidates to an interview. We will keep you updated by email."
+    },
+    "nav": {
+      "previous": "Previous",
+      "next": "Next step",
+      "submit": "Submit application",
+      "submitting": "Submitting..."
+    },
+    "validation": {
+      "firstNameMin": "First name must be at least 2 characters",
+      "lastNameMin": "Last name must be at least 2 characters",
+      "invalidEmail": "Invalid email address",
+      "phoneMin": "Phone number must be at least 10 digits",
+      "locationRequired": "Location is required",
+      "timezoneRequired": "Timezone is required",
+      "educationMin": "Education background must be at least 10 characters",
+      "experienceMin": "Professional experience must be at least 10 characters",
+      "skillsMin": "Please select at least 3 skills",
+      "commitmentMin": "Please explain your commitment in at least 50 characters",
+      "termsRequired": "You must accept the terms and conditions",
+      "privacyRequired": "You must accept the privacy policy",
+      "cohortRequired": "Please select a cohort"
+    },
+    "errors": {
+      "firstName": "First name is required",
+      "lastName": "Last name is required",
+      "email": "Valid email address is required",
+      "education": "Education background must be at least 10 characters",
+      "experience": "Professional experience must be at least 10 characters",
+      "skills": "Please select at least 3 skills",
+      "commitment": "Commitment explanation must be at least 50 characters",
+      "terms": "You must accept the terms and conditions",
+      "privacy": "You must accept the privacy policy",
+      "cohort": "Please select a cohort",
+      "idea": "If you have an idea, please fill in all idea-related fields",
+      "generic": "Please check all required fields are filled correctly."
+    },
+    "toast": {
+      "submitted": {
+        "title": "Application submitted",
+        "description": "Thank you for applying. You will receive a confirmation email shortly."
+      },
+      "signedOut": {
+        "title": "Signed out",
+        "description": "Your session has ended. Taking you to sign in..."
+      },
+      "submitFailed": {
+        "title": "Could not submit application",
+        "description": "Please try again."
+      },
+      "uploaded": {
+        "title": "File uploaded",
+        "description": "{{fileName}} is attached to your application."
+      },
+      "invalid": {
+        "title": "Some required fields need attention"
+      }
+    }
+  }
+}

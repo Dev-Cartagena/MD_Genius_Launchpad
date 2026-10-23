@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 export interface ConfirmRequest {
   title: string;
@@ -29,6 +30,7 @@ export default function ConfirmDialog({
   request: ConfirmRequest | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation("common");
   return (
     <AlertDialog open={request !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -39,13 +41,13 @@ export default function ConfirmDialog({
           )}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel data-testid="button-confirm-cancel">Cancel</AlertDialogCancel>
+          <AlertDialogCancel data-testid="button-confirm-cancel">{t("actions.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             className={request?.destructive === false ? undefined : buttonVariants({ variant: "destructive" })}
             onClick={() => request?.onConfirm()}
             data-testid="button-confirm-action"
           >
-            {request?.confirmLabel ?? (request?.destructive === false ? "Confirm" : "Delete")}
+            {request?.confirmLabel ?? (request?.destructive === false ? t("actions.confirm") : t("actions.delete"))}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

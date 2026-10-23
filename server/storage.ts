@@ -1738,6 +1738,7 @@ export class DatabaseStorage implements IStorage {
         type: roadmapItems.type,
         title: roadmapItems.title,
         description: roadmapItems.description,
+        translations: roadmapItems.translations,
         week: roadmapItems.week,
         dueOffsetDays: roadmapItems.dueOffsetDays,
         orderIndex: roadmapItems.orderIndex,

@@ -1,1 +1,66 @@
-{}
+{
+  "nav": {
+    "home": "MD Genius Launchpad home",
+    "signIn": "Sign in"
+  },
+  "hero": {
+    "badge": "Applications open: {{name}} (starts {{date}})",
+    "title": "Build your AI startup with MD Genius Launchpad",
+    "lead": "An 8-week accelerator from MDGeniusAI that pairs a structured curriculum with mentors and introductions to investors.",
+    "apply": "Apply to the program",
+    "signIn": "Sign in"
+  },
+  "modules": {
+    "title": "Program modules",
+    "curriculum": { "title": "Curriculum", "description": "Eight weeks of lessons and assignments." },
+    "roadmap": { "title": "Roadmap", "description": "Weekly milestones for your startup." },
+    "mentors": { "title": "Mentors", "description": "One-to-one sessions with practitioners." },
+    "investors": { "title": "Investors", "description": "Introductions when you are ready." },
+    "coach": { "title": "AI coach", "description": "Answers between sessions." }
+  },
+  "features": {
+    "title": "What the program includes",
+    "lead": "Technical depth and business practice, so an AI idea can become a company that customers and investors take seriously.",
+    "curriculum": {
+      "title": "AI-first curriculum",
+      "description": "An 8-week program covering AI and machine learning fundamentals, business strategy and the essentials of starting a company."
+    },
+    "mentorship": {
+      "title": "Mentorship",
+      "description": "One-to-one guidance from industry practitioners, experienced founders and AI specialists."
+    },
+    "investors": {
+      "title": "Investor network",
+      "description": "Access to venture capital firms and angel investors who focus on AI startups."
+    },
+    "demoDay": {
+      "title": "Demo Day",
+      "description": "Present your startup to investors at the end of the program."
+    }
+  },
+  "timeline": {
+    "title": "Eight weeks, four stages",
+    "lead": "A structured schedule takes you from an idea to a startup that is ready to meet investors, with steady progress each week.",
+    "weeks": "Week {{weeks}}",
+    "foundation": { "title": "Foundation", "description": "AI fundamentals, problem definition and team formation." },
+    "validation": { "title": "Validation", "description": "Market research, customer discovery and MVP planning." },
+    "development": { "title": "Development", "description": "Technical build, product development and testing." },
+    "launch": { "title": "Launch", "description": "Go-to-market strategy, investor preparation and Demo Day." }
+  },
+  "testimonials": {
+    "title": "From our alumni"
+  },
+  "cta": {
+    "title": "Apply for the next cohort",
+    "lead": "We review applications on a rolling basis, and each cohort has a limited number of places.",
+    "noFee": "No application fee",
+    "rolling": "Rolling admissions",
+    "global": "Global cohorts",
+    "start": "Start your application"
+  },
+  "footer": {
+    "brand": "MD Genius Launchpad · an MDGeniusAI program",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  }
+}

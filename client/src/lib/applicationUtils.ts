@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 /**
  * Helpers for reading application answers. ApplicationForm stores answers as:
  * { personalInfo: {...}, education, experience, skills, idea: { description, problem, market } | null,
@@ -23,7 +24,7 @@ export function getApplicationTitle(answers: unknown): string {
     const firstSentence = idea.split(/(?<=[.!?])\s/)[0];
     return truncate(firstSentence, 60);
   }
-  return "No project idea yet";
+  return i18n.t("application.untitled");
 }
 
 export function getApplicationDescription(answers: unknown): string | undefined {

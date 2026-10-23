@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import { registerRoutes } from "./routes.js";
 import { setupAuth } from "./auth.js";
+import { localizeMessages } from "./i18n/index.js";
 import { log } from "./log.js";
 
 /**
@@ -34,6 +35,7 @@ export function createApp() {
     next();
   });
 
+  app.use(localizeMessages);
   setupAuth(app);
   registerRoutes(app);
 

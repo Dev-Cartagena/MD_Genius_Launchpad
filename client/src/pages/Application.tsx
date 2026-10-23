@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "react-i18next";
+import { useLocalized } from "@/lib/localized";
+import { intlLocale } from "@/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,15 +24,15 @@ import {
 } from "lucide-react";
 
 const statusConfig = {
-  draft: { icon: FileText, color: "text-muted-foreground", bg: "bg-muted", label: "Draft" },
-  submitted: { icon: Clock, color: "text-accent", bg: "bg-secondary", label: "Submitted" },
-  under_review: { icon: Clock, color: "text-accent", bg: "bg-secondary", label: "Under review" },
-  shortlisted: { icon: Users, color: "text-success", bg: "bg-success/10", label: "Shortlisted" },
-  interview: { icon: Calendar, color: "text-warning", bg: "bg-warning/10", label: "Interview" },
-  offer: { icon: CheckCircle, color: "text-success", bg: "bg-success/10", label: "Offer" },
-  waitlist: { icon: Clock, color: "text-warning", bg: "bg-warning/10", label: "Waitlist" },
-  rejected: { icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10", label: "Rejected" },
-  accepted: { icon: CheckCircle, color: "text-success", bg: "bg-success/10", label: "Accepted" },
+  draft: { icon: FileText, color: "text-muted-foreground", bg: "bg-muted" },
+  submitted: { icon: Clock, color: "text-accent", bg: "bg-secondary" },
+  under_review: { icon: Clock, color: "text-accent", bg: "bg-secondary" },
+  shortlisted: { icon: Users, color: "text-success", bg: "bg-success/10" },
+  interview: { icon: Calendar, color: "text-warning", bg: "bg-warning/10" },
+  offer: { icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+  waitlist: { icon: Clock, color: "text-warning", bg: "bg-warning/10" },
+  rejected: { icon: AlertCircle, color: "text-destructive", bg: "bg-destructive/10" },
+  accepted: { icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
 };
 
 /** One row of the application timeline: a connector badge joined to the next row by a hairline. */
@@ -49,6 +52,8 @@ function TimelineStep({ title, caption, isLast }: { title: string; caption: stri
 }
 
 export default function Application() {
+  const { t } = useTranslation(["application", "common"]);
+  const localized = useLocalized();
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
@@ -91,9 +96,9 @@ export default function Application() {
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Header */}
           <div className="space-y-3">
-            <h1 className="text-3xl md:text-4xl font-medium">Application status</h1>
+            <h1 className="text-3xl md:text-4xl font-medium">{t("status.title")}</h1>
             <p className="font-display text-lg text-muted-foreground">
-              Thank you for applying to MD Genius Launchpad.
+              {t("status.thanks")}
             </p>
             <NodeRule />
           </div>
@@ -101,7 +106,7 @@ export default function Application() {
           {/* Application Status */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl font-medium">Your application</CardTitle>
+              <CardTitle className="text-xl font-medium">{t("status.yourApplication")}</CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0 md:p-8 md:pt-0">
               <div className="space-y-6">
@@ -111,10 +116,12 @@ export default function Application() {
                   </div>
                 <div>
                   <Badge className={`font-display text-sm px-3 py-1 border-0 ${status.bg} ${status.color}`} data-testid="application-status">
-                    {status.label}
+                    {t(`common:applicationStatus.${currentApplication.status as keyof typeof statusConfig}`)}
                   </Badge>
                   <p className="text-sm text-muted-foreground mt-2" data-testid="application-date">
-                    Submitted on {new Date(currentApplication.submittedAt ?? currentApplication.createdAt ?? Date.now()).toLocaleDateString()}
+                    {t("status.submittedOn", {
+                      date: new Date(currentApplication.submittedAt ?? currentApplication.createdAt ?? Date.now()).toLocaleDateString(intlLocale()),
+                    })}
                   </p>
                 </div>
                 </div>
@@ -122,63 +129,60 @@ export default function Application() {
                 {/* Status-specific messages */}
                 {currentApplication.status === 'submitted' && (
                   <div className="rounded-xl border border-border bg-secondary p-5">
-                    <h3 className="text-base font-medium mb-2">What happens next</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.submitted.title")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Our admissions team is reviewing your application.
-                      You will receive an email update within 5–7 business days.
+                      {t("status.messages.submitted.body")}
                     </p>
                   </div>
                 )}
 
                 {currentApplication.status === 'under_review' && (
                   <div className="rounded-xl border border-border bg-secondary p-5">
-                    <h3 className="text-base font-medium mb-2">Under review</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.under_review.title")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Our team is evaluating your application.
-                      We will contact you soon with next steps.
+                      {t("status.messages.under_review.body")}
                     </p>
                   </div>
                 )}
 
                 {currentApplication.status === 'shortlisted' && (
                   <div className="rounded-xl border border-border bg-secondary p-5">
-                    <h3 className="text-base font-medium mb-2">You have been shortlisted</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.shortlisted.title")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Congratulations. Our team will contact you soon to schedule an interview.
+                      {t("status.messages.shortlisted.body")}
                     </p>
                   </div>
                 )}
 
                 {currentApplication.status === 'interview' && (
                   <div className="rounded-xl border border-border bg-secondary p-5">
-                    <h3 className="text-base font-medium mb-2">Interview scheduled</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.interview.title")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      Check your email for interview details and preparation materials.
+                      {t("status.messages.interview.body")}
                     </p>
                   </div>
                 )}
 
                 {currentApplication.status === 'offer' && (
                   <MistPanel className="p-5">
-                    <h3 className="text-base font-medium mb-2">You have an offer</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.offer.title")}</h3>
                     <p className="text-sm text-foreground/80">
-                      Congratulations. You have been offered a place in MD Genius Launchpad.
-                      Our team will contact you by email to confirm your place.
+                      {t("status.messages.offer.body")}
                     </p>
                   </MistPanel>
                 )}
 
                 {currentApplication.status === 'accepted' && (
                   <MistPanel className="p-5">
-                    <h3 className="text-base font-medium mb-2">Welcome to the cohort</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.accepted.title")}</h3>
                     <p className="text-sm text-foreground/80 mb-4">
-                      You are now part of MD Genius Launchpad. Open your participant dashboard to get started.
+                      {t("status.messages.accepted.body")}
                     </p>
                     <Button
                       onClick={() => window.location.href = "/dashboard"}
                       data-testid="button-access-dashboard"
                     >
-                      Open dashboard
+                      {t("status.messages.accepted.button")}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </MistPanel>
@@ -186,10 +190,9 @@ export default function Application() {
 
                 {currentApplication.status === 'waitlist' && (
                   <div className="rounded-xl border border-border bg-secondary p-5">
-                    <h3 className="text-base font-medium mb-2">On the waitlist</h3>
+                    <h3 className="text-base font-medium mb-2">{t("status.messages.waitlist.title")}</h3>
                     <p className="text-sm text-muted-foreground">
-                      You are on the waitlist for the current cohort. We will let you know if a place opens up,
-                      and we will automatically consider you for the next cohort.
+                      {t("status.messages.waitlist.body")}
                     </p>
                   </div>
                 )}
@@ -200,26 +203,31 @@ export default function Application() {
           {/* Application timeline */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl font-medium">Application timeline</CardTitle>
+              <CardTitle className="text-xl font-medium">{t("status.timeline.title")}</CardTitle>
             </CardHeader>
             <CardContent>
               {(() => {
                 const appStatus = currentApplication.status ?? '';
                 const steps = [
                   {
-                    title: "Application submitted",
-                    caption: new Date(currentApplication.submittedAt ?? currentApplication.createdAt ?? Date.now()).toLocaleDateString(),
+                    id: "submitted",
+                    title: t("status.timeline.submitted"),
+                    caption: new Date(currentApplication.submittedAt ?? currentApplication.createdAt ?? Date.now()).toLocaleDateString(intlLocale()),
                   },
-                  ...(appStatus !== 'submitted' ? [{ title: "Under review", caption: "Review completed" }] : []),
-                  ...(['shortlisted', 'interview', 'offer', 'accepted'].includes(appStatus)
-                    ? [{ title: "Shortlisted", caption: "Selected for interview" }]
+                  ...(appStatus !== 'submitted'
+                    ? [{ id: "review", title: t("status.timeline.underReview"), caption: t("status.timeline.reviewCompleted") }]
                     : []),
-                  ...(['offer', 'accepted'].includes(appStatus) ? [{ title: "Offer extended", caption: "Congratulations" }] : []),
+                  ...(['shortlisted', 'interview', 'offer', 'accepted'].includes(appStatus)
+                    ? [{ id: "shortlisted", title: t("status.timeline.shortlisted"), caption: t("status.timeline.selectedForInterview") }]
+                    : []),
+                  ...(['offer', 'accepted'].includes(appStatus)
+                    ? [{ id: "offer", title: t("status.timeline.offer"), caption: t("status.timeline.congratulations") }]
+                    : []),
                 ];
                 return (
                   <ol>
                     {steps.map((step, index) => (
-                      <TimelineStep key={step.title} title={step.title} caption={step.caption} isLast={index === steps.length - 1} />
+                      <TimelineStep key={step.id} title={step.title} caption={step.caption} isLast={index === steps.length - 1} />
                     ))}
                   </ol>
                 );
@@ -230,9 +238,9 @@ export default function Application() {
           {/* Contact Information */}
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-base font-medium mb-2">Questions</h3>
+              <h3 className="text-base font-medium mb-2">{t("status.questions.title")}</h3>
               <p className="text-sm text-muted-foreground">
-                If you have any questions about your application status, reply to any email from our admissions team.
+                {t("status.questions.body")}
               </p>
             </CardContent>
           </Card>
@@ -247,18 +255,19 @@ export default function Application() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-3">
-          <h1 className="text-3xl md:text-4xl font-medium">Apply to MD Genius Launchpad</h1>
+          <h1 className="text-3xl md:text-4xl font-medium">{t("apply.title")}</h1>
           <p className="font-display text-lg text-muted-foreground max-w-2xl">
-            An 8-week AI startup accelerator from MDGeniusAI, with mentorship and practical support
-            to turn your idea into a business.
+            {t("apply.lead")}
           </p>
           <NodeRule />
 
           {currentApplication?.status === 'draft' && (
             <div className="rounded-xl border border-border bg-secondary p-4 max-w-md">
-              <p className="text-sm font-medium">Continue your draft application</p>
+              <p className="text-sm font-medium">{t("apply.draft.title")}</p>
               <p className="text-xs text-muted-foreground">
-                Started {new Date(currentApplication.createdAt ?? Date.now()).toLocaleDateString()}
+                {t("apply.draft.started", {
+                  date: new Date(currentApplication.createdAt ?? Date.now()).toLocaleDateString(intlLocale()),
+                })}
               </p>
             </div>
           )}
@@ -268,15 +277,15 @@ export default function Application() {
         {!currentApplication && (
           <Card>
             <CardContent className="p-6 md:p-8">
-              <h2 className="text-2xl font-medium mb-6">Program overview</h2>
+              <h2 className="text-2xl font-medium mb-6">{t("apply.overview.title")}</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <div className="w-10 h-10 bg-secondary text-primary rounded-lg flex items-center justify-center mb-4">
                     <Calendar className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-medium mb-2">8-week program</h3>
+                  <h3 className="text-base font-medium mb-2">{t("apply.overview.program.title")}</h3>
                   <p className="text-sm text-muted-foreground">
-                    A curriculum covering AI fundamentals, business strategy and the essentials of starting a company.
+                    {t("apply.overview.program.body")}
                   </p>
                 </div>
                 
@@ -284,9 +293,9 @@ export default function Application() {
                   <div className="w-10 h-10 bg-secondary text-primary rounded-lg flex items-center justify-center mb-4">
                     <Users className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-medium mb-2">Mentorship</h3>
+                  <h3 className="text-base font-medium mb-2">{t("apply.overview.mentorship.title")}</h3>
                   <p className="text-sm text-muted-foreground">
-                    One-to-one guidance from industry practitioners and experienced AI founders.
+                    {t("apply.overview.mentorship.body")}
                   </p>
                 </div>
                 
@@ -294,9 +303,9 @@ export default function Application() {
                   <div className="w-10 h-10 bg-secondary text-primary rounded-lg flex items-center justify-center mb-4">
                     <CheckCircle className="w-5 h-5" />
                   </div>
-                  <h3 className="text-base font-medium mb-2">Investor access</h3>
+                  <h3 className="text-base font-medium mb-2">{t("apply.overview.investors.title")}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Introductions to venture capital and angel investors at Demo Day.
+                    {t("apply.overview.investors.body")}
                   </p>
                 </div>
               </div>
@@ -308,23 +317,23 @@ export default function Application() {
         {cohorts.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl font-medium">Available cohorts</CardTitle>
+              <CardTitle className="text-xl font-medium">{t("apply.cohorts.title")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {cohorts.slice(0, 2).map((cohort: Cohort) => (
                   <Card key={cohort.id} className="bg-secondary border-0 shadow-none">
                     <CardContent className="p-4">
-                      <h3 className="text-base font-medium mb-2" data-testid={`cohort-name-${cohort.id}`}>{cohort.name}</h3>
+                      <h3 className="text-base font-medium mb-2" data-testid={`cohort-name-${cohort.id}`}>{localized.text(cohort, "name")}</h3>
                       <p className="text-sm text-muted-foreground mb-2" data-testid={`cohort-description-${cohort.id}`}>
-                        {cohort.description}
+                        {localized.text(cohort, "description")}
                       </p>
                       <div className="flex items-center justify-between gap-2 text-sm">
                         <span data-testid={`cohort-start-date-${cohort.id}`}>
-                          Starts {formatCohortDate(cohort.startDate)}
+                          {t("apply.cohorts.starts", { date: formatCohortDate(cohort.startDate) })}
                         </span>
                         <Badge variant="outline" data-testid={`cohort-capacity-${cohort.id}`}>
-                          {cohort.capacity} places
+                          {t("apply.cohorts.places", { count: cohort.capacity })}
                         </Badge>
                       </div>
                     </CardContent>
@@ -341,15 +350,14 @@ export default function Application() {
         ) : (
           <Card>
             <CardContent className="p-6 md:p-8 space-y-4">
-              <h2 className="text-2xl font-medium">Create an account to apply</h2>
+              <h2 className="text-2xl font-medium">{t("apply.signIn.title")}</h2>
               <p className="text-muted-foreground max-w-xl">
-                Applications are saved to your account, so you can come back to a draft and follow its
-                status after you submit. Sign in, or create a free account, then return here to fill in the form.
+                {t("apply.signIn.body")}
               </p>
               <Button asChild data-testid="button-sign-in-to-apply">
                 <Link href="/login?next=/apply">
                   <LogIn className="w-4 h-4 mr-2" />
-                  Sign in or create an account to apply
+                  {t("apply.signIn.button")}
                 </Link>
               </Button>
             </CardContent>

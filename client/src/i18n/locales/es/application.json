@@ -1,1 +1,255 @@
-{}
+{
+  "status": {
+    "title": "Estado de la postulación",
+    "thanks": "Gracias por postularte a MD Genius Launchpad.",
+    "yourApplication": "Tu postulación",
+    "submittedOn": "Enviada el {{date}}",
+    "messages": {
+      "submitted": {
+        "title": "Próximos pasos",
+        "body": "Nuestro equipo de admisiones está revisando tu postulación. Recibirás una actualización por correo en un plazo de 5 a 7 días hábiles."
+      },
+      "under_review": {
+        "title": "En revisión",
+        "body": "Nuestro equipo está evaluando tu postulación. Pronto te contactaremos con los próximos pasos."
+      },
+      "shortlisted": {
+        "title": "Tu postulación fue preseleccionada",
+        "body": "Felicitaciones. Nuestro equipo te contactará pronto para agendar una entrevista."
+      },
+      "interview": {
+        "title": "Entrevista agendada",
+        "body": "Revisa tu correo para ver los detalles de la entrevista y los materiales de preparación."
+      },
+      "offer": {
+        "title": "Tienes una oferta",
+        "body": "Felicitaciones. Te ofrecemos un cupo en MD Genius Launchpad. Nuestro equipo te contactará por correo para confirmar tu cupo."
+      },
+      "accepted": {
+        "title": "Te damos la bienvenida a la cohorte",
+        "body": "Ahora formas parte de MD Genius Launchpad. Abre tu panel de participante para comenzar.",
+        "button": "Abrir panel"
+      },
+      "waitlist": {
+        "title": "En lista de espera",
+        "body": "Estás en la lista de espera de la cohorte actual. Te avisaremos si se libera un cupo y te consideraremos automáticamente para la próxima cohorte."
+      }
+    },
+    "timeline": {
+      "title": "Historial de la postulación",
+      "submitted": "Postulación enviada",
+      "underReview": "En revisión",
+      "reviewCompleted": "Revisión completada",
+      "shortlisted": "Preseleccionada",
+      "selectedForInterview": "Seleccionada para entrevista",
+      "offer": "Oferta enviada",
+      "congratulations": "Felicitaciones"
+    },
+    "questions": {
+      "title": "Preguntas",
+      "body": "Si tienes preguntas sobre el estado de tu postulación, responde cualquier correo de nuestro equipo de admisiones."
+    }
+  },
+  "apply": {
+    "title": "Postúlate a MD Genius Launchpad",
+    "lead": "Una aceleradora de startups de IA de 8 semanas de MDGeniusAI, con mentoría y apoyo práctico para convertir tu idea en un negocio.",
+    "draft": {
+      "title": "Continúa tu borrador de postulación",
+      "started": "Iniciada el {{date}}"
+    },
+    "overview": {
+      "title": "Resumen del programa",
+      "program": {
+        "title": "Programa de 8 semanas",
+        "body": "Un currículo que cubre los fundamentos de la IA, la estrategia de negocio y lo esencial para crear una empresa."
+      },
+      "mentorship": {
+        "title": "Mentoría",
+        "body": "Acompañamiento individual de profesionales de la industria y fundadores de IA con experiencia."
+      },
+      "investors": {
+        "title": "Acceso a inversionistas",
+        "body": "Presentaciones a fondos de capital de riesgo e inversionistas ángeles en el Demo Day."
+      }
+    },
+    "cohorts": {
+      "title": "Cohortes disponibles",
+      "starts": "Inicia el {{date}}",
+      "places_one": "{{count}} cupo",
+      "places_other": "{{count}} cupos"
+    },
+    "signIn": {
+      "title": "Crea una cuenta para postularte",
+      "body": "Las postulaciones se guardan en tu cuenta, así que puedes retomar un borrador y seguir su estado después de enviarla. Inicia sesión o crea una cuenta gratuita y luego vuelve aquí para completar el formulario.",
+      "button": "Inicia sesión o regístrate"
+    }
+  },
+  "form": {
+    "header": "Tu postulación",
+    "stepCounter": "Paso {{current}} de {{total}}",
+    "stepsLabel": "Pasos de la postulación",
+    "stepDone": "{{label}} (completado)",
+    "stepCurrent": "{{label}} (paso actual)",
+    "steps": {
+      "personal": "Datos personales",
+      "experience": "Experiencia",
+      "idea": "Idea",
+      "commitment": "Compromiso",
+      "documents": "Documentos",
+      "review": "Revisión"
+    },
+    "minChars": "Mínimo {{min}} caracteres ({{length}}/{{min}})",
+    "autoPopulated": "Completado con los datos de tu perfil",
+    "personal": {
+      "title": "Datos personales",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "location": "Ubicación",
+      "locationPlaceholder": "Ciudad, estado/país",
+      "timezone": "Zona horaria",
+      "timezonePlaceholder": "Selecciona tu zona horaria",
+      "timezones": {
+        "PST": "Hora del Pacífico (PST)",
+        "MST": "Hora de la Montaña (MST)",
+        "CST": "Hora del Centro (CST)",
+        "EST": "Hora del Este (EST)",
+        "GMT": "Hora del meridiano de Greenwich (GMT)",
+        "CET": "Hora de Europa Central (CET)"
+      }
+    },
+    "experience": {
+      "title": "Educación y experiencia",
+      "education": "Formación académica",
+      "educationPlaceholder": "Describe tu formación académica, incluidos títulos, instituciones y cursos relevantes...",
+      "experience": "Experiencia profesional",
+      "experiencePlaceholder": "Describe tu experiencia profesional, incluidos cargos, empresas y logros principales...",
+      "skills": "Habilidades y especialidades",
+      "skillsHint": "Selecciona al menos 3 habilidades que describan mejor tu experiencia."
+    },
+    "skills": {
+      "ai": "Inteligencia artificial",
+      "aiAgents": "Agentes de IA",
+      "llms": "LLMs",
+      "ml": "Machine learning",
+      "deepLearning": "Deep learning",
+      "computerVision": "Visión por computadora",
+      "nlp": "Procesamiento de lenguaje natural",
+      "dataScience": "Ciencia de datos",
+      "softwareEngineering": "Ingeniería de software",
+      "productManagement": "Gestión de producto",
+      "design": "Diseño UI/UX",
+      "businessDevelopment": "Desarrollo de negocios",
+      "marketing": "Marketing",
+      "finance": "Finanzas",
+      "operations": "Operaciones",
+      "research": "Investigación",
+      "entrepreneurship": "Emprendimiento",
+      "leadership": "Liderazgo",
+      "projectManagement": "Gestión de proyectos"
+    },
+    "idea": {
+      "title": "Proyecto e idea",
+      "hasIdea": "Tengo una idea de startup que me gustaría desarrollar",
+      "description": "Descripción de la idea",
+      "descriptionPlaceholder": "Describe brevemente tu idea de startup, incluidos los componentes de IA o tecnología...",
+      "problem": "Problema que resuelve",
+      "problemPlaceholder": "¿Qué problema concreto resuelve tu idea? ¿Quién tiene este problema?",
+      "market": "Mercado objetivo",
+      "marketPlaceholder": "¿Quién es tu cliente objetivo? ¿A qué mercado te diriges?",
+      "noIdeaTitle": "No hay problema",
+      "noIdeaBody": "El programa incluye talleres de ideación y te ayudará a desarrollar y validar ideas de startup a lo largo de la cohorte."
+    },
+    "commitment": {
+      "title": "Disponibilidad y compromiso",
+      "time": "Dedicación de tiempo",
+      "timePlaceholder": "Selecciona tu disponibilidad",
+      "availability": {
+        "full-time": "Tiempo completo (40+ horas a la semana), recomendado",
+        "part-time": "Medio tiempo (20–30 horas a la semana)",
+        "weekends": "Solo fines de semana (10–15 horas a la semana)"
+      },
+      "why": "¿Por qué MD Genius Launchpad?",
+      "whyPlaceholder": "¿Por qué te postulas a este programa? ¿Qué esperas lograr? ¿Cómo se relaciona con tus metas profesionales?",
+      "cohort": "Cohorte preferida",
+      "cohortPlaceholder": "Selecciona una cohorte",
+      "noCohorts": "No hay cohortes activas disponibles",
+      "cohortOption": "{{name}} - Inicia el {{date}}"
+    },
+    "documents": {
+      "title": "Documentos y enlaces",
+      "resume": "Currículum o CV (obligatorio)",
+      "resumeHint": "Sube tu currículum o CV actual.",
+      "uploadResume": "Subir currículum",
+      "portfolio": "URL del portafolio (opcional)",
+      "github": "Perfil de GitHub (opcional)",
+      "linkedin": "Perfil de LinkedIn (opcional)"
+    },
+    "review": {
+      "title": "Revisa y envía",
+      "terms": "Acepto los <link>términos y condiciones</link>",
+      "termsHint": "Al marcar esta casilla, aceptas los términos del programa, las políticas de propiedad intelectual y el código de conducta.",
+      "privacy": "Acepto la <link>política de privacidad</link>",
+      "privacyHint": "Trataremos tus datos personales de acuerdo con nuestra política de privacidad y las leyes de protección de datos aplicables.",
+      "howTitle": "Cómo revisamos las postulaciones",
+      "howBody": "Después de que envíes tu postulación, nuestro equipo de admisiones la revisa e invita a una entrevista a las personas seleccionadas. Te mantendremos al tanto por correo."
+    },
+    "nav": {
+      "previous": "Anterior",
+      "next": "Siguiente paso",
+      "submit": "Enviar postulación",
+      "submitting": "Enviando..."
+    },
+    "validation": {
+      "firstNameMin": "El nombre debe tener al menos 2 caracteres",
+      "lastNameMin": "El apellido debe tener al menos 2 caracteres",
+      "invalidEmail": "Correo electrónico no válido",
+      "phoneMin": "El teléfono debe tener al menos 10 dígitos",
+      "locationRequired": "La ubicación es obligatoria",
+      "timezoneRequired": "La zona horaria es obligatoria",
+      "educationMin": "La formación académica debe tener al menos 10 caracteres",
+      "experienceMin": "La experiencia profesional debe tener al menos 10 caracteres",
+      "skillsMin": "Selecciona al menos 3 habilidades",
+      "commitmentMin": "Explica tu compromiso en al menos 50 caracteres",
+      "termsRequired": "Debes aceptar los términos y condiciones",
+      "privacyRequired": "Debes aceptar la política de privacidad",
+      "cohortRequired": "Selecciona una cohorte"
+    },
+    "errors": {
+      "firstName": "El nombre es obligatorio",
+      "lastName": "El apellido es obligatorio",
+      "email": "Se requiere un correo electrónico válido",
+      "education": "La formación académica debe tener al menos 10 caracteres",
+      "experience": "La experiencia profesional debe tener al menos 10 caracteres",
+      "skills": "Selecciona al menos 3 habilidades",
+      "commitment": "La explicación de tu compromiso debe tener al menos 50 caracteres",
+      "terms": "Debes aceptar los términos y condiciones",
+      "privacy": "Debes aceptar la política de privacidad",
+      "cohort": "Selecciona una cohorte",
+      "idea": "Si tienes una idea, completa todos los campos sobre la idea",
+      "generic": "Revisa que todos los campos obligatorios estén completos."
+    },
+    "toast": {
+      "submitted": {
+        "title": "Postulación enviada",
+        "description": "Gracias por postularte. Pronto recibirás un correo de confirmación."
+      },
+      "signedOut": {
+        "title": "Sesión cerrada",
+        "description": "Tu sesión terminó. Te llevamos a iniciar sesión..."
+      },
+      "submitFailed": {
+        "title": "No se pudo enviar la postulación",
+        "description": "Inténtalo de nuevo."
+      },
+      "uploaded": {
+        "title": "Archivo subido",
+        "description": "{{fileName}} quedó adjunto a tu postulación."
+      },
+      "invalid": {
+        "title": "Algunos campos obligatorios necesitan atención"
+      }
+    }
+  }
+}

@@ -1,1 +1,224 @@
-{}
+{
+  "directory": {
+    "title": "Mentores",
+    "subtitle": "Conoce a operadores y fundadores con experiencia que pueden asesorar tu emprendimiento",
+    "loading": "Cargando el directorio de mentores..."
+  },
+  "filters": {
+    "searchPlaceholder": "Busca por nombre o especialidad",
+    "searchLabel": "Buscar mentores",
+    "expertiseLabel": "Filtrar por especialidad",
+    "expertisePlaceholder": "Especialidad",
+    "allExpertise": "Todas las especialidades",
+    "industryLabel": "Filtrar por industria",
+    "industryPlaceholder": "Industria",
+    "allIndustries": "Todas las industrias"
+  },
+  "card": {
+    "sessions_one": "{{count}} sesión",
+    "sessions_other": "{{count}} sesiones",
+    "responds": "Responde {{time}}",
+    "responseVaries": "El tiempo de respuesta varía",
+    "availableNow": "Disponible ahora",
+    "availableFrom": "Disponible {{when}}",
+    "unavailable": "Por ahora no toma sesiones",
+    "noBio": "Aún no hay biografía",
+    "expertise": "Especialidad",
+    "industries": "Industrias",
+    "linkedin": "LinkedIn",
+    "schedule": "Agendar sesión"
+  },
+  "empty": {
+    "title": "No encontramos mentores",
+    "body": "Prueba otra búsqueda o ajusta los filtros."
+  },
+  "tips": {
+    "title": "Aprovecha al máximo la mentoría",
+    "prepared": {
+      "title": "Llega con preparación",
+      "body": "Ten listas preguntas y desafíos concretos para conversar. Comparte contexto sobre tu proyecto antes de la sesión."
+    },
+    "responsive": {
+      "title": "Responde a tiempo",
+      "body": "Contesta pronto los mensajes de tu mentor y cumple las acciones que acordaron."
+    },
+    "appreciation": {
+      "title": "Muestra tu aprecio",
+      "body": "Valora el tiempo y la experiencia de tu mentor. Compártele cómo avanzas."
+    }
+  },
+  "booking": {
+    "title": "Agenda una sesión con {{name}}",
+    "titleLabel": "Título de la sesión",
+    "titlePlaceholder": "p. ej., Conversación sobre estrategia de producto",
+    "slotLabel": "Horarios disponibles",
+    "slotPlaceholder": "Elige un horario",
+    "slot": "{{day}} a las {{time}}",
+    "durationLabel": "Duración de la sesión",
+    "minutes_one": "{{count}} minuto",
+    "minutes_other": "{{count}} minutos",
+    "agendaLabel": "Agenda de la sesión",
+    "agendaPlaceholder": "¿De qué te gustaría hablar? Incluye preguntas o temas concretos.",
+    "submit": "Agendar sesión",
+    "submitting": "Agendando...",
+    "validation": {
+      "titleMin": "El título debe tener al menos 5 caracteres",
+      "agendaMin": "Escribe al menos 10 caracteres en la agenda de la sesión",
+      "startTimeRequired": "Elige una hora de inicio",
+      "durationMin": "La sesión debe durar al menos 30 minutos",
+      "durationMax": "La sesión no puede durar más de 2 horas"
+    },
+    "toast": {
+      "booked": {
+        "title": "Sesión agendada",
+        "description": "Tu sesión con {{name}} quedó agendada."
+      },
+      "failed": {
+        "title": "No pudimos agendar la sesión",
+        "description": "No se pudo agendar la sesión. Inténtalo de nuevo."
+      }
+    }
+  },
+  "profile": {
+    "title": "Perfil de mentor",
+    "subtitle": "Gestiona tu perfil de mentoría y tus sesiones",
+    "loading": "Cargando tu perfil",
+    "setup": {
+      "title": "Configura tu perfil de mentor",
+      "subtitle": "Crea tu perfil para empezar a reunirte con participantes de Launchpad",
+      "welcomeTitle": "Te damos la bienvenida al programa de mentores",
+      "welcomeBody": "Configura tu perfil de mentor para empezar a trabajar con participantes de la aceleradora MD Genius Launchpad. Tu perfil ayuda a cada participante a encontrar el mentor adecuado para lo que necesita."
+    },
+    "tabs": {
+      "profile": "Perfil",
+      "sessions": "Sesiones"
+    },
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "edit": "Editar perfil",
+    "about": "Acerca de",
+    "noBio": "Aún no hay biografía",
+    "expertise": "Áreas de especialidad",
+    "noExpertise": "Aún no agregas especialidades",
+    "industries": "Industrias de enfoque",
+    "noIndustries": "Aún no agregas industrias",
+    "availability": "Disponibilidad",
+    "noAvailability": "Aún no agregas tu disponibilidad",
+    "savedToast": "Tu perfil de mentor está al día.",
+    "sessions": {
+      "title": "Mis sesiones de mentoría",
+      "description": "Tus sesiones de mentoría próximas y pasadas.",
+      "loading": "Cargando sesiones",
+      "emptyTitle": "Aún no hay sesiones de mentoría agendadas",
+      "emptyBody": "Los participantes podrán agendar sesiones contigo cuando tu perfil esté activo.",
+      "when": "{{date}}, {{start}} - {{end}}",
+      "participants_one": "{{count}} participante",
+      "participants_other": "{{count}} participantes",
+      "completed": "Completada",
+      "upcoming": "Próxima",
+      "join": "Unirme"
+    }
+  },
+  "form": {
+    "editTitle": "Editar perfil de mentor",
+    "createTitle": "Crear perfil de mentor",
+    "editDescription": "Actualiza los datos de tu perfil y tu disponibilidad.",
+    "createDescription": "Configura tu perfil para que los participantes puedan encontrarte y agendar contigo.",
+    "loading": "Cargando tu perfil",
+    "bio": {
+      "label": "Biografía profesional",
+      "placeholder": "Cuéntales a los participantes sobre tu trayectoria, tu experiencia y los temas en los que te gusta asesorar.",
+      "count": "{{length}}/500 caracteres"
+    },
+    "expertise": {
+      "label": "Áreas de especialidad",
+      "customPlaceholder": "Agrega otra especialidad",
+      "add": "Agregar especialidad",
+      "remove": "Quitar la especialidad {{value}}"
+    },
+    "industries": {
+      "label": "Industrias de enfoque",
+      "customPlaceholder": "Agrega otra industria",
+      "add": "Agregar industria",
+      "remove": "Quitar la industria {{value}}"
+    },
+    "remove": "Quitar",
+    "availability": {
+      "label": "Disponibilidad"
+    },
+    "active": {
+      "label": "Disponible para mentorías",
+      "description": "Si lo marcas, los participantes pueden ver tu perfil y agendar sesiones."
+    },
+    "submit": {
+      "save": "Guardar perfil",
+      "create": "Crear perfil",
+      "saving": "Guardando...",
+      "creating": "Creando..."
+    },
+    "validation": {
+      "expertiseMin": "Elige al menos un área de especialidad",
+      "bioMin": "La biografía debe tener al menos 50 caracteres",
+      "bioMax": "La biografía no puede superar los 500 caracteres",
+      "industriesMin": "Elige al menos una industria",
+      "availabilityMin": "Elige tu disponibilidad"
+    },
+    "toast": {
+      "created": {
+        "title": "Perfil creado",
+        "description": "Tu perfil de mentor está listo."
+      },
+      "createFailed": {
+        "title": "No pudimos crear el perfil",
+        "description": "No se pudo crear el perfil. Inténtalo de nuevo."
+      },
+      "saved": {
+        "title": "Perfil guardado",
+        "description": "Guardamos los cambios de tu perfil de mentor."
+      },
+      "saveFailed": {
+        "title": "No pudimos guardar el perfil",
+        "description": "No se pudo guardar el perfil. Inténtalo de nuevo."
+      }
+    }
+  },
+  "options": {
+    "expertise": {
+      "ai_machine_learning": "IA/Aprendizaje automático",
+      "product_strategy": "Estrategia de producto",
+      "software_engineering": "Ingeniería de software",
+      "data_science": "Ciencia de datos",
+      "business_development": "Desarrollo de negocios",
+      "marketing_growth": "Marketing y crecimiento",
+      "fundraising": "Levantamiento de capital",
+      "legal_compliance": "Legal y cumplimiento",
+      "ux_ui_design": "Diseño UX/UI",
+      "operations": "Operaciones",
+      "sales": "Ventas",
+      "leadership": "Liderazgo"
+    },
+    "industries": {
+      "healthcare": "Salud",
+      "fintech": "Fintech",
+      "edtech": "EdTech",
+      "e_commerce": "E-commerce",
+      "saas": "SaaS",
+      "cybersecurity": "Ciberseguridad",
+      "climate_tech": "Tecnología climática",
+      "web3_blockchain": "Web3/Blockchain",
+      "robotics": "Robótica",
+      "iot": "IoT",
+      "gaming": "Videojuegos",
+      "media_entertainment": "Medios y entretenimiento"
+    },
+    "availability": {
+      "weekday_mornings": "Mañanas entre semana",
+      "weekday_afternoons": "Tardes entre semana",
+      "weekday_evenings": "Noches entre semana",
+      "weekend_mornings": "Mañanas de fin de semana",
+      "weekend_afternoons": "Tardes de fin de semana",
+      "weekend_evenings": "Noches de fin de semana",
+      "flexible_schedule": "Horario flexible"
+    }
+  }
+}

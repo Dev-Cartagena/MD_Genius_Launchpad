@@ -1,1 +1,147 @@
-{}
+{
+  "page": {
+    "title": "Investors",
+    "loading": "Loading...",
+    "subtitleInvestor": "Review the AI startups in the current Launchpad cohort",
+    "subtitleParticipant": "Find investors whose focus matches your venture"
+  },
+  "tabs": {
+    "startups": "Startup directory",
+    "investors": "Investor directory",
+    "events": "Events and demo days"
+  },
+  "filters": {
+    "searchStartups": "Search startups",
+    "searchInvestors": "Search investors",
+    "sectorLabel": "Filter by sector",
+    "sectorPlaceholder": "Sector",
+    "allSectors": "All sectors",
+    "stageLabel": "Filter by stage",
+    "stagePlaceholder": "Stage",
+    "allStages": "All stages"
+  },
+  "startup": {
+    "readiness": "Readiness",
+    "meet": "Meet"
+  },
+  "meeting": {
+    "title": "Request a meeting with {{name}}",
+    "placeholder": "Introduce yourself and explain your interest in this startup.",
+    "defaultMessage": "Meeting request",
+    "send": "Send meeting request",
+    "sending": "Sending..."
+  },
+  "investor": {
+    "focus": "Investment focus",
+    "checkSize": "Check size",
+    "geography": "Geography",
+    "notSpecified": "Not specified",
+    "stages": "Stages",
+    "contact": "Contact",
+    "book": "Book session"
+  },
+  "empty": {
+    "startups": "No startups found",
+    "investors": "No investors found",
+    "body": "Try a different search or adjust the filters."
+  },
+  "events": {
+    "emptyTitle": "No events scheduled yet",
+    "emptyBody": "Demo days and investor events will be listed here once the program team announces them."
+  },
+  "booking": {
+    "title": "Schedule a session with {{name}}",
+    "titleLabel": "Session title",
+    "titlePlaceholder": "e.g., Funding discussion",
+    "typeLabel": "Session type",
+    "typePlaceholder": "Select session type",
+    "types": {
+      "pitch": "Pitch session",
+      "feedback": "Feedback session",
+      "due_diligence": "Due diligence",
+      "demo_day": "Demo day practice"
+    },
+    "slotLabel": "Available time slots",
+    "slotPlaceholder": "Select a time slot",
+    "slot": "{{day}} at {{time}}",
+    "durationLabel": "Session duration",
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "agendaLabel": "Session agenda",
+    "agendaPlaceholder": "What would you like to discuss? Include specific questions or topics.",
+    "submit": "Book session",
+    "submitting": "Booking...",
+    "validation": {
+      "titleMin": "Session title must be at least 5 characters",
+      "agendaMin": "Please provide at least 10 characters for the session agenda",
+      "startTimeRequired": "Please select a start time",
+      "durationMin": "Session must be at least 30 minutes",
+      "durationMax": "Session cannot exceed 2 hours"
+    }
+  },
+  "toast": {
+    "booked": {
+      "title": "Session booked",
+      "description": "Your session with {{name}} is scheduled."
+    },
+    "bookFailed": {
+      "title": "Could not book session",
+      "description": "The session could not be booked. Please try again."
+    },
+    "meetingRequested": {
+      "title": "Meeting requested",
+      "description": "Your request has been sent to the startup team."
+    },
+    "sessionExpired": {
+      "title": "Session expired",
+      "description": "You have been signed out. Taking you to sign in."
+    },
+    "requestFailed": {
+      "title": "Could not send request",
+      "description": "The meeting request could not be sent. Please try again."
+    }
+  },
+  "sectors": {
+    "healthcare": "Healthcare",
+    "fintech": "Fintech",
+    "edtech": "EdTech",
+    "e_commerce": "E-commerce",
+    "saas": "SaaS",
+    "cybersecurity": "Cybersecurity",
+    "climate_tech": "Climate Tech",
+    "web3_blockchain": "Web3/Blockchain",
+    "robotics": "Robotics",
+    "iot": "IoT",
+    "gaming": "Gaming",
+    "media_entertainment": "Media & Entertainment",
+    "ai_machine_learning": "AI/Machine Learning",
+    "machine_learning_models": "Machine Learning Models",
+    "natural_language_processing": "Natural Language Processing",
+    "computer_vision": "Computer Vision",
+    "ai_agents_chatbots": "AI Agents/Chatbots",
+    "predictive_analytics": "Predictive Analytics",
+    "recommendation_systems": "Recommendation Systems",
+    "generative_ai": "Generative AI",
+    "reinforcement_learning": "Reinforcement Learning",
+    "speech_recognition": "Speech Recognition",
+    "data_mining": "Data Mining"
+  },
+  "fundingStages": {
+    "pre_seed": "Pre-seed",
+    "seed": "Seed",
+    "series_a": "Series A",
+    "series_b": "Series B",
+    "series_c": "Series C",
+    "growth": "Growth",
+    "late_stage": "Late Stage"
+  },
+  "geography": {
+    "north_america": "North America",
+    "europe": "Europe",
+    "asia_pacific": "Asia-Pacific",
+    "latin_america": "Latin America",
+    "middle_east": "Middle East",
+    "africa": "Africa",
+    "global": "Global"
+  }
+}

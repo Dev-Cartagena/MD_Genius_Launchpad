@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { useLocalized } from "@/lib/localized";
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +26,7 @@ import {
   GraduationCap,
   type LucideIcon,
 } from "lucide-react";
+import { applicationStatusEnum } from "@shared/schema";
 import type { Cohort } from "@shared/schema";
 
 interface AdminMetrics {
@@ -65,11 +69,20 @@ interface AdminDashboardProps {
 
 type UpdateStatusMutation = UseMutationResult<unknown, Error, { id: string; status: string; notes?: string }>;
 
-const formatStatus = (status: string) =>
-  status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+type ApplicationStatus = (typeof applicationStatusEnum.enumValues)[number];
+const isApplicationStatus = (v: string): v is ApplicationStatus =>
+  (applicationStatusEnum.enumValues as readonly string[]).includes(v);
+
+const NEW_STATUS_OPTIONS = ["submitted", "under_review", "shortlisted", "interview", "offer", "accepted", "rejected"] as const;
+
+const formatStatus = (t: TFunction<["dashboard", "common"]>, status: string) =>
+  isApplicationStatus(status)
+    ? t(`common:applicationStatus.${status}`)
+    : status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
 // Application Status Dialog Component (module scope so its state survives parent re-renders)
 function ApplicationStatusDialog({ application, updateStatus }: { application: ProcessedApplication; updateStatus: UpdateStatusMutation }) {
+  const { t } = useTranslation(["dashboard", "common"]);
   const { toast } = useToast();
   const [selectedStatus, setSelectedStatus] = useState("");
   const [reviewerNotes, setReviewerNotes] = useState("");
@@ -78,8 +91,8 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
   const handleStatusUpdate = () => {
     if (!selectedStatus) {
       toast({
-        title: "Select a status",
-        description: "Choose a new status before saving.",
+        title: t("admin.toast.selectStatus.title"),
+        description: t("admin.toast.selectStatus.description"),
         variant: "destructive",
       });
       return;
@@ -109,46 +122,42 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
           variant="outline"
           data-testid={`button-review-${application.id}`}
         >
-          Review
+          {t("admin.applications.review")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update application status</DialogTitle>
+          <DialogTitle>{t("admin.dialog.title")}</DialogTitle>
           <div className="text-sm text-muted-foreground">
-            Application by {application.applicant} for {application.project}
+            {t("admin.dialog.subtitle", { applicant: application.applicant, project: application.project })}
           </div>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="font-display text-sm font-medium">Current status</label>
+            <label className="font-display text-sm font-medium">{t("admin.dialog.currentStatus")}</label>
             <p className="text-sm text-muted-foreground">
-              {formatStatus(application.status)}
+              {formatStatus(t, application.status)}
             </p>
           </div>
           
           <div>
-            <label className="font-display text-sm font-medium">New status</label>
+            <label className="font-display text-sm font-medium">{t("admin.dialog.newStatus")}</label>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger data-testid={`select-new-status-${application.id}`}>
-                <SelectValue placeholder="Select new status" />
+                <SelectValue placeholder={t("admin.dialog.selectStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="under_review">Under review</SelectItem>
-                <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                <SelectItem value="interview">Interview</SelectItem>
-                <SelectItem value="offer">Offer</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                {NEW_STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status} value={status}>{t(`common:applicationStatus.${status}`)}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           
           <div>
-            <label className="font-display text-sm font-medium">Reviewer notes</label>
+            <label className="font-display text-sm font-medium">{t("admin.dialog.notes")}</label>
             <Textarea 
-              placeholder="Add reviewer notes (optional)"
+              placeholder={t("admin.dialog.notesPlaceholder")}
               value={reviewerNotes}
               onChange={(e) => setReviewerNotes(e.target.value)}
               data-testid={`textarea-reviewer-notes-${application.id}`}
@@ -157,14 +166,14 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
           
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button 
               onClick={handleStatusUpdate}
               disabled={updateStatus.isPending}
               data-testid={`button-update-status-${application.id}`}
             >
-              {updateStatus.isPending ? "Updating..." : "Update status"}
+              {updateStatus.isPending ? t("admin.dialog.updating") : t("admin.dialog.update")}
             </Button>
           </div>
         </div>
@@ -174,6 +183,8 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
 }
 
 export default function AdminDashboard({ metrics, recentApplications, cohorts, systemAlerts }: AdminDashboardProps) {
+  const { t } = useTranslation(["dashboard", "common"]);
+  const localized = useLocalized();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -188,8 +199,8 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
     },
     onSuccess: () => {
       toast({
-        title: "Application updated",
-        description: "The new status has been saved.",
+        title: t("admin.toast.updated.title"),
+        description: t("admin.toast.updated.description"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
       // Accepting an application can change the applicant's role
@@ -198,8 +209,8 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: t("admin.toast.unauthorized.title"),
+          description: t("admin.toast.unauthorized.description"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -208,8 +219,8 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         return;
       }
       toast({
-        title: "Could not update application",
-        description: "Please try again in a moment.",
+        title: t("admin.toast.updateFailed.title"),
+        description: t("admin.toast.updateFailed.description"),
         variant: "destructive",
       });
     }
@@ -219,10 +230,10 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
     <div className="space-y-6">
       {/* Key Metrics */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total applications" value={metrics.totalApplications} hint="All time" icon={FileText} testId="metric-applications" />
-        <KpiCard label="Acceptance rate" value={`${metrics.acceptanceRate}%`} hint="Of all applications" icon={UserCheck} testId="metric-acceptance-rate" />
-        <KpiCard label="Projects" value={metrics.totalProjects} hint={`${metrics.activeCohorts} active cohort${metrics.activeCohorts === 1 ? '' : 's'}`} icon={GraduationCap} testId="metric-projects" />
-        <KpiCard label="Active cohorts" value={metrics.activeCohorts} hint={`${cohorts.length} in total`} icon={Calendar} testId="metric-active-cohorts" />
+        <KpiCard label={t("admin.kpi.applications")} value={metrics.totalApplications} hint={t("admin.kpi.applicationsHint")} icon={FileText} testId="metric-applications" />
+        <KpiCard label={t("admin.kpi.acceptanceRate")} value={`${metrics.acceptanceRate}%`} hint={t("admin.kpi.acceptanceRateHint")} icon={UserCheck} testId="metric-acceptance-rate" />
+        <KpiCard label={t("admin.kpi.projects")} value={metrics.totalProjects} hint={t("admin.kpi.projectsHint", { count: metrics.activeCohorts })} icon={GraduationCap} testId="metric-projects" />
+        <KpiCard label={t("admin.kpi.activeCohorts")} value={metrics.activeCohorts} hint={t("admin.kpi.activeCohortsHint", { count: cohorts.length })} icon={Calendar} testId="metric-active-cohorts" />
       </section>
 
       {/* Application Review and Cohort Management */}
@@ -231,18 +242,18 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         <MistPanel>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="font-display text-sm text-foreground/80">Latest submissions</p>
-              <h2 className="font-display text-xl font-medium">Recent applications</h2>
+              <p className="font-display text-sm text-foreground/80">{t("admin.applications.eyebrow")}</p>
+              <h2 className="font-display text-xl font-medium">{t("admin.applications.title")}</h2>
             </div>
             <Link href="/admin">
-              <Button size="sm" data-testid="button-view-all-applications">View all</Button>
+              <Button size="sm" data-testid="button-view-all-applications">{t("admin.applications.viewAll")}</Button>
             </Link>
           </div>
 
           <div className="space-y-3">
             {recentApplications.length === 0 && (
               <DropZone className="bg-card/60 py-8">
-                <p className="text-sm">New applications will appear here as they are submitted.</p>
+                <p className="text-sm">{t("admin.applications.empty")}</p>
               </DropZone>
             )}
             {recentApplications.slice(0, 5).map((application) => (
@@ -265,10 +276,10 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
                           }
                           data-testid={`application-status-${application.id}`}
                         >
-                          {formatStatus(application.status)}
+                          {formatStatus(t, application.status)}
                         </Badge>
                         <span className="font-display text-xs text-muted-foreground">
-                          {application.submittedDays} days ago
+                          {t("admin.applications.daysAgo", { count: application.submittedDays })}
                         </span>
                       </div>
                     </div>
@@ -283,27 +294,30 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         {/* Cohorts */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Cohorts</CardTitle>
+            <CardTitle className="text-xl">{t("admin.cohorts.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {cohorts.length === 0 && (
                 <DropZone className="py-6">
-                  <p className="text-sm">Create a cohort in the Admin Panel to open applications.</p>
+                  <p className="text-sm">{t("admin.cohorts.empty")}</p>
                 </DropZone>
               )}
               {cohorts.map((cohort, index) => (
                 <div key={cohort.id} className="flex items-center justify-between gap-3 border-b border-border pb-4 last:border-0 last:pb-0" data-testid={`cohort-${index}`}>
                   <div className="min-w-0">
                     <p className="font-display font-medium text-sm" data-testid={`cohort-name-${index}`}>
-                      {cohort.name}
+                      {localized.text(cohort, "name")}
                     </p>
                     <p className="font-display text-xs text-muted-foreground">
-                      {formatCohortDate(cohort.startDate)} – {formatCohortDate(cohort.endDate)} · Capacity {cohort.capacity}
+                      {t("admin.cohorts.meta", {
+                        dates: t("common:dateRange", { start: formatCohortDate(cohort.startDate), end: formatCohortDate(cohort.endDate) }),
+                        capacity: cohort.capacity,
+                      })}
                     </p>
                   </div>
                   <Badge variant={cohort.isActive ? "default" : "outline"}>
-                    {cohort.isActive ? "Active" : "Inactive"}
+                    {cohort.isActive ? t("admin.cohorts.active") : t("admin.cohorts.inactive")}
                   </Badge>
                 </div>
               ))}
@@ -317,16 +331,16 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Quick actions</CardTitle>
+            <CardTitle className="text-xl">{t("admin.quickActions.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Cohorts, applications, curriculum, roadmaps, mentors, investors and users are managed in the Admin Panel.
+              {t("admin.quickActions.body")}
             </p>
             <Link href="/admin">
               <Button className="w-full justify-start" variant="outline" data-testid="button-open-admin-panel">
                 <Settings className="w-4 h-4 mr-2" />
-                Open Admin Panel
+                {t("admin.quickActions.openAdmin")}
               </Button>
             </Link>
           </CardContent>
@@ -337,7 +351,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
           <CardHeader>
             <CardTitle className="text-xl flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-primary" />
-              <span>System alerts</span>
+              <span>{t("admin.alerts.title")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -371,7 +385,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
                 ))
               ) : (
                 <DropZone className="py-6">
-                  <p className="text-sm">Nothing needs attention right now.</p>
+                  <p className="text-sm">{t("admin.alerts.empty")}</p>
                 </DropZone>
               )}
             </div>

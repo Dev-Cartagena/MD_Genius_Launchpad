@@ -1,1 +1,314 @@
-{}
+{
+  "page": {
+    "title": {
+      "participant": "Panel del participante",
+      "mentor": "Panel del mentor",
+      "investor": "Panel del inversionista",
+      "administrator": "Panel del administrador",
+      "applicant": "Estado de la postulación",
+      "default": "Panel"
+    },
+    "subtitle": {
+      "participant": "Hola de nuevo. Así va tu startup esta semana.",
+      "mentor": "Hola de nuevo. Aquí están tus sesiones y mentoreados.",
+      "investor": "Hola de nuevo. Aquí están las startups del programa y tu pipeline.",
+      "administrator": "Hola de nuevo. Este es un resumen del programa.",
+      "applicant": "Gracias por postularte a MD Genius Launchpad.",
+      "default": "Hola de nuevo."
+    },
+    "subtitleName": {
+      "participant": "Hola de nuevo, {{name}}. Así va tu startup esta semana.",
+      "mentor": "Hola de nuevo, {{name}}. Aquí están tus sesiones y mentoreados.",
+      "investor": "Hola de nuevo, {{name}}. Aquí están las startups del programa y tu pipeline.",
+      "administrator": "Hola de nuevo, {{name}}. Este es un resumen del programa.",
+      "applicant": "Gracias por postularte a MD Genius Launchpad, {{name}}.",
+      "default": "Hola de nuevo, {{name}}."
+    },
+    "loadingSubtitle": "Cargando tu panel",
+    "submitted": {
+      "title": "Postulación enviada",
+      "body": "Gracias por postularte a MD Genius Launchpad. Recibimos tu postulación. Nuestro equipo la revisará y te responderá en 5 a 7 días hábiles. Puedes seguir su estado aquí."
+    },
+    "applicant": {
+      "title": "Postulación en revisión",
+      "body": "Tu postulación fue enviada y nuestro equipo de admisiones la está revisando.",
+      "nextTitle": "Qué sigue",
+      "next1": "Nuestro equipo revisará tu postulación en 5 a 7 días hábiles.",
+      "next2": "Recibirás un correo con la decisión.",
+      "next3": "Si te aceptan, tendrás acceso al panel completo de participante.",
+      "next4": "Revisa tu correo para ver novedades."
+    },
+    "unavailable": {
+      "title": "Panel no disponible",
+      "body": "Tu rol actual ({{role}}) no tiene un panel disponible. Si crees que es un error, contacta a soporte.",
+      "unknownRole": "desconocido"
+    },
+    "unknownUser": "Usuario desconocido",
+    "alerts": {
+      "pendingReviews": {
+        "title": "Postulaciones por revisar",
+        "message_one": "{{count}} postulación en espera de revisión",
+        "message_other": "{{count}} postulaciones en espera de revisión"
+      },
+      "cohorts": {
+        "title": "Cohortes activas",
+        "running_one": "{{count}} cohorte en curso",
+        "running_other": "{{count}} cohortes en curso",
+        "upcoming_one": "{{count}} cohorte por comenzar",
+        "upcoming_other": "{{count}} cohortes por comenzar",
+        "ended_one": "{{count}} cohorte activa con la fecha de cierre vencida",
+        "ended_other": "{{count}} cohortes activas con la fecha de cierre vencida"
+      }
+    }
+  },
+  "sessions": {
+    "today": "Hoy, {{time}}",
+    "tomorrow": "Mañana, {{time}}",
+    "dayTime": "{{day}}, {{time}}",
+    "defaultTitle": "Sesión de mentoría",
+    "defaultAgenda": "Sesión de mentoría",
+    "join": "Unirse",
+    "upcoming": "Próxima",
+    "past": "Pasada",
+    "completed": "Completada"
+  },
+  "participant": {
+    "defaultProject": {
+      "name": "Aún no tienes proyecto",
+      "summary": "Todavía no has creado un proyecto. Empieza por definir la idea de tu startup de IA."
+    },
+    "toast": {
+      "updated": {
+        "title": "Estado actualizado",
+        "description": "La actividad de la hoja de ruta se actualizó."
+      },
+      "updateFailed": {
+        "title": "No se pudo actualizar el estado",
+        "description": "Inténtalo de nuevo en un momento."
+      }
+    },
+    "roadmap": {
+      "eyebrow": "Tu siguiente paso",
+      "title": "Hoja de ruta de esta semana",
+      "emptyWeek": "No hay actividades en la hoja de ruta para esta semana.",
+      "noRoadmap": "Aún no se ha asignado una hoja de ruta a tu proyecto.",
+      "viewFull": "Ver hoja de ruta completa",
+      "hours": "Aprox. {{hours}} h",
+      "start": "Empezar",
+      "startItem": "Empezar {{title}}",
+      "complete": "Marcar como completada",
+      "completeItem": "Marcar {{title}} como completada"
+    },
+    "readiness": {
+      "title": "Nivel de preparación",
+      "caption": "Preparación",
+      "hasProject": "El equipo del programa actualiza tu nivel de preparación a medida que avanza tu proyecto.",
+      "noProject": "Crea tu proyecto para empezar a medir tu nivel de preparación."
+    },
+    "progress": {
+      "title": "Avance en el programa",
+      "cohortWeek": "{{cohort}} · {{week}}",
+      "noCohort": "Aún sin cohorte",
+      "overall": "Avance total",
+      "noMilestones": "Aún no se han definido hitos para tu cohorte.",
+      "completed": "Completado",
+      "inProgress": "En curso",
+      "upcoming": "Próximo",
+      "milestoneMeta": "{{status}} · {{date}}",
+      "noDueDate": "Sin fecha límite"
+    },
+    "schedule": {
+      "title": "Esta semana",
+      "empty": "No tienes sesiones agendadas para los próximos siete días.",
+      "book": "Agendar sesión de mentoría",
+      "mentors": "Mentores y sesiones"
+    },
+    "project": {
+      "title": "Proyecto actual: {{name}}",
+      "stage": "Etapa: {{stage}}",
+      "notStarted": "Sin iniciar",
+      "open": "Abrir proyecto",
+      "create": "Crear tu proyecto"
+    },
+    "coach": {
+      "title": "AI Coach",
+      "body": "Pregúntale a tu coach de IA sobre los pasos del programa, la ideación, dudas técnicas, la salida al mercado o tu pitch. Conoce los detalles de tu proyecto.",
+      "open": "Abrir AI Coach"
+    }
+  },
+  "mentor": {
+    "kpi": {
+      "activeMentees": "Mentoreados activos",
+      "activeMenteesHint": "Mentoreados actuales",
+      "totalSessions": "Sesiones en total",
+      "totalSessionsHint": "Desde el inicio",
+      "upcomingSessions": "Próximas sesiones",
+      "upcomingSessionsHint": "Próximos 7 días",
+      "completedSessions": "Sesiones completadas",
+      "completedSessionsHint": "Sesiones pasadas"
+    },
+    "upcoming": {
+      "eyebrow": "Próximos 7 días",
+      "title": "Próximas sesiones",
+      "editAvailability": "Editar disponibilidad",
+      "empty": "Las sesiones aparecerán aquí cuando los participantes agenden tiempo contigo.",
+      "agendaParticipants_one": "{{agenda}} · {{count}} participante",
+      "agendaParticipants_other": "{{agenda}} · {{count}} participantes",
+      "duration": "{{minutes}} min"
+    },
+    "feedback": {
+      "title": "Feedback reciente",
+      "empty": "Las notas que agregues a sesiones pasadas aparecerán aquí.",
+      "participant": "Participante",
+      "session": "Sesión",
+      "sessionNotes": "Notas de la sesión"
+    },
+    "mentees": {
+      "title": "Avance de tus mentoreados",
+      "empty": "Los participantes aparecen aquí después de agendar una sesión contigo.",
+      "fallbackName": "Participante {{id}}",
+      "noRecentSessions": "Sin sesiones recientes",
+      "sessions_one": "{{count}} sesión",
+      "sessions_other": "{{count}} sesiones",
+      "lastSession": "Última sesión",
+      "nextSession": "Próxima sesión",
+      "noneYet": "Ninguna aún",
+      "noneScheduled": "Ninguna agendada",
+      "hasNotes": "Tiene notas",
+      "yes": "Sí",
+      "no": "No"
+    },
+    "quickActions": {
+      "title": "Acciones rápidas",
+      "updateProfile": "Actualizar perfil y disponibilidad",
+      "directory": "Directorio de mentores"
+    }
+  },
+  "investor": {
+    "kpi": {
+      "directory": "Startups en el directorio",
+      "meetings": "Reuniones agendadas",
+      "diligence": "Due diligence",
+      "interest": "Startups de interés"
+    },
+    "sessions": {
+      "eyebrow": "Tus próximas reuniones",
+      "title": "Sesiones agendadas",
+      "participantsLabel": "Participantes",
+      "participants_one": "{{count}} participante",
+      "participants_other": "{{count}} participantes",
+      "agenda": "Agenda",
+      "minutes_one": "{{count}} minuto",
+      "minutes_other": "{{count}} minutos",
+      "empty": "Las sesiones aparecerán aquí cuando los participantes te pidan tiempo."
+    },
+    "sessionType": {
+      "pitch": "Pitch",
+      "feedback": "Feedback",
+      "due_diligence": "Due diligence",
+      "demo_day": "Demo day"
+    },
+    "filters": {
+      "search": "Busca startups por nombre, sector o tecnología",
+      "sector": "Sector",
+      "allSectors": "Todos los sectores",
+      "stage": "Etapa",
+      "allStages": "Todas las etapas"
+    },
+    "featured": {
+      "title": "Startups destacadas",
+      "viewAll": "Ver todas",
+      "noProjects": "Las startups aparecerán aquí cuando los participantes creen sus proyectos.",
+      "noMatches": "Ninguna startup coincide con tu búsqueda. Intenta ajustar los filtros.",
+      "untitled": "Proyecto sin nombre",
+      "since": "Desde {{year}}",
+      "readiness": "Preparación",
+      "requestMeeting": "Pedir reunión"
+    },
+    "events": {
+      "title": "Próximos eventos",
+      "empty": "Aún no se han anunciado demo days ni eventos."
+    },
+    "activity": {
+      "title": "Actividad reciente",
+      "empty": "Pide una reunión con una startup para empezar tu pipeline.",
+      "item": "<level>{{level}}</level>: {{project}}",
+      "aStartup": "una startup"
+    },
+    "pipeline": {
+      "title": "Pipeline de inversión",
+      "stage": "Etapa {{number}}",
+      "initial": "Interés inicial",
+      "meetings": "Reuniones agendadas",
+      "diligence": "Due diligence",
+      "decisions": "Decisiones de inversión"
+    }
+  },
+  "admin": {
+    "kpi": {
+      "applications": "Postulaciones en total",
+      "applicationsHint": "Desde el inicio",
+      "acceptanceRate": "Tasa de aceptación",
+      "acceptanceRateHint": "Del total de postulaciones",
+      "projects": "Proyectos",
+      "projectsHint_one": "{{count}} cohorte activa",
+      "projectsHint_other": "{{count}} cohortes activas",
+      "activeCohorts": "Cohortes activas",
+      "activeCohortsHint": "{{count}} en total"
+    },
+    "applications": {
+      "eyebrow": "Últimos envíos",
+      "title": "Postulaciones recientes",
+      "viewAll": "Ver todas",
+      "empty": "Las nuevas postulaciones aparecerán aquí a medida que se envíen.",
+      "daysAgo_one": "Hace {{count}} día",
+      "daysAgo_other": "Hace {{count}} días",
+      "review": "Revisar"
+    },
+    "dialog": {
+      "title": "Actualizar estado de la postulación",
+      "subtitle": "Postulación de {{applicant}} para {{project}}",
+      "currentStatus": "Estado actual",
+      "newStatus": "Nuevo estado",
+      "selectStatus": "Selecciona el nuevo estado",
+      "notes": "Notas de revisión",
+      "notesPlaceholder": "Agrega notas de revisión (opcional)",
+      "updating": "Actualizando...",
+      "update": "Actualizar estado"
+    },
+    "toast": {
+      "selectStatus": {
+        "title": "Selecciona un estado",
+        "description": "Elige un nuevo estado antes de guardar."
+      },
+      "updated": {
+        "title": "Postulación actualizada",
+        "description": "Se guardó el nuevo estado."
+      },
+      "unauthorized": {
+        "title": "Sin autorización",
+        "description": "Tu sesión se cerró. Iniciando sesión de nuevo..."
+      },
+      "updateFailed": {
+        "title": "No se pudo actualizar la postulación",
+        "description": "Inténtalo de nuevo en un momento."
+      }
+    },
+    "cohorts": {
+      "title": "Cohortes",
+      "empty": "Crea una cohorte en el panel de administración para abrir las postulaciones.",
+      "meta": "{{dates}} · Cupo {{capacity}}",
+      "active": "Activa",
+      "inactive": "Inactiva"
+    },
+    "quickActions": {
+      "title": "Acciones rápidas",
+      "body": "Las cohortes, postulaciones, el currículo, las hojas de ruta, los mentores, los inversionistas y los usuarios se gestionan en el panel de administración.",
+      "openAdmin": "Abrir panel de administración"
+    },
+    "alerts": {
+      "title": "Alertas del sistema",
+      "empty": "No hay nada pendiente por ahora."
+    }
+  }
+}

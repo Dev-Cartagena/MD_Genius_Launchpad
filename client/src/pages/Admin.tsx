@@ -1,7 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
+import { useTranslation, Trans } from "react-i18next";
+import type { TFunction } from "i18next";
+import { intlLocale, resources } from "@/i18n";
+import { useLocalized } from "@/lib/localized";
+import { useLanguage } from "@/hooks/useLanguage";
+import { ContentLanguageTabs } from "@/components/ContentLanguageTabs";
+import { LOCALES, type Locale } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/Layout/AppLayout";
-import { cohortStatusMessage, isCohortRunning } from "@/lib/cohorts";
+import { isCohortRunning, isCohortUpcoming } from "@/lib/cohorts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BlockLoader } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
@@ -57,35 +64,46 @@ import {
   Star
 } from "lucide-react";
 
-const cohortSchema = z.object({
-  name: z.string().min(3, "Cohort name must be at least 3 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-  capacity: z.number().min(1, "Capacity must be at least 1"),
+type AdminT = TFunction<["admin", "common"]>;
+
+// Schemas are built with `t` so validation messages follow the interface language.
+const makeCohortSchema = (t: AdminT) => z.object({
+  name: z.string().min(3, t("validation.cohortName")),
+  description: z.string().min(10, t("validation.cohortDescription")),
+  startDate: z.string().min(1, t("validation.startDate")),
+  endDate: z.string().min(1, t("validation.endDate")),
+  capacity: z.number().min(1, t("validation.capacity")),
+  // Spanish version of the text fields (optional; empty fields fall back to English).
+  translations: z.object({
+    es: z.object({ name: z.string().optional(), description: z.string().optional() }).optional(),
+  }).optional(),
 });
 
-type CohortFormData = z.infer<typeof cohortSchema>;
+type CohortFormData = z.infer<ReturnType<typeof makeCohortSchema>>;
+
+const emptyCohortTranslations = { es: { name: "", description: "" } };
 
 // User management schemas
 const userRoles = ["public_visitor", "applicant", "participant", "mentor", "investor", "administrator"] as const;
 
-const editUserSchema = z.object({
+const makeEditUserSchema = (t: AdminT) => z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  email: z.string().email("Please enter a valid email address"),
-  role: z.enum(userRoles, { required_error: "Please select a role" }),
+  email: z.string().email(t("validation.email")),
+  role: z.enum(userRoles, { required_error: t("validation.role") }),
 });
 
-const inviteUserSchema = z.object({
+const makeInviteUserSchema = (t: AdminT) => z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  email: z.string().email("Please enter a valid email address"),
-  role: z.enum(userRoles, { required_error: "Please select a role" }),
+  email: z.string().email(t("validation.email")),
+  role: z.enum(userRoles, { required_error: t("validation.role") }),
+  // Language for the invitation email and the new account.
+  locale: z.enum(LOCALES),
 });
 
-type EditUserFormData = z.infer<typeof editUserSchema>;
-type InviteUserFormData = z.infer<typeof inviteUserSchema>;
+type EditUserFormData = z.infer<ReturnType<typeof makeEditUserSchema>>;
+type InviteUserFormData = z.infer<ReturnType<typeof makeInviteUserSchema>>;
 
 // Mentor management schemas. Expertise and industries are edited as comma-separated text.
 const editMentorProfileSchema = z.object({
@@ -99,16 +117,161 @@ const splitList = (value: string | undefined) =>
   (value || "").split(",").map((part) => part.trim()).filter(Boolean);
 
 // Sessions have no status column: derive it from the end time.
+// The returned value is internal (compared below); the label is translated where it's shown.
 const sessionStatus = (session: { endTime?: string | Date | null }) =>
   session.endTime && new Date(session.endTime).getTime() < Date.now() ? "Completed" : "Upcoming";
 
 type EditMentorProfileFormData = z.infer<typeof editMentorProfileSchema>;
 
-// Sentence-case label for any snake_case value (statuses, roles).
+// Sentence-case label for any snake_case value; fallback for values without a translation.
 const humanize = (value?: string | null) => {
   const text = (value || "").replace(/_/g, " ").trim();
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
 };
+
+type ApplicationStatusKey = keyof (typeof resources)["en"]["common"]["applicationStatus"];
+type RoleKey = keyof (typeof resources)["en"]["common"]["roles"];
+
+// Stored values stay as they are; only the displayed label is translated.
+const applicationStatusLabel = (t: AdminT, status?: string | null) =>
+  status && status in resources.en.common.applicationStatus
+    ? t(`common:applicationStatus.${status as ApplicationStatusKey}`)
+    : humanize(status);
+
+const roleLabel = (t: AdminT, role?: string | null) =>
+  role && role in resources.en.common.roles ? t(`common:roles.${role as RoleKey}`) : humanize(role);
+
+const reviewStatuses = ["submitted", "under_review", "shortlisted", "interview", "offer", "accepted", "rejected"] as const;
+type ContentLang = "en" | "es";
+
+/** The Spanish text stored on an entity, for prefilling the Spanish tab. */
+function spanishOf(entity: { translations?: unknown } | null | undefined): Record<string, unknown> {
+  const es = (entity?.translations as Record<string, unknown> | undefined)?.es;
+  return es && typeof es === "object" ? (es as Record<string, unknown>) : {};
+}
+
+const textOr = (value: unknown) => (typeof value === "string" ? value : "");
+
+/**
+ * Cohort name and description for the create and edit dialogs, switched between
+ * English (base, required) and Spanish (optional) by the content language tabs.
+ */
+function CohortTextFields({
+  form,
+  lang,
+  onLangChange,
+  testIdPrefix,
+  children,
+}: {
+  form: UseFormReturn<CohortFormData>;
+  lang: ContentLang;
+  onLangChange: (lang: ContentLang) => void;
+  /** "" for the create dialog, "edit-" for the edit dialog (keeps the existing test ids). */
+  testIdPrefix: string;
+  /** Shared, non-text fields rendered between the name and the description (capacity). */
+  children?: ReactNode;
+}) {
+  const { t } = useTranslation(["admin", "common"]);
+  const esName = form.watch("translations.es.name");
+  const esDescription = form.watch("translations.es.description");
+  const es = lang === "es";
+  return (
+    <>
+      <ContentLanguageTabs
+        className="md:col-span-2"
+        value={lang}
+        onChange={onLangChange}
+        spanishMissing={!esName?.trim() && !esDescription?.trim()}
+      />
+
+      {!es ? (
+        <FormField
+          key="name-en"
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("cohorts.form.name")}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={t("cohorts.form.namePlaceholder")}
+                  data-testid={`input-${testIdPrefix}cohort-name`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : (
+        <FormField
+          key="name-es"
+          control={form.control}
+          name="translations.es.name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("cohorts.form.name")}</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  lang="es"
+                  placeholder={form.getValues("name") || t("cohorts.form.namePlaceholder")}
+                  data-testid={`input-${testIdPrefix}cohort-name-es`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {children}
+
+      {!es ? (
+        <FormField
+          key="description-en"
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem className="md:col-span-2">
+              <FormLabel>{t("shared.description")}</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder={t("cohorts.form.descriptionPlaceholder")}
+                  data-testid={`textarea-${testIdPrefix}cohort-description`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      ) : (
+        <FormField
+          key="description-es"
+          control={form.control}
+          name="translations.es.description"
+          render={({ field }) => (
+            <FormItem className="md:col-span-2">
+              <FormLabel>{t("shared.description")}</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  value={field.value ?? ""}
+                  lang="es"
+                  placeholder={form.getValues("description") || t("cohorts.form.descriptionPlaceholder")}
+                  data-testid={`textarea-${testIdPrefix}cohort-description-es`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+    </>
+  );
+}
 
 // Application status badges: draft = dashed, waiting = Mist, in review stages = Steel,
 // accepted = Navy, rejected = error tint.
@@ -130,9 +293,10 @@ const applicationStatusClass = (status: string) => {
 };
 
 function ApplicationStatusBadge({ status, className, ...props }: { status: string; className?: string; "data-testid"?: string }) {
+  const { t } = useTranslation(["admin", "common"]);
   return (
     <Badge variant="outline" className={cn(applicationStatusClass(status), className)} {...props}>
-      {humanize(status)}
+      {applicationStatusLabel(t, status)}
     </Badge>
   );
 }
@@ -181,6 +345,7 @@ interface ApplicationStatusDialogProps {
 
 // Application Status Dialog Component (module scope so its state survives parent re-renders)
 function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatusDialogProps) {
+  const { t } = useTranslation(["admin", "common"]);
   const { toast } = useToast();
   const [selectedStatus, setSelectedStatus] = useState("");
   const [reviewerNotes, setReviewerNotes] = useState("");
@@ -189,8 +354,8 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
   const handleStatusUpdate = () => {
     if (!selectedStatus) {
       toast({
-        title: "Select a status",
-        description: "Choose the new status before saving.",
+        title: t("applications.toast.selectStatusTitle"),
+        description: t("applications.toast.selectStatusBody"),
         variant: "destructive",
       });
       return;
@@ -219,48 +384,46 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
           size="sm"
           data-testid={`button-update-status-${application.id}`}
         >
-          Update status
+          {t("applications.statusDialog.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Update application status</DialogTitle>
+          <DialogTitle>{t("applications.statusDialog.title")}</DialogTitle>
           <div className="text-sm text-muted-foreground">
-            Application by {application.applicant} for {application.project}
+            {t("applications.statusDialog.subtitle", { applicant: application.applicant, project: application.project })}
           </div>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="font-display text-sm font-medium">Current status</label>
+              <label className="font-display text-sm font-medium">{t("applications.statusDialog.currentStatus")}</label>
               <div>
                 <ApplicationStatusBadge status={application.status} />
               </div>
             </div>
             
             <div className="space-y-2">
-              <label className="font-display text-sm font-medium">New status</label>
+              <label className="font-display text-sm font-medium">{t("applications.statusDialog.newStatus")}</label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger data-testid={`select-new-status-${application.id}`}>
-                  <SelectValue placeholder="Select a status" />
+                  <SelectValue placeholder={t("applications.statusDialog.selectStatus")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="under_review">Under review</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
-                  <SelectItem value="offer">Offer</SelectItem>
-                  <SelectItem value="accepted">Accepted</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
+                  {reviewStatuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {t(`common:applicationStatus.${status}`)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           
           <div className="space-y-2">
-            <label className="font-display text-sm font-medium">Reviewer notes</label>
+            <label className="font-display text-sm font-medium">{t("applications.statusDialog.reviewerNotes")}</label>
             <Textarea 
-              placeholder="Add a note for the review record (optional)"
+              placeholder={t("applications.statusDialog.notesPlaceholder")}
               value={reviewerNotes}
               onChange={(e) => setReviewerNotes(e.target.value)}
               data-testid={`textarea-reviewer-notes-${application.id}`}
@@ -269,7 +432,7 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
           
           {application.reviewerNotes && application.reviewerNotes.length > 0 && (
             <div className="space-y-2">
-              <label className="font-display text-sm font-medium">Previous notes</label>
+              <label className="font-display text-sm font-medium">{t("applications.statusDialog.previousNotes")}</label>
               <div className="space-y-1">
                 {application.reviewerNotes.map((note: string, index: number) => (
                   <p key={index} className="rounded-md border bg-muted p-2 text-xs text-muted-foreground">
@@ -287,7 +450,7 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
               disabled={updateStatus.isPending || !selectedStatus}
               data-testid={`button-confirm-status-${application.id}`}
             >
-              {updateStatus.isPending ? "Updating..." : "Update status"}
+              {updateStatus.isPending ? t("applications.statusDialog.updating") : t("applications.statusDialog.trigger")}
             </Button>
           </div>
         </div>
@@ -297,6 +460,9 @@ function ApplicationStatusDialog({ application, updateStatus }: ApplicationStatu
 }
 
 export default function Admin() {
+  const { t } = useTranslation(["admin", "common"]);
+  const localized = useLocalized();
+  const { language } = useLanguage();
   const [selectedTab, setSelectedTab] = useState("overview");
   // Lifted so the curriculum cohort selection survives switching admin tabs
   const [curriculumCohort, setCurriculumCohort] = useState<string | null>(null);
@@ -307,6 +473,12 @@ export default function Admin() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isInviteUserOpen, setIsInviteUserOpen] = useState(false);
   const [isCreateCohortOpen, setIsCreateCohortOpen] = useState(false);
+  // Content language shown in the cohort dialogs (English is the base text).
+  const [cohortLang, setCohortLang] = useState<ContentLang>("en");
+  const [editCohortLang, setEditCohortLang] = useState<ContentLang>("en");
+  useEffect(() => {
+    if (isCreateCohortOpen) setCohortLang("en");
+  }, [isCreateCohortOpen]);
   
   // Mentor management state
   const [viewingMentor, setViewingMentor] = useState<MentorWithProfile | null>(null);
@@ -383,7 +555,9 @@ export default function Admin() {
       
       return {
         id: app.id!,
-        applicant: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown user' : 'Unknown user',
+        applicant: user
+          ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || t("applications.unknownUser")
+          : t("applications.unknownUser"),
         project: getApplicationTitle(app.answers),
         status: app.status || 'draft',
         submittedDays: daysDiff,
@@ -393,7 +567,7 @@ export default function Admin() {
         reviewerNotes: app.reviewerNotes || []
       };
     }).sort((a: ProcessedApplication, b: ProcessedApplication) => a.submittedDays - b.submittedDays); // Most recent first
-  }, [applications, users]);
+  }, [applications, users, t]);
 
   // Generate dynamic system alerts from real data
   const systemAlerts = useMemo((): SystemAlert[] => {
@@ -405,20 +579,26 @@ export default function Admin() {
       alerts.push({
         id: "pending-reviews",
         type: "warning",
-        title: "Applications waiting for review",
-        message: `${pendingReviews} application${pendingReviews > 1 ? 's' : ''} awaiting review`,
+        title: t("overview.alerts.pendingTitle"),
+        message: t("overview.alerts.pending", { count: pendingReviews }),
         priority: pendingReviews > 5 ? "high" : "medium"
       });
     }
     
-    // Check for active cohorts
-    const cohortMessage = cohortStatusMessage(cohorts);
-    if (cohortMessage) {
+    // Check for active cohorts (same counts as cohortStatusMessage in lib/cohorts, translated here)
+    const running = cohorts.filter((c) => isCohortRunning(c)).length;
+    const upcoming = cohorts.filter((c) => isCohortUpcoming(c)).length;
+    const ended = cohorts.filter((c) => c.isActive).length - running - upcoming;
+    const cohortParts: string[] = [];
+    if (running > 0) cohortParts.push(t("overview.alerts.running", { count: running }));
+    if (upcoming > 0) cohortParts.push(t("overview.alerts.upcoming", { count: upcoming }));
+    if (ended > 0) cohortParts.push(t("overview.alerts.ended", { count: ended }));
+    if (cohortParts.length > 0) {
       alerts.push({
         id: "active-cohorts",
         type: "info",
-        title: "Active cohorts",
-        message: cohortMessage,
+        title: t("overview.alerts.cohortsTitle"),
+        message: new Intl.ListFormat(intlLocale(), { style: "long", type: "conjunction" }).format(cohortParts),
         priority: "low"
       });
     }
@@ -434,14 +614,18 @@ export default function Admin() {
       alerts.push({
         id: "recent-accepted",
         type: "success",
-        title: "New participants",
-        message: `${recentAccepted} application${recentAccepted > 1 ? 's' : ''} accepted this week`,
+        title: t("overview.alerts.acceptedTitle"),
+        message: t("overview.alerts.accepted", { count: recentAccepted }),
         priority: "low"
       });
     }
     
     return alerts;
-  }, [applications, cohorts]);
+  }, [applications, cohorts, t]);
+
+  const cohortSchema = useMemo(() => makeCohortSchema(t), [t]);
+  const editUserSchema = useMemo(() => makeEditUserSchema(t), [t]);
+  const inviteUserSchema = useMemo(() => makeInviteUserSchema(t), [t]);
 
   // Form for creating cohorts
   const cohortForm = useForm<CohortFormData>({
@@ -452,6 +636,7 @@ export default function Admin() {
       startDate: "",
       endDate: "",
       capacity: 15,
+      translations: emptyCohortTranslations,
     },
   });
 
@@ -465,8 +650,14 @@ export default function Admin() {
       startDate: "",
       endDate: "",
       capacity: 15,
+      translations: emptyCohortTranslations,
     },
   });
+
+  // English is required; if it fails validation while the Spanish tab is open, show it.
+  const showEnglishOnError = (setLang: (lang: ContentLang) => void) => (errors: Record<string, unknown>) => {
+    if (errors.name || errors.description) setLang("en");
+  };
 
   // Mentor profile form
   const editMentorForm = useForm<EditMentorProfileFormData>({
@@ -488,8 +679,8 @@ export default function Admin() {
   const handleMutationError = (error: unknown, fallback: string) => {
     if (isUnauthorizedError(error as Error)) {
       toast({
-        title: "Signed out",
-        description: "Your session has ended. Taking you to sign in.",
+        title: t("shared.signedOutTitle"),
+        description: t("shared.signedOutBody"),
         variant: "destructive",
       });
       setTimeout(() => {
@@ -498,7 +689,7 @@ export default function Admin() {
       return;
     }
     toast({
-      title: "Something went wrong",
+      title: t("shared.errorTitle"),
       description: getApiErrorMessage(error, fallback),
       variant: "destructive",
     });
@@ -512,14 +703,14 @@ export default function Admin() {
     },
     onSuccess: (_data, variables) => {
       toast({
-        title: variables.isActive ? "Cohort reactivated" : "Cohort deactivated",
+        title: variables.isActive ? t("cohorts.toast.reactivatedTitle") : t("cohorts.toast.deactivatedTitle"),
         description: variables.isActive
-          ? "Applicants can see this cohort again."
-          : "This cohort is now hidden from applicants.",
+          ? t("cohorts.toast.reactivatedBody")
+          : t("cohorts.toast.deactivatedBody"),
       });
       invalidateCohorts();
     },
-    onError: (error) => handleMutationError(error, "The cohort could not be updated. Please try again."),
+    onError: (error) => handleMutationError(error, t("cohorts.toast.updateFailed")),
   });
 
   // Create cohort mutation
@@ -530,8 +721,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Cohort created",
-        description: "The new cohort is saved.",
+        title: t("cohorts.toast.createdTitle"),
+        description: t("cohorts.toast.createdBody"),
       });
       setIsCreateCohortOpen(false);
       invalidateCohorts();
@@ -540,8 +731,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("shared.signedOutTitle"),
+          description: t("shared.signedOutBody"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -550,8 +741,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Something went wrong",
-        description: "The cohort could not be created. Please try again.",
+        title: t("shared.errorTitle"),
+        description: t("cohorts.toast.createFailed"),
         variant: "destructive",
       });
     }
@@ -566,8 +757,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Cohort updated",
-        description: "Your changes are saved.",
+        title: t("cohorts.toast.updatedTitle"),
+        description: t("shared.changesSaved"),
       });
       invalidateCohorts();
       setEditingCohort(null);
@@ -576,8 +767,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("shared.signedOutTitle"),
+          description: t("shared.signedOutBody"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -586,8 +777,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Something went wrong",
-        description: "The cohort could not be updated. Please try again.",
+        title: t("shared.errorTitle"),
+        description: t("cohorts.toast.updateFailed"),
         variant: "destructive",
       });
     }
@@ -608,14 +799,14 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Mentor profile created",
-        description: "The mentor now appears to participants.",
+        title: t("mentors.toast.createdTitle"),
+        description: t("mentors.toast.createdBody"),
       });
       setEditingMentor(null);
       editMentorForm.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
     },
-    onError: (error) => handleMutationError(error, "The mentor profile could not be created. Please try again."),
+    onError: (error) => handleMutationError(error, t("mentors.toast.createFailed")),
   });
 
   // Update mentor profile mutation
@@ -626,8 +817,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Mentor profile updated",
-        description: "Your changes are saved.",
+        title: t("mentors.toast.updatedTitle"),
+        description: t("shared.changesSaved"),
       });
       setEditingMentor(null);
       editMentorForm.reset();
@@ -637,8 +828,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("shared.signedOutTitle"),
+          description: t("shared.signedOutBody"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -647,8 +838,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Something went wrong",
-        description: "The mentor profile could not be updated. Please try again.",
+        title: t("shared.errorTitle"),
+        description: t("mentors.toast.updateFailed"),
         variant: "destructive",
       });
     }
@@ -657,6 +848,8 @@ export default function Admin() {
   // Handler for opening edit dialog
   const handleEditCohort = (cohort: Cohort) => {
     setEditingCohort(cohort);
+    setEditCohortLang("en");
+    const es = spanishOf(cohort);
     // Format dates to string format expected by the form
     const startDate = new Date(cohort.startDate).toISOString().split('T')[0];
     const endDate = new Date(cohort.endDate).toISOString().split('T')[0];
@@ -667,6 +860,7 @@ export default function Admin() {
       startDate,
       endDate,
       capacity: cohort.capacity,
+      translations: { es: { name: textOr(es.name), description: textOr(es.description) } },
     });
   };
 
@@ -706,8 +900,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "Status updated",
-        description: "The application status is saved.",
+        title: t("applications.toast.statusUpdatedTitle"),
+        description: t("applications.toast.statusUpdatedBody"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
       // Accepting an application can change the applicant's role
@@ -716,8 +910,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("shared.signedOutTitle"),
+          description: t("shared.signedOutBody"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -726,8 +920,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Something went wrong",
-        description: "The application could not be updated. Please try again.",
+        title: t("shared.errorTitle"),
+        description: t("applications.toast.updateFailed"),
         variant: "destructive",
       });
     }
@@ -741,8 +935,8 @@ export default function Admin() {
     },
     onSuccess: () => {
       toast({
-        title: "User updated",
-        description: "Your changes are saved.",
+        title: t("users.toast.updatedTitle"),
+        description: t("shared.changesSaved"),
       });
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
@@ -750,8 +944,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("shared.signedOutTitle"),
+          description: t("shared.signedOutBody"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -760,8 +954,8 @@ export default function Admin() {
         return;
       }
       toast({
-        title: "Something went wrong",
-        description: "The user could not be updated. Please try again.",
+        title: t("shared.errorTitle"),
+        description: t("users.toast.updateFailed"),
         variant: "destructive",
       });
     }
@@ -775,13 +969,13 @@ export default function Admin() {
     onSuccess: (result: { inviteEmailSent?: boolean }) => {
       if (result?.inviteEmailSent) {
         toast({
-          title: "Invitation sent",
-          description: "The invitation email has been sent.",
+          title: t("invite.toast.sentTitle"),
+          description: t("invite.toast.sentBody"),
         });
       } else {
         toast({
-          title: "User created",
-          description: "Email is not configured, so no invitation was sent.",
+          title: t("invite.toast.createdTitle"),
+          description: t("invite.toast.createdBody"),
         });
       }
       setIsInviteUserOpen(false);
@@ -790,8 +984,8 @@ export default function Admin() {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Signed out",
-          description: "Your session has ended. Taking you to sign in.",
+          title: t("shared.signedOutTitle"),
+          description: t("shared.signedOutBody"),
           variant: "destructive",
         });
         setTimeout(() => {
@@ -800,13 +994,13 @@ export default function Admin() {
         return;
       }
       
-      // Handle specific error message from backend
-      const errorMessage = error?.message?.includes("already exists")
-        ? "A user with this email address already exists."
-        : getApiErrorMessage(error, "The invitation could not be sent. Please try again.");
+      // The server tags this case with a stable code, whatever language its message is in.
+      const errorMessage = error?.message?.includes("email_taken")
+        ? t("invite.toast.exists")
+        : getApiErrorMessage(error, t("invite.toast.failed"));
 
       toast({
-        title: "Something went wrong",
+        title: t("shared.errorTitle"),
         description: errorMessage,
         variant: "destructive",
       });
@@ -841,28 +1035,29 @@ export default function Admin() {
   // CSV Export utility function
   const exportApplicationsCSV = () => {
     try {
+      // Row keys are stable; only the header row is translated. Status is exported as stored.
+      const columns = [
+        "applicantName", "projectName", "status", "score", "email", "submittedDaysAgo", "description", "reviewerNotes",
+      ] as const;
       const csvData = filteredApplications.map((app: ProcessedApplication) => ({
-        "Applicant Name": app.applicant,
-        "Project Name": app.project,
-        "Status": app.status.replace(/_/g, ' '),
-        "Score": `${app.score}%`,
-        "Email": app.email || '',
-        "Submitted Days Ago": app.submittedDays,
-        "Description": (app.description || '').replace(/[",\n\r]/g, ' '), // Clean for CSV
-        "Reviewer Notes": (app.reviewerNotes || []).join('; ').replace(/[",\n\r]/g, ' ')
+        applicantName: app.applicant,
+        projectName: app.project,
+        status: app.status.replace(/_/g, ' '),
+        score: `${app.score}%`,
+        email: app.email || '',
+        submittedDaysAgo: app.submittedDays,
+        description: (app.description || '').replace(/[",\n\r]/g, ' '), // Clean for CSV
+        reviewerNotes: (app.reviewerNotes || []).join('; ').replace(/[",\n\r]/g, ' ')
       }));
 
-      const headers = Object.keys(csvData[0] || {});
+      const quote = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const csvContent = [
-        headers.join(','),
-        ...csvData.map(row => 
-          headers.map(header => 
-            `"${String(row[header as keyof typeof row] ?? '').replace(/"/g, '""')}"`
-          ).join(',')
-        )
+        columns.map((column) => quote(t(`applications.csv.${column}`))).join(','),
+        ...csvData.map(row => columns.map((column) => quote(row[column])).join(','))
       ].join('\n');
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      // Byte-order mark so Excel reads accented headers ("Descripción") as UTF-8.
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -873,13 +1068,13 @@ export default function Admin() {
       URL.revokeObjectURL(url);
 
       toast({
-        title: "Export ready",
-        description: `${csvData.length} application${csvData.length === 1 ? "" : "s"} exported to CSV.`,
+        title: t("applications.toast.exportReadyTitle"),
+        description: t("applications.toast.exportReady", { count: csvData.length }),
       });
     } catch (error) {
       toast({
-        title: "Export failed",
-        description: "The applications could not be exported. Please try again.",
+        title: t("applications.toast.exportFailedTitle"),
+        description: t("applications.toast.exportFailedBody"),
         variant: "destructive",
       });
     }
@@ -893,9 +1088,9 @@ export default function Admin() {
       <Dialog open={!!viewingApplication} onOpenChange={() => setViewingApplication(null)}>
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Application details</DialogTitle>
+            <DialogTitle>{t("applications.viewDialog.title")}</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Application by {application.applicant}
+              {t("applications.viewDialog.subtitle", { applicant: application.applicant })}
             </div>
           </DialogHeader>
           
@@ -903,37 +1098,37 @@ export default function Admin() {
             {/* Basic Information */}
             <div className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2">
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Applicant name</p>
+                <p className="font-display text-sm text-muted-foreground">{t("applications.viewDialog.applicantName")}</p>
                 <p className="text-sm" data-testid="view-app-applicant-name">
                   {application.applicant}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Email</p>
+                <p className="font-display text-sm text-muted-foreground">{t("shared.email")}</p>
                 <p className="text-sm" data-testid="view-app-email">
-                  {application.email || 'Not provided'}
+                  {application.email || t("shared.notProvided")}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Project name</p>
+                <p className="font-display text-sm text-muted-foreground">{t("applications.viewDialog.projectName")}</p>
                 <p className="text-sm" data-testid="view-app-project-name">
                   {application.project}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Status</p>
+                <p className="font-display text-sm text-muted-foreground">{t("shared.status")}</p>
                 <ApplicationStatusBadge status={application.status} data-testid="view-app-status" />
               </div>
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Score</p>
+                <p className="font-display text-sm text-muted-foreground">{t("applications.viewDialog.score")}</p>
                 <p className="font-display text-xl font-medium" data-testid="view-app-score">
                   {application.score}%
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Submitted</p>
+                <p className="font-display text-sm text-muted-foreground">{t("applications.viewDialog.submitted")}</p>
                 <p className="text-sm" data-testid="view-app-submitted">
-                  {application.submittedDays} days ago
+                  {t("applications.viewDialog.daysAgo", { count: application.submittedDays })}
                 </p>
               </div>
             </div>
@@ -941,7 +1136,7 @@ export default function Admin() {
             {/* Project Description */}
             {application.description && (
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Project description</p>
+                <p className="font-display text-sm text-muted-foreground">{t("applications.viewDialog.projectDescription")}</p>
                 <div className="rounded-xl border bg-card p-4 text-sm whitespace-pre-wrap" data-testid="view-app-description">
                   {application.description}
                 </div>
@@ -951,7 +1146,7 @@ export default function Admin() {
             {/* Reviewer Notes */}
             {application.reviewerNotes && application.reviewerNotes.length > 0 && (
               <div className="space-y-1">
-                <p className="font-display text-sm text-muted-foreground">Reviewer notes</p>
+                <p className="font-display text-sm text-muted-foreground">{t("applications.viewDialog.reviewerNotes")}</p>
                 <div className="space-y-2">
                   {application.reviewerNotes.map((note: string, index: number) => (
                     <div 
@@ -973,7 +1168,7 @@ export default function Admin() {
               onClick={() => setViewingApplication(null)}
               data-testid="button-close-application-view"
             >
-              Close
+              {t("common:actions.close")}
             </Button>
           </div>
         </DialogContent>
@@ -999,6 +1194,7 @@ export default function Admin() {
       lastName: "",
       email: "",
       role: "public_visitor",
+      locale: language,
     },
   });
 
@@ -1034,9 +1230,9 @@ export default function Admin() {
       <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit user</DialogTitle>
+            <DialogTitle>{t("users.editDialog.title")}</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Update this person's details and role.
+              {t("users.editDialog.subtitle")}
             </div>
           </DialogHeader>
           
@@ -1048,10 +1244,10 @@ export default function Admin() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First name</FormLabel>
+                      <FormLabel>{t("shared.firstName")}</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="First name" 
+                          placeholder={t("shared.firstName")} 
                           {...field}
                           data-testid="input-edit-user-first-name"
                         />
@@ -1066,10 +1262,10 @@ export default function Admin() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last name</FormLabel>
+                      <FormLabel>{t("shared.lastName")}</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Last name" 
+                          placeholder={t("shared.lastName")} 
                           {...field}
                           data-testid="input-edit-user-last-name"
                         />
@@ -1086,11 +1282,11 @@ export default function Admin() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email address</FormLabel>
+                      <FormLabel>{t("shared.emailAddress")}</FormLabel>
                       <FormControl>
                         <Input 
                           type="email"
-                          placeholder="name@example.com" 
+                          placeholder={t("shared.emailPlaceholder")} 
                           {...field}
                           data-testid="input-edit-user-email"
                         />
@@ -1105,17 +1301,17 @@ export default function Admin() {
                   name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Role</FormLabel>
+                      <FormLabel>{t("shared.role")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-edit-user-role">
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder={t("shared.selectRole")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {userRoles.map((role) => (
                             <SelectItem key={role} value={role}>
-                              {humanize(role)}
+                              {roleLabel(t, role)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1133,14 +1329,14 @@ export default function Admin() {
                   onClick={() => setEditingUser(null)}
                   data-testid="button-cancel-edit-user"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={updateUser.isPending}
                   data-testid="button-submit-edit-user"
                 >
-                  {updateUser.isPending ? "Saving..." : "Save changes"}
+                  {updateUser.isPending ? t("shared.saving") : t("common:actions.saveChanges")}
                 </Button>
               </div>
             </form>
@@ -1156,9 +1352,9 @@ export default function Admin() {
       <Dialog open={isInviteUserOpen} onOpenChange={setIsInviteUserOpen}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Invite user</DialogTitle>
+            <DialogTitle>{t("invite.title")}</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Create an account for this person. If email is set up, they also receive an invitation to sign in.
+              {t("invite.subtitle")}
             </div>
           </DialogHeader>
           
@@ -1170,10 +1366,10 @@ export default function Admin() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First name</FormLabel>
+                      <FormLabel>{t("shared.firstName")}</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="First name" 
+                          placeholder={t("shared.firstName")} 
                           {...field}
                           data-testid="input-invite-user-first-name"
                         />
@@ -1188,10 +1384,10 @@ export default function Admin() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last name</FormLabel>
+                      <FormLabel>{t("shared.lastName")}</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Last name" 
+                          placeholder={t("shared.lastName")} 
                           {...field}
                           data-testid="input-invite-user-last-name"
                         />
@@ -1208,11 +1404,11 @@ export default function Admin() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email address</FormLabel>
+                      <FormLabel>{t("shared.emailAddress")}</FormLabel>
                       <FormControl>
                         <Input 
                           type="email"
-                          placeholder="name@example.com" 
+                          placeholder={t("shared.emailPlaceholder")} 
                           {...field}
                           data-testid="input-invite-user-email"
                         />
@@ -1227,17 +1423,17 @@ export default function Admin() {
                   name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Role</FormLabel>
+                      <FormLabel>{t("shared.role")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-invite-user-role">
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder={t("shared.selectRole")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {userRoles.map((role) => (
                             <SelectItem key={role} value={role}>
-                              {humanize(role)}
+                              {roleLabel(t, role)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1248,6 +1444,32 @@ export default function Admin() {
                 />
               </div>
 
+              <FormField
+                control={inviteUserForm.control}
+                name="locale"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("invite.language.label")}</FormLabel>
+                    <Select onValueChange={(value) => field.onChange(value as Locale)} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="md:w-1/2" data-testid="select-invite-user-locale">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {LOCALES.map((locale) => (
+                          <SelectItem key={locale} value={locale} lang={locale}>
+                            {t(`invite.language.${locale}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">{t("invite.language.hint")}</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
                 <Button 
                   type="button" 
@@ -1255,14 +1477,14 @@ export default function Admin() {
                   onClick={() => setIsInviteUserOpen(false)}
                   data-testid="button-cancel-invite-user"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={inviteUser.isPending}
                   data-testid="button-submit-invite-user"
                 >
-                  {inviteUser.isPending ? "Sending..." : "Send invitation"}
+                  {inviteUser.isPending ? t("invite.sending") : t("invite.send")}
                 </Button>
               </div>
             </form>
@@ -1276,15 +1498,15 @@ export default function Admin() {
   const ViewMentorDialog = () => {
     if (!viewingMentor) return null;
 
-    const fullName = `${viewingMentor.firstName || ''} ${viewingMentor.lastName || ''}`.trim() || 'Unnamed mentor';
+    const fullName = `${viewingMentor.firstName || ''} ${viewingMentor.lastName || ''}`.trim() || t("mentors.unnamed");
 
     return (
       <Dialog open={!!viewingMentor} onOpenChange={() => setViewingMentor(null)}>
         <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Mentor profile: {fullName}</DialogTitle>
+            <DialogTitle>{t("mentors.viewDialog.title", { name: fullName })}</DialogTitle>
             <div className="text-sm text-muted-foreground">
-              Contact details and the profile participants see.
+              {t("mentors.viewDialog.subtitle")}
             </div>
           </DialogHeader>
           
@@ -1292,21 +1514,25 @@ export default function Admin() {
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="font-display text-sm text-muted-foreground">Name</label>
+                <label className="font-display text-sm text-muted-foreground">{t("mentors.viewDialog.name")}</label>
                 <p className="text-sm" data-testid="mentor-name">{fullName}</p>
               </div>
               <div>
-                <label className="font-display text-sm text-muted-foreground">Email</label>
+                <label className="font-display text-sm text-muted-foreground">{t("shared.email")}</label>
                 <p className="text-sm" data-testid="mentor-email">{viewingMentor.email}</p>
               </div>
               <div>
-                <label className="font-display text-sm text-muted-foreground">Role</label>
-                <p className="text-sm" data-testid="mentor-role">{humanize(viewingMentor.role)}</p>
+                <label className="font-display text-sm text-muted-foreground">{t("shared.role")}</label>
+                <p className="text-sm" data-testid="mentor-role">{roleLabel(t, viewingMentor.role)}</p>
               </div>
               <div>
-                <label className="font-display text-sm text-muted-foreground">Status</label>
+                <label className="font-display text-sm text-muted-foreground">{t("shared.status")}</label>
                 <p className="text-sm" data-testid="mentor-status">
-                  {!viewingMentor.mentorProfile ? 'No profile yet' : viewingMentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
+                  {!viewingMentor.mentorProfile
+                    ? t("mentors.viewDialog.noProfileYet")
+                    : viewingMentor.mentorProfile.isActive === false
+                      ? t("shared.inactive")
+                      : t("shared.active")}
                 </p>
               </div>
             </div>
@@ -1315,21 +1541,21 @@ export default function Admin() {
             {viewingMentor.mentorProfile && (
               <div className="space-y-4">
                 <div>
-                  <label className="font-display text-sm text-muted-foreground">Bio</label>
+                  <label className="font-display text-sm text-muted-foreground">{t("mentors.viewDialog.bio")}</label>
                   <p className="text-sm" data-testid="mentor-bio">
-                    {viewingMentor.mentorProfile.bio || 'No bio provided'}
+                    {viewingMentor.mentorProfile.bio || t("mentors.viewDialog.noBio")}
                   </p>
                 </div>
                 <div>
-                  <label className="font-display text-sm text-muted-foreground">Expertise</label>
+                  <label className="font-display text-sm text-muted-foreground">{t("mentors.viewDialog.expertise")}</label>
                   <p className="text-sm" data-testid="mentor-expertise">
-                    {viewingMentor.mentorProfile.expertise?.join(', ') || 'No expertise listed'}
+                    {viewingMentor.mentorProfile.expertise?.join(', ') || t("mentors.viewDialog.noExpertise")}
                   </p>
                 </div>
                 <div>
-                  <label className="font-display text-sm text-muted-foreground">Industries</label>
+                  <label className="font-display text-sm text-muted-foreground">{t("mentors.viewDialog.industries")}</label>
                   <p className="text-sm" data-testid="mentor-industries">
-                    {viewingMentor.mentorProfile.industries?.join(', ') || 'No industries listed'}
+                    {viewingMentor.mentorProfile.industries?.join(', ') || t("mentors.viewDialog.noIndustries")}
                   </p>
                 </div>
               </div>
@@ -1342,7 +1568,7 @@ export default function Admin() {
               onClick={() => setViewingMentor(null)}
               data-testid="button-close-view-mentor"
             >
-              Close
+              {t("common:actions.close")}
             </Button>
             <Button 
               onClick={() => {
@@ -1351,7 +1577,7 @@ export default function Admin() {
               }}
               data-testid="button-edit-mentor-from-view"
             >
-              {viewingMentor.mentorProfile ? "Edit profile" : "Create profile"}
+              {viewingMentor.mentorProfile ? t("mentors.editProfile") : t("mentors.createProfile")}
             </Button>
           </div>
         </DialogContent>
@@ -1363,7 +1589,7 @@ export default function Admin() {
   const EditMentorDialog = () => {
     if (!editingMentor) return null;
 
-    const fullName = `${editingMentor.firstName || ''} ${editingMentor.lastName || ''}`.trim() || 'Unnamed mentor';
+    const fullName = `${editingMentor.firstName || ''} ${editingMentor.lastName || ''}`.trim() || t("mentors.unnamed");
     const isCreating = !editingMentor.mentorProfile;
     const isSaving = isCreating ? createMentorProfile.isPending : updateMentorProfile.isPending;
 
@@ -1371,11 +1597,13 @@ export default function Admin() {
       <Dialog open={!!editingMentor} onOpenChange={() => setEditingMentor(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isCreating ? "Create" : "Edit"} mentor profile: {fullName}</DialogTitle>
-            <div className="text-sm text-muted-foreground">
+            <DialogTitle>
               {isCreating
-                ? "This mentor has no profile yet. Create one so participants can find and book them."
-                : "Update the profile participants see when they book."}
+                ? t("mentors.editDialog.createTitle", { name: fullName })
+                : t("mentors.editDialog.editTitle", { name: fullName })}
+            </DialogTitle>
+            <div className="text-sm text-muted-foreground">
+              {isCreating ? t("mentors.editDialog.createBody") : t("mentors.editDialog.editBody")}
             </div>
           </DialogHeader>
           
@@ -1386,11 +1614,11 @@ export default function Admin() {
                 name="bio"
                 render={({ field }) => (
                   <FormItem className="md:col-span-2">
-                    <FormLabel>Bio</FormLabel>
+                    <FormLabel>{t("mentors.editDialog.bio")}</FormLabel>
                     <FormControl>
                       <Textarea
                         className="min-h-[100px]"
-                        placeholder="A short introduction for participants"
+                        placeholder={t("mentors.editDialog.bioPlaceholder")}
                         {...field}
                         data-testid="input-edit-mentor-bio"
                       />
@@ -1405,15 +1633,15 @@ export default function Admin() {
                 name="expertise"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Expertise</FormLabel>
+                    <FormLabel>{t("mentors.editDialog.expertise")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="e.g., Fundraising, Product, Go-to-market"
+                        placeholder={t("mentors.editDialog.expertisePlaceholder")}
                         {...field}
                         data-testid="input-edit-mentor-expertise"
                       />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">Separate with commas</p>
+                    <p className="text-xs text-muted-foreground">{t("shared.separateWithCommas")}</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1424,15 +1652,15 @@ export default function Admin() {
                 name="industries"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Industries</FormLabel>
+                    <FormLabel>{t("mentors.editDialog.industries")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="e.g., Healthcare, Fintech"
+                        placeholder={t("mentors.editDialog.industriesPlaceholder")}
                         {...field}
                         data-testid="input-edit-mentor-industries"
                       />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">Separate with commas</p>
+                    <p className="text-xs text-muted-foreground">{t("shared.separateWithCommas")}</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1444,9 +1672,9 @@ export default function Admin() {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between gap-4 rounded-xl border p-4 md:col-span-2">
                     <div className="space-y-0.5">
-                      <FormLabel>Active</FormLabel>
+                      <FormLabel>{t("mentors.editDialog.active")}</FormLabel>
                       <p className="text-sm text-muted-foreground">
-                        Inactive mentors are hidden from participants.
+                        {t("mentors.editDialog.activeHint")}
                       </p>
                     </div>
                     <FormControl>
@@ -1467,14 +1695,14 @@ export default function Admin() {
                   onClick={() => setEditingMentor(null)}
                   data-testid="button-cancel-edit-mentor"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={isSaving}
                   data-testid="button-submit-edit-mentor"
                 >
-                  {isSaving ? "Saving..." : isCreating ? "Create profile" : "Save changes"}
+                  {isSaving ? t("shared.saving") : isCreating ? t("mentors.createProfile") : t("common:actions.saveChanges")}
                 </Button>
               </div>
             </form>
@@ -1487,13 +1715,13 @@ export default function Admin() {
   // Check admin access (after all hooks so hook order stays stable)
   if (!isAdmin) {
     return (
-      <AppLayout title="Admin" subtitle="Access restricted">
+      <AppLayout title={t("page.title")} subtitle={t("page.restrictedSubtitle")}>
         <Card>
           <CardContent className="p-8 text-center">
             <Shield className="w-10 h-10 mx-auto text-primary mb-4" />
-            <h3 className="text-xl mb-2">Administrators only</h3>
+            <h3 className="text-xl mb-2">{t("page.restrictedTitle")}</h3>
             <p className="text-muted-foreground">
-              Your account doesn't have administrator access. If you need it, ask a Launchpad administrator.
+              {t("page.restrictedBody")}
             </p>
           </CardContent>
         </Card>
@@ -1503,21 +1731,21 @@ export default function Admin() {
 
   return (
     <AppLayout
-      title="Admin"
-      subtitle="Manage applications, cohorts, program content and people for MD Genius Launchpad"
+      title={t("page.title")}
+      subtitle={t("page.subtitle")}
     >
       <div className="space-y-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <div className="overflow-x-auto overflow-y-hidden">
             <TabsList className="flex w-max min-w-full flex-nowrap">
-              <TabsTrigger value="overview" className="shrink-0" data-testid="tab-overview">Overview</TabsTrigger>
-              <TabsTrigger value="applications" className="shrink-0" data-testid="tab-applications">Applications</TabsTrigger>
-              <TabsTrigger value="cohorts" className="shrink-0" data-testid="tab-cohorts">Cohorts</TabsTrigger>
-              <TabsTrigger value="roadmap" className="shrink-0" data-testid="tab-roadmap">Roadmap</TabsTrigger>
-              <TabsTrigger value="curriculum" className="shrink-0" data-testid="tab-curriculum">Curriculum</TabsTrigger>
-              <TabsTrigger value="mentors" className="shrink-0" data-testid="tab-mentors">Mentors</TabsTrigger>
-              <TabsTrigger value="investors" className="shrink-0" data-testid="tab-investors">Investors</TabsTrigger>
-              <TabsTrigger value="users" className="shrink-0" data-testid="tab-users">Users</TabsTrigger>
+              <TabsTrigger value="overview" className="shrink-0" data-testid="tab-overview">{t("tabs.overview")}</TabsTrigger>
+              <TabsTrigger value="applications" className="shrink-0" data-testid="tab-applications">{t("tabs.applications")}</TabsTrigger>
+              <TabsTrigger value="cohorts" className="shrink-0" data-testid="tab-cohorts">{t("tabs.cohorts")}</TabsTrigger>
+              <TabsTrigger value="roadmap" className="shrink-0" data-testid="tab-roadmap">{t("tabs.roadmap")}</TabsTrigger>
+              <TabsTrigger value="curriculum" className="shrink-0" data-testid="tab-curriculum">{t("tabs.curriculum")}</TabsTrigger>
+              <TabsTrigger value="mentors" className="shrink-0" data-testid="tab-mentors">{t("tabs.mentors")}</TabsTrigger>
+              <TabsTrigger value="investors" className="shrink-0" data-testid="tab-investors">{t("tabs.investors")}</TabsTrigger>
+              <TabsTrigger value="users" className="shrink-0" data-testid="tab-users">{t("tabs.users")}</TabsTrigger>
             </TabsList>
           </div>
 
@@ -1541,11 +1769,11 @@ export default function Admin() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-display text-sm text-muted-foreground">Total applications</p>
+                      <p className="font-display text-sm text-muted-foreground">{t("overview.metrics.totalApplications")}</p>
                       <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-total-applications">
                         {adminMetrics.totalApplications}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">All time</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("overview.metrics.allTime")}</p>
                     </div>
                     <FileText className="w-5 h-5 text-primary" />
                   </div>
@@ -1556,11 +1784,11 @@ export default function Admin() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-display text-sm text-muted-foreground">Acceptance rate</p>
+                      <p className="font-display text-sm text-muted-foreground">{t("overview.metrics.acceptanceRate")}</p>
                       <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-acceptance-rate">
                         {adminMetrics.acceptanceRate}%
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">Of all applications</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("overview.metrics.ofAllApplications")}</p>
                     </div>
                     <UserCheck className="w-5 h-5 text-primary" />
                   </div>
@@ -1571,11 +1799,11 @@ export default function Admin() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-display text-sm text-muted-foreground">Active projects</p>
+                      <p className="font-display text-sm text-muted-foreground">{t("overview.metrics.activeProjects")}</p>
                       <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-active-projects">
                         {adminMetrics.totalProjects}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">Across {adminMetrics.activeCohorts} running cohort{adminMetrics.activeCohorts === 1 ? '' : 's'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("overview.metrics.acrossCohorts", { count: adminMetrics.activeCohorts })}</p>
                     </div>
                     <GraduationCap className="w-5 h-5 text-primary" />
                   </div>
@@ -1586,11 +1814,11 @@ export default function Admin() {
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-display text-sm text-muted-foreground">Users</p>
+                      <p className="font-display text-sm text-muted-foreground">{t("overview.metrics.users")}</p>
                       <p className="mt-1 font-display text-3xl font-medium" data-testid="metric-total-users">
                         {adminMetrics.totalUsers}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">All roles</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("overview.metrics.allRoles")}</p>
                     </div>
                     <Users className="w-5 h-5 text-primary" />
                   </div>
@@ -1602,11 +1830,11 @@ export default function Admin() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent applications</CardTitle>
+                  <CardTitle>{t("overview.recentApplications")}</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   {recentApplications.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No applications yet.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">{t("overview.noApplications")}</p>
                   )}
                   <div className="divide-y">
                     {recentApplications.slice(0, 5).map((application: ProcessedApplication) => (
@@ -1616,7 +1844,7 @@ export default function Admin() {
                             {application.applicant}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {application.project} · Score <span className="font-display">{application.score}%</span>
+                            {application.project} · {t("overview.score")} <span className="font-display">{application.score}%</span>
                           </p>
                           <ApplicationStatusBadge
                             status={application.status}
@@ -1636,12 +1864,12 @@ export default function Admin() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Needs attention</CardTitle>
+                  <CardTitle>{t("overview.needsAttention")}</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-3">
                     {systemAlerts.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">Nothing needs attention right now.</p>
+                      <p className="text-sm text-muted-foreground text-center py-4">{t("overview.nothingNeedsAttention")}</p>
                     )}
                     {systemAlerts.map((alert: SystemAlert) => (
                       <div
@@ -1679,26 +1907,29 @@ export default function Admin() {
             <Card>
               <CardHeader className="gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Applications</CardTitle>
+                  <CardTitle>{t("applications.title")}</CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    <span className="font-display">{filteredApplications.length}</span> application{filteredApplications.length === 1 ? '' : 's'}
+                    <Trans
+                      t={t}
+                      i18nKey="applications.count"
+                      count={filteredApplications.length}
+                      components={{ num: <span className="font-display" /> }}
+                    />
                   </p>
                 </div>
                 {/* Application Filters */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Select value={selectedApplicationStatus} onValueChange={setSelectedApplicationStatus}>
                     <SelectTrigger className="w-full sm:w-48" data-testid="select-application-status">
-                      <SelectValue placeholder="Application status" />
+                      <SelectValue placeholder={t("applications.filterPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All applications</SelectItem>
-                      <SelectItem value="submitted">Submitted</SelectItem>
-                      <SelectItem value="under_review">Under review</SelectItem>
-                      <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                      <SelectItem value="interview">Interview</SelectItem>
-                      <SelectItem value="offer">Offer</SelectItem>
-                      <SelectItem value="accepted">Accepted</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="all">{t("applications.all")}</SelectItem>
+                      {reviewStatuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {t(`common:applicationStatus.${status}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
 
@@ -1709,7 +1940,7 @@ export default function Admin() {
                     data-testid="button-export-applications"
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Export CSV
+                    {t("applications.exportCsv")}
                   </Button>
                 </div>
               </CardHeader>
@@ -1717,16 +1948,16 @@ export default function Admin() {
               {/* Applications List */}
               <CardContent className="p-0">
                 {filteredApplications.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8 border-t">No applications match this filter.</p>
+                  <p className="text-sm text-muted-foreground text-center py-8 border-t">{t("applications.noMatch")}</p>
                 ) : (
                   <Table className="border-t">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Applicant</TableHead>
-                        <TableHead>Project</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Score</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t("applications.columns.applicant")}</TableHead>
+                        <TableHead>{t("applications.columns.project")}</TableHead>
+                        <TableHead>{t("shared.status")}</TableHead>
+                        <TableHead className="text-right">{t("applications.columns.score")}</TableHead>
+                        <TableHead className="text-right">{t("shared.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1762,7 +1993,7 @@ export default function Admin() {
                                 data-testid={`button-view-app-${application.id}`}
                               >
                                 <Eye className="w-3 h-3 mr-1" />
-                                View
+                                {t("shared.view")}
                               </Button>
 
                               <ApplicationStatusDialog
@@ -1785,85 +2016,57 @@ export default function Admin() {
             <Card>
               <CardHeader className="gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle>Cohorts</CardTitle>
+                  <CardTitle>{t("cohorts.title")}</CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Applicants can only apply to active cohorts.
+                    {t("cohorts.subtitle")}
                   </p>
                 </div>
                 <Dialog open={isCreateCohortOpen} onOpenChange={setIsCreateCohortOpen}>
                   <DialogTrigger asChild>
                     <Button data-testid="button-create-cohort">
                       <Plus className="w-4 h-4 mr-2" />
-                      Add cohort
+                      {t("cohorts.add")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                      <DialogTitle>Add cohort</DialogTitle>
+                      <DialogTitle>{t("cohorts.add")}</DialogTitle>
                     </DialogHeader>
                     <Form {...cohortForm}>
-                      <form onSubmit={cohortForm.handleSubmit((data) => createCohort.mutate(data))} className="grid gap-4 md:grid-cols-2">
-                        <FormField
-                          control={cohortForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Cohort name</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="e.g., Spring Cohort"
-                                  data-testid="input-cohort-name"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={cohortForm.control}
-                          name="capacity"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Capacity</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="number"
-                                  onChange={(e) => field.onChange(parseInt(e.target.value))}
-                                  data-testid="input-cohort-capacity"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={cohortForm.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem className="md:col-span-2">
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  placeholder="The cohort's focus and goals"
-                                  data-testid="textarea-cohort-description"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <form
+                        onSubmit={cohortForm.handleSubmit(
+                          (data) => createCohort.mutate(data),
+                          showEnglishOnError(setCohortLang),
+                        )}
+                        className="grid gap-4 md:grid-cols-2"
+                      >
+                        <CohortTextFields form={cohortForm} lang={cohortLang} onLangChange={setCohortLang} testIdPrefix="">
+                          <FormField
+                            control={cohortForm.control}
+                            name="capacity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t("cohorts.form.capacity")}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    type="number"
+                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                                    data-testid="input-cohort-capacity"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </CohortTextFields>
 
                         <FormField
                           control={cohortForm.control}
                           name="startDate"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Start date</FormLabel>
+                              <FormLabel>{t("cohorts.form.startDate")}</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
@@ -1881,7 +2084,7 @@ export default function Admin() {
                           name="endDate"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>End date</FormLabel>
+                              <FormLabel>{t("cohorts.form.endDate")}</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
@@ -1901,7 +2104,7 @@ export default function Admin() {
                             disabled={createCohort.isPending}
                             data-testid="button-submit-cohort"
                           >
-                            {createCohort.isPending ? "Creating..." : "Add cohort"}
+                            {createCohort.isPending ? t("cohorts.creating") : t("cohorts.add")}
                           </Button>
                         </div>
                       </form>
@@ -1911,18 +2114,18 @@ export default function Admin() {
               </CardHeader>
               <CardContent className="p-0">
                 {cohortsLoading ? (
-                  <BlockLoader label="Loading cohorts" className="py-8 border-t" />
+                  <BlockLoader label={t("cohorts.loading")} className="py-8 border-t" />
                 ) : cohorts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8 border-t">No cohorts yet. Add one to open applications.</p>
+                  <p className="text-sm text-muted-foreground text-center py-8 border-t">{t("cohorts.empty")}</p>
                 ) : (
                   <Table className="border-t">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Cohort</TableHead>
-                        <TableHead>Dates</TableHead>
-                        <TableHead className="text-right">Capacity</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t("cohorts.columns.cohort")}</TableHead>
+                        <TableHead>{t("cohorts.columns.dates")}</TableHead>
+                        <TableHead className="text-right">{t("cohorts.columns.capacity")}</TableHead>
+                        <TableHead>{t("shared.status")}</TableHead>
+                        <TableHead className="text-right">{t("shared.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1930,19 +2133,19 @@ export default function Admin() {
                         <TableRow key={cohort.id}>
                           <TableCell className="min-w-[14rem]">
                             <p className="font-display font-medium" data-testid={`cohort-name-${cohort.id}`}>
-                              {cohort.name}
+                              {localized.text(cohort, "name")}
                             </p>
                             <p className="text-xs text-muted-foreground line-clamp-2">
-                              {cohort.description}
+                              {localized.text(cohort, "description")}
                             </p>
                           </TableCell>
                           <TableCell className="whitespace-nowrap text-muted-foreground">
-                            {formatCohortDate(cohort.startDate)} – {formatCohortDate(cohort.endDate)}
+                            {t("common:dateRange", { start: formatCohortDate(cohort.startDate), end: formatCohortDate(cohort.endDate) })}
                           </TableCell>
                           <TableCell className="text-right font-display">{cohort.capacity}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={activeBadgeClass(!!cohort.isActive)}>
-                              {cohort.isActive ? "Active" : "Inactive"}
+                              {cohort.isActive ? t("cohorts.active") : t("cohorts.inactive")}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -1954,7 +2157,7 @@ export default function Admin() {
                                 data-testid={`button-edit-cohort-${cohort.id}`}
                               >
                                 <Edit className="w-3 h-3 mr-1" />
-                                Edit
+                                {t("common:actions.edit")}
                               </Button>
                               <Button
                                 size="sm"
@@ -1963,7 +2166,7 @@ export default function Admin() {
                                 disabled={setCohortActive.isPending}
                                 data-testid={`button-toggle-cohort-${cohort.id}`}
                               >
-                                {cohort.isActive ? "Deactivate" : "Reactivate"}
+                                {cohort.isActive ? t("cohorts.deactivate") : t("cohorts.reactivate")}
                               </Button>
                             </div>
                           </TableCell>
@@ -1979,9 +2182,9 @@ export default function Admin() {
           <TabsContent value="roadmap" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Program roadmap</CardTitle>
+                <CardTitle>{t("roadmap.tab.title")}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Create and manage the roadmap templates assigned to participant projects.
+                  {t("roadmap.tab.description")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -2008,16 +2211,16 @@ export default function Admin() {
           <TabsContent value="mentors" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Mentors</CardTitle>
+                <CardTitle>{t("mentors.title")}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Manage mentor profiles and see who participants can book.
+                  {t("mentors.description")}
                 </p>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="flex flex-col gap-3 px-6 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <Input
-                    placeholder="Search mentors"
-                    aria-label="Search mentors"
+                    placeholder={t("mentors.search")}
+                    aria-label={t("mentors.search")}
                     className="w-full sm:max-w-sm"
                     value={mentorSearch}
                     onChange={(e) => setMentorSearch(e.target.value)}
@@ -2025,37 +2228,37 @@ export default function Admin() {
                   />
                   <Button
                     onClick={() => {
-                      inviteUserForm.reset({ firstName: "", lastName: "", email: "", role: "mentor" });
+                      inviteUserForm.reset({ firstName: "", lastName: "", email: "", role: "mentor", locale: language });
                       setIsInviteUserOpen(true);
                     }}
                     data-testid="button-invite-mentor"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Invite mentor
+                    {t("mentors.invite")}
                   </Button>
                 </div>
 
                 {mentorsLoading ? (
-                  <BlockLoader label="Loading mentors" className="py-8 border-t" />
+                  <BlockLoader label={t("mentors.loading")} className="py-8 border-t" />
                 ) : filteredMentors.length === 0 ? (
                   <div className="text-center py-8 border-t">
                     <MessageCircle className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">No mentors found.</p>
+                    <p className="text-muted-foreground">{t("mentors.empty")}</p>
                   </div>
                 ) : (
                   <Table className="border-t">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Mentor</TableHead>
-                        <TableHead>Expertise</TableHead>
-                        <TableHead>Industries</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t("mentors.columns.mentor")}</TableHead>
+                        <TableHead>{t("mentors.columns.expertise")}</TableHead>
+                        <TableHead>{t("mentors.columns.industries")}</TableHead>
+                        <TableHead>{t("shared.status")}</TableHead>
+                        <TableHead className="text-right">{t("shared.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredMentors.map((mentor) => {
-                        const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || 'Unnamed mentor';
+                        const fullName = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim() || t("mentors.unnamed");
                         const initials = mentor.firstName && mentor.lastName
                           ? `${mentor.firstName[0]}${mentor.lastName[0]}`
                           : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
@@ -2073,7 +2276,7 @@ export default function Admin() {
                                       {fullName}
                                     </p>
                                     <Badge variant="outline" className="text-xs">
-                                      {humanize(mentor.role)}
+                                      {roleLabel(t, mentor.role)}
                                     </Badge>
                                   </div>
                                   <p className="text-xs text-muted-foreground">
@@ -2084,24 +2287,24 @@ export default function Admin() {
                             </TableCell>
                             <TableCell className="min-w-[10rem]">
                               {mentor.mentorProfile ? (
-                                mentor.mentorProfile.expertise?.join(', ') || <span className="text-muted-foreground">None listed</span>
+                                mentor.mentorProfile.expertise?.join(', ') || <span className="text-muted-foreground">{t("shared.noneListed")}</span>
                               ) : (
                                 <span className="text-xs text-warning">
-                                  No mentor profile yet, so participants can't see or book this mentor.
+                                  {t("mentors.noProfileWarning")}
                                 </span>
                               )}
                             </TableCell>
                             <TableCell className="min-w-[8rem] text-muted-foreground">
-                              {mentor.mentorProfile ? (mentor.mentorProfile.industries?.join(', ') || 'None listed') : '—'}
+                              {mentor.mentorProfile ? (mentor.mentorProfile.industries?.join(', ') || t("shared.noneListed")) : '—'}
                             </TableCell>
                             <TableCell>
                               {mentor.mentorProfile ? (
                                 <Badge variant="outline" className={activeBadgeClass(mentor.mentorProfile.isActive !== false)}>
-                                  {mentor.mentorProfile.isActive === false ? 'Inactive' : 'Active'}
+                                  {mentor.mentorProfile.isActive === false ? t("shared.inactive") : t("shared.active")}
                                 </Badge>
                               ) : (
                                 <Badge variant="outline" className="whitespace-nowrap border-dashed border-steel/60 bg-transparent text-muted-foreground">
-                                  No profile
+                                  {t("mentors.noProfile")}
                                 </Badge>
                               )}
                             </TableCell>
@@ -2111,8 +2314,8 @@ export default function Admin() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleViewMentor(mentor)}
-                                  aria-label="View mentor"
-                                  title="View mentor"
+                                  aria-label={t("mentors.viewMentor")}
+                                  title={t("mentors.viewMentor")}
                                   data-testid={`button-view-mentor-${mentor.id}`}
                                 >
                                   <Eye className="w-4 h-4" />
@@ -2122,8 +2325,8 @@ export default function Admin() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleEditMentor(mentor)}
-                                    aria-label="Edit mentor"
-                                    title="Edit mentor"
+                                    aria-label={t("mentors.editMentor")}
+                                    title={t("mentors.editMentor")}
                                     data-testid={`button-edit-mentor-${mentor.id}`}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -2136,7 +2339,7 @@ export default function Admin() {
                                     data-testid={`button-create-mentor-profile-${mentor.id}`}
                                   >
                                     <Plus className="w-4 h-4 mr-1" />
-                                    Create profile
+                                    {t("mentors.createProfile")}
                                   </Button>
                                 )}
                                 {mentor.email && (
@@ -2146,7 +2349,7 @@ export default function Admin() {
                                     asChild
                                     data-testid={`button-contact-mentor-${mentor.id}`}
                                   >
-                                    <a href={`mailto:${mentor.email}`} aria-label={`Email ${fullName}`}>
+                                    <a href={`mailto:${mentor.email}`} aria-label={t("mentors.emailName", { name: fullName })}>
                                       <Mail className="w-4 h-4" />
                                     </a>
                                   </Button>
@@ -2165,27 +2368,27 @@ export default function Admin() {
             {/* Mentor Sessions Overview */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent sessions</CardTitle>
+                <CardTitle>{t("mentors.sessions.title")}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Recent mentoring sessions across all cohorts.
+                  {t("mentors.sessions.description")}
                 </p>
               </CardHeader>
               <CardContent className="p-0">
                 {sessionsLoading ? (
-                  <BlockLoader label="Loading sessions" className="py-6 border-t" />
+                  <BlockLoader label={t("mentors.sessions.loading")} className="py-6 border-t" />
                 ) : recentSessions.length === 0 ? (
                   <div className="text-center py-6 border-t">
                     <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground text-sm">No recent sessions.</p>
+                    <p className="text-muted-foreground text-sm">{t("mentors.sessions.empty")}</p>
                   </div>
                 ) : (
                   <Table className="border-t">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Session</TableHead>
-                        <TableHead>When</TableHead>
-                        <TableHead className="text-right">Participants</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{t("mentors.sessions.columns.session")}</TableHead>
+                        <TableHead>{t("mentors.sessions.columns.when")}</TableHead>
+                        <TableHead className="text-right">{t("mentors.sessions.columns.participants")}</TableHead>
+                        <TableHead>{t("shared.status")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2193,9 +2396,11 @@ export default function Admin() {
                         <TableRow key={session.id}>
                           <TableCell className="min-w-[10rem] font-medium">{session.title}</TableCell>
                           <TableCell className="whitespace-nowrap text-muted-foreground">
-                            {new Date(session.startTime).toLocaleDateString()} at {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            {" – "}
-                            {new Date(session.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {t("mentors.sessions.when", {
+                              date: new Date(session.startTime).toLocaleDateString(intlLocale()),
+                              start: new Date(session.startTime).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' }),
+                              end: new Date(session.endTime).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' }),
+                            })}
                           </TableCell>
                           <TableCell className="text-right font-display">
                             {session.participantIds?.length || 0}
@@ -2206,7 +2411,9 @@ export default function Admin() {
                               className={sessionBadgeClass(sessionStatus(session))}
                               data-testid={`session-status-${session.id}`}
                             >
-                              {sessionStatus(session)}
+                              {sessionStatus(session) === "Completed"
+                                ? t("mentors.sessions.status.completed")
+                                : t("mentors.sessions.status.upcoming")}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -2229,16 +2436,16 @@ export default function Admin() {
           <TabsContent value="users" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Users</CardTitle>
+                <CardTitle>{t("users.title")}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Everyone with a Launchpad account, across all roles.
+                  {t("users.description")}
                 </p>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="flex flex-col gap-3 px-6 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <Input
-                    placeholder="Search users"
-                    aria-label="Search users"
+                    placeholder={t("users.search")}
+                    aria-label={t("users.search")}
                     className="w-full sm:max-w-sm"
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
@@ -2246,36 +2453,36 @@ export default function Admin() {
                   />
                   <Button
                     onClick={() => {
-                      inviteUserForm.reset({ firstName: "", lastName: "", email: "", role: "public_visitor" });
+                      inviteUserForm.reset({ firstName: "", lastName: "", email: "", role: "public_visitor", locale: language });
                       setIsInviteUserOpen(true);
                     }}
                     data-testid="button-invite-user"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Invite user
+                    {t("users.invite")}
                   </Button>
                 </div>
 
                 {usersLoading ? (
-                  <BlockLoader label="Loading users" className="py-8 border-t" />
+                  <BlockLoader label={t("users.loading")} className="py-8 border-t" />
                 ) : filteredUsers.length === 0 ? (
                   <div className="text-center py-8 border-t">
                     <Users className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">No users found.</p>
+                    <p className="text-muted-foreground">{t("users.empty")}</p>
                   </div>
                 ) : (
                   <Table className="border-t">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead>{t("users.columns.name")}</TableHead>
+                        <TableHead>{t("shared.role")}</TableHead>
+                        <TableHead>{t("shared.email")}</TableHead>
+                        <TableHead className="text-right">{t("shared.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredUsers.map((user) => {
-                        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unnamed user';
+                        const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || t("users.unnamed");
                         const initials = user.firstName && user.lastName
                           ? `${user.firstName[0]}${user.lastName[0]}`
                           : fullName.split(' ').map(n => n[0]).join('').slice(0, 2);
@@ -2293,7 +2500,7 @@ export default function Admin() {
                               </div>
                             </TableCell>
                             <TableCell className="whitespace-nowrap">
-                              <Badge variant="outline">{humanize(user.role)}</Badge>
+                              <Badge variant="outline">{roleLabel(t, user.role)}</Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
                               {user.email || '—'}
@@ -2307,7 +2514,7 @@ export default function Admin() {
                                   data-testid={`button-edit-user-${user.id}`}
                                 >
                                   <Edit className="w-3 h-3 mr-1" />
-                                  Edit
+                                  {t("common:actions.edit")}
                                 </Button>
                                 {user.email && (
                                   <Button
@@ -2318,7 +2525,7 @@ export default function Admin() {
                                   >
                                     <a href={`mailto:${user.email}`}>
                                       <Mail className="w-3 h-3 mr-1" />
-                                      Email
+                                      {t("shared.email")}
                                     </a>
                                   </Button>
                                 )}
@@ -2354,72 +2561,49 @@ export default function Admin() {
       <Dialog open={!!editingCohort} onOpenChange={() => setEditingCohort(null)}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit cohort</DialogTitle>
+            <DialogTitle>{t("cohorts.editTitle")}</DialogTitle>
           </DialogHeader>
           <Form {...editCohortForm}>
-            <form onSubmit={editCohortForm.handleSubmit((data) => updateCohort.mutate(data))} className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={editCohortForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cohort name</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="e.g., Spring Cohort"
-                        data-testid="input-edit-cohort-name"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={editCohortForm.control}
-                name="capacity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Capacity</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        min="1"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
-                        data-testid="input-edit-cohort-capacity"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={editCohortForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field}
-                        placeholder="The cohort's focus and goals"
-                        data-testid="textarea-edit-cohort-description"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form
+              onSubmit={editCohortForm.handleSubmit(
+                (data) => updateCohort.mutate(data),
+                showEnglishOnError(setEditCohortLang),
+              )}
+              className="grid gap-4 md:grid-cols-2"
+            >
+              <CohortTextFields
+                form={editCohortForm}
+                lang={editCohortLang}
+                onLangChange={setEditCohortLang}
+                testIdPrefix="edit-"
+              >
+                <FormField
+                  control={editCohortForm.control}
+                  name="capacity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("cohorts.form.capacity")}</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          data-testid="input-edit-cohort-capacity"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CohortTextFields>
 
               <FormField
                 control={editCohortForm.control}
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start date</FormLabel>
+                    <FormLabel>{t("cohorts.form.startDate")}</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -2437,7 +2621,7 @@ export default function Admin() {
                 name="endDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>End date</FormLabel>
+                    <FormLabel>{t("cohorts.form.endDate")}</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -2457,14 +2641,14 @@ export default function Admin() {
                   onClick={() => setEditingCohort(null)}
                   data-testid="button-cancel-edit-cohort"
                 >
-                  Cancel
+                  {t("common:actions.cancel")}
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={updateCohort.isPending}
                   data-testid="button-submit-edit-cohort"
                 >
-                  {updateCohort.isPending ? "Saving..." : "Save changes"}
+                  {updateCohort.isPending ? t("shared.saving") : t("common:actions.saveChanges")}
                 </Button>
               </div>
             </form>

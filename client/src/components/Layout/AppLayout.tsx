@@ -59,7 +59,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
                 <Menu className="h-5 w-5" />
               </Button>
               {title && <div className="min-w-0">
-                <h1 className="truncate font-display text-2xl font-medium text-foreground md:text-[32px]" data-testid="page-title">{title}</h1>
+                <h1 className="line-clamp-2 break-words font-display text-xl font-medium leading-tight text-foreground md:line-clamp-1 md:text-[32px] md:leading-snug" data-testid="page-title">{title}</h1>
                 {subtitle && (
                   <p className="mt-1 line-clamp-2 font-display text-sm text-muted-foreground md:truncate md:text-base" data-testid="page-subtitle">{subtitle}</p>
                 )}

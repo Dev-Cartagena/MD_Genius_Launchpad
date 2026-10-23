@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ConnectorBadge } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ interface ProgramSetupChecklistProps {
  * Hidden once every step is done.
  */
 export default function ProgramSetupChecklist({ cohortCount, mentorCount, onGo }: ProgramSetupChecklistProps) {
+  const { t } = useTranslation("admin");
   const { data: modules = [] } = useQuery<any[]>({ queryKey: ["/api/admin/modules"], refetchOnMount: "always" });
   const { data: templates = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/roadmap/templates"],
@@ -24,31 +26,31 @@ export default function ProgramSetupChecklist({ cohortCount, mentorCount, onGo }
   const steps = [
     {
       key: "cohort" as const,
-      title: "Create a cohort",
-      description: "A cohort is one run of the program, with its own dates and participants.",
+      title: t("setup.steps.cohort.title"),
+      description: t("setup.steps.cohort.description"),
       done: cohortCount > 0,
-      action: "Create cohort",
+      action: t("setup.steps.cohort.action"),
     },
     {
       key: "curriculum" as const,
-      title: "Add the curriculum",
-      description: "Weekly modules, lessons and quizzes for the cohort.",
+      title: t("setup.steps.curriculum.title"),
+      description: t("setup.steps.curriculum.description"),
       done: modules.length > 0,
-      action: "Open curriculum",
+      action: t("setup.steps.curriculum.action"),
     },
     {
       key: "roadmap" as const,
-      title: "Create a roadmap template",
-      description: "The week-by-week tasks each startup is assigned.",
+      title: t("setup.steps.roadmap.title"),
+      description: t("setup.steps.roadmap.description"),
       done: templates.length > 0,
-      action: "Open roadmap",
+      action: t("setup.steps.roadmap.action"),
     },
     {
       key: "mentors" as const,
-      title: "Invite mentors",
-      description: "Mentors can then set up their profile and take sessions.",
+      title: t("setup.steps.mentors.title"),
+      description: t("setup.steps.mentors.description"),
       done: mentorCount > 0,
-      action: "Open mentors",
+      action: t("setup.steps.mentors.action"),
     },
   ];
 
@@ -60,10 +62,10 @@ export default function ProgramSetupChecklist({ cohortCount, mentorCount, onGo }
     <section className="mist-panel p-6" aria-labelledby="setup-title" data-testid="program-setup">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 id="setup-title" className="text-xl font-medium">
-          Set up the program
+          {t("setup.title")}
         </h3>
         <p className="font-display text-sm text-foreground/80">
-          {doneCount} of {steps.length} done
+          {t("setup.progress", { done: doneCount, total: steps.length })}
         </p>
       </div>
       <ol className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -91,7 +93,7 @@ export default function ProgramSetupChecklist({ cohortCount, mentorCount, onGo }
                   {step.action}
                 </Button>
               )}
-              {step.done && <p className="mt-4 font-display text-sm text-success">Done</p>}
+              {step.done && <p className="mt-4 font-display text-sm text-success">{t("setup.done")}</p>}
             </li>
           );
         })}
