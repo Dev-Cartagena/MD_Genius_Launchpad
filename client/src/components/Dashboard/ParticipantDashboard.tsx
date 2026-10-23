@@ -53,6 +53,18 @@ interface ProjectRoadmap {
   items: RoadmapItem[];
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  ideation: "Ideation",
+  validation: "Validation",
+  mvp_build: "MVP build",
+  pilot_traction: "Pilot & traction",
+  pitch_ready: "Pitch ready",
+};
+
+function stageLabel(stage: string | null | undefined): string {
+  return stage ? STAGE_LABELS[stage] ?? stage : "Ideation";
+}
+
 export default function ParticipantDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -589,7 +601,7 @@ export default function ParticipantDashboard() {
                 Current Project: {currentProject.name}
               </CardTitle>
               <Badge className="bg-primary/20 text-primary" data-testid="project-stage">
-                {hasProject ? `${currentProject.stage} Stage` : "Not started"}
+                {hasProject ? `${stageLabel(currentProject.stage)} stage` : "Not started"}
               </Badge>
             </div>
           </CardHeader>
