@@ -57,7 +57,7 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
               <div className="min-w-0">
                 <h1 className="truncate font-display text-2xl font-medium text-foreground md:text-[32px]" data-testid="page-title">{title}</h1>
                 {subtitle && (
-                  <p className="mt-1 truncate font-display text-sm text-muted-foreground md:text-base" data-testid="page-subtitle">{subtitle}</p>
+                  <p className="mt-1 line-clamp-2 font-display text-sm text-muted-foreground md:truncate md:text-base" data-testid="page-subtitle">{subtitle}</p>
                 )}
               </div>
             </div>

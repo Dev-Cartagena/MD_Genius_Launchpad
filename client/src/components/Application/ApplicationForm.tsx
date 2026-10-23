@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { Cohort } from "@shared/schema";
 import { formatCohortDate } from "@/lib/dates";
+import { ConnectorBadge } from "@/components/brand";
 
 const applicationSchema = z.object({
   // Personal Information
@@ -79,6 +80,8 @@ const skillOptions = [
   "Product Management", "UI/UX Design", "Business Development", "Marketing", "Finance", 
   "Operations", "Research", "Entrepreneurship", "Leadership", "Project Management"
 ];
+
+const stepLabels = ["Personal details", "Experience", "Idea", "Commitment", "Documents", "Review"];
 
 interface ApplicationFormProps {
   onComplete?: () => void;
@@ -176,8 +179,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Application Submitted!",
-        description: "Thank you for applying. You'll receive a confirmation email shortly.",
+        title: "Application submitted",
+        description: "Thank you for applying. You will receive a confirmation email shortly.",
       });
       onComplete?.();
       queryClient.invalidateQueries({ queryKey: ["/api/applications/my"] });
@@ -186,8 +189,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     onError: (error) => {
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Signed out",
+          description: "Your session has ended. Taking you to sign in...",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -196,8 +199,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to submit application. Please try again.",
+        title: "Could not submit application",
+        description: "Please try again.",
         variant: "destructive",
       });
     }
@@ -215,8 +218,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     }
 
     toast({
-      title: "File uploaded successfully!",
-      description: `${file.fileName} has been uploaded and attached to your application.`,
+      title: "File uploaded",
+      description: `${file.fileName} is attached to your application.`,
     });
   };
 
@@ -249,8 +252,8 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
     if (errors.experience) errorMessages.push("Professional experience must be at least 10 characters");
     if (errors.skills) errorMessages.push("Please select at least 3 skills");
     if (errors.commitmentReason) errorMessages.push("Commitment explanation must be at least 50 characters");
-    if (errors.termsAccepted) errorMessages.push("You must accept the Terms and Conditions");
-    if (errors.privacyAccepted) errorMessages.push("You must accept the Privacy Policy");
+    if (errors.termsAccepted) errorMessages.push("You must accept the terms and conditions");
+    if (errors.privacyAccepted) errorMessages.push("You must accept the privacy policy");
     if (errors.cohortId) errorMessages.push("Please select a cohort");
     
     // Handle idea validation
@@ -263,7 +266,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
       : "Please check all required fields are filled correctly.";
     
     toast({
-      title: "Please Complete Required Fields",
+      title: "Some required fields need attention",
       description: message,
       variant: "destructive",
     });
@@ -273,16 +276,46 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Progress Bar */}
-      <Card className="glass-card">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold">Application Progress</h2>
-            <span className="text-sm text-muted-foreground">
+      {/* Step indicator */}
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-base font-medium">Your application</h2>
+            <span className="font-display text-sm text-muted-foreground">
               Step {currentStep} of {totalSteps}
             </span>
           </div>
-          <Progress value={progress} className="h-2" data-testid="application-progress" />
+          <ol className="flex items-start" aria-label="Application steps">
+            {stepLabels.map((label, index) => {
+              const step = index + 1;
+              const state = step < currentStep ? "done" : step === currentStep ? "current" : "upcoming";
+              return (
+                <li key={label} className="flex flex-1 items-start last:flex-none">
+                  <div className="flex flex-col items-center gap-2">
+                    <ConnectorBadge state={state}>{step}</ConnectorBadge>
+                    <span
+                      className={`hidden sm:block font-display text-xs text-center ${
+                        state === "current" ? "text-foreground font-medium" : "text-muted-foreground"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                    <span className="sr-only">
+                      {label}
+                      {state === "done" ? " (completed)" : state === "current" ? " (current step)" : ""}
+                    </span>
+                  </div>
+                  {step < totalSteps && (
+                    <div
+                      aria-hidden="true"
+                      className={`mt-[18px] h-px flex-1 mx-1 sm:mx-2 ${step < currentStep ? "bg-primary" : "bg-border"}`}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          <Progress value={progress} className="h-1 mt-5" data-testid="application-progress" />
         </CardContent>
       </Card>
 
@@ -290,11 +323,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
         <form onSubmit={form.handleSubmit(onSubmit, handleFormError)} className="space-y-6">
           {/* Step 1: Personal Information */}
           {currentStep === 1 && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <User className="w-5 h-5" />
-                  <span>Personal Information</span>
+                  <span>Personal details</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -304,11 +337,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
+                        <FormLabel>First name</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
-                            className="bg-secondary border-border input-glow"
                             data-testid="input-first-name"
                             readOnly
                             title="Auto-populated from your profile"
@@ -324,11 +356,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Name</FormLabel>
+                        <FormLabel>Last name</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
-                            className="bg-secondary border-border input-glow"
                             data-testid="input-last-name"
                             readOnly
                             title="Auto-populated from your profile"
@@ -345,12 +376,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address</FormLabel>
+                      <FormLabel>Email address</FormLabel>
                       <FormControl>
                         <Input 
                           {...field} 
                           type="email"
-                          className="bg-secondary border-border input-glow"
                           data-testid="input-email"
                           readOnly
                           title="Auto-populated from your profile"
@@ -367,12 +397,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
+                        <FormLabel>Phone number</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
                             type="tel"
-                            className="bg-secondary border-border input-glow"
                             data-testid="input-phone"
                           />
                         </FormControl>
@@ -391,7 +420,6 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           <Input 
                             {...field} 
                             placeholder="City, State/Country"
-                            className="bg-secondary border-border input-glow"
                             data-testid="input-location"
                           />
                         </FormControl>
@@ -409,7 +437,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       <FormLabel>Timezone</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="bg-secondary border-border" data-testid="select-timezone">
+                          <SelectTrigger data-testid="select-timezone">
                             <SelectValue placeholder="Select your timezone" />
                           </SelectTrigger>
                         </FormControl>
@@ -432,11 +460,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
           {/* Step 2: Education & Experience */}
           {currentStep === 2 && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <GraduationCap className="w-5 h-5" />
-                  <span>Education & Experience</span>
+                  <span>Education and experience</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -445,12 +473,12 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="education"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Educational Background</FormLabel>
+                      <FormLabel>Educational background</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
                           placeholder="Describe your educational background, including degree(s), institutions, and relevant coursework..."
-                          className="bg-secondary border-border input-glow min-h-[100px]"
+                          className="min-h-[100px]"
                           data-testid="textarea-education"
                         />
                       </FormControl>
@@ -467,12 +495,12 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="experience"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Professional Experience</FormLabel>
+                      <FormLabel>Professional experience</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
                           placeholder="Describe your professional experience, including roles, companies, and key achievements..."
-                          className="bg-secondary border-border input-glow min-h-[100px]"
+                          className="min-h-[100px]"
                           data-testid="textarea-experience"
                         />
                       </FormControl>
@@ -489,11 +517,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="skills"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Skills & Expertise</FormLabel>
+                      <FormLabel>Skills and expertise</FormLabel>
                       <FormControl>
                         <div className="space-y-2">
                           <p className="text-sm text-muted-foreground">
-                            Select at least 3 skills that best describe your expertise:
+                            Select at least 3 skills that best describe your expertise.
                           </p>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                             {skillOptions.map((skill) => (
@@ -536,11 +564,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
           {/* Step 3: Project & Idea */}
           {currentStep === 3 && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Lightbulb className="w-5 h-5" />
-                  <span>Project & Idea</span>
+                  <span>Project and idea</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -557,7 +585,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                           data-testid="checkbox-has-idea"
                         />
                         <Label htmlFor="hasIdea" className="text-base font-medium">
-                          I have a startup idea I'd like to develop
+                          I have a startup idea I would like to develop
                         </Label>
                       </div>
                     </FormItem>
@@ -571,12 +599,12 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="ideaDescription"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Idea Description</FormLabel>
+                          <FormLabel>Idea description</FormLabel>
                           <FormControl>
                             <Textarea 
                               {...field}
                               placeholder="Briefly describe your startup idea, including the AI/technology components..."
-                              className="bg-secondary border-border input-glow min-h-[100px]"
+                              className="min-h-[100px]"
                               data-testid="textarea-idea-description"
                             />
                           </FormControl>
@@ -590,12 +618,12 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="problemStatement"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Problem Statement</FormLabel>
+                          <FormLabel>Problem statement</FormLabel>
                           <FormControl>
                             <Textarea 
                               {...field}
                               placeholder="What specific problem does your idea solve? Who experiences this problem?"
-                              className="bg-secondary border-border input-glow min-h-[80px]"
+                              className="min-h-[80px]"
                               data-testid="textarea-problem-statement"
                             />
                           </FormControl>
@@ -609,12 +637,12 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="targetMarket"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Target Market</FormLabel>
+                          <FormLabel>Target market</FormLabel>
                           <FormControl>
                             <Textarea 
                               {...field}
                               placeholder="Who is your target customer? What market are you addressing?"
-                              className="bg-secondary border-border input-glow min-h-[80px]"
+                              className="min-h-[80px]"
                               data-testid="textarea-target-market"
                             />
                           </FormControl>
@@ -626,12 +654,12 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                 )}
 
                 {!form.watch("hasIdea") && (
-                  <Card className="bg-primary/10 border-primary/20">
+                  <Card className="bg-secondary border-0 shadow-none">
                     <CardContent className="p-4">
                       <div className="flex items-start space-x-2">
                         <CheckCircle className="w-5 h-5 text-primary mt-0.5" />
                         <div>
-                          <p className="text-sm font-medium">No problem!</p>
+                          <p className="text-sm font-medium">That is fine</p>
                           <p className="text-sm text-muted-foreground">
                             The program includes ideation workshops and will help you develop and validate startup ideas throughout the cohort.
                           </p>
@@ -646,11 +674,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
           {/* Step 4: Availability & Commitment */}
           {currentStep === 4 && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Clock className="w-5 h-5" />
-                  <span>Availability & Commitment</span>
+                  <span>Availability and commitment</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -659,22 +687,22 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="availability"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Time Commitment</FormLabel>
+                      <FormLabel>Time commitment</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="bg-secondary border-border" data-testid="select-availability">
+                          <SelectTrigger data-testid="select-availability">
                             <SelectValue placeholder="Select your availability" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="full-time">
-                            Full-time (40+ hours/week) - Recommended
+                            Full-time (40+ hours a week), recommended
                           </SelectItem>
                           <SelectItem value="part-time">
-                            Part-time (20-30 hours/week)
+                            Part-time (20–30 hours a week)
                           </SelectItem>
                           <SelectItem value="weekends">
-                            Weekends only (10-15 hours/week)
+                            Weekends only (10–15 hours a week)
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -693,7 +721,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                         <Textarea 
                           {...field}
                           placeholder="Why are you applying to this program? What do you hope to achieve? How does this align with your career goals?"
-                          className="bg-secondary border-border input-glow min-h-[120px]"
+                          className="min-h-[120px]"
                           data-testid="textarea-commitment-reason"
                         />
                       </FormControl>
@@ -710,10 +738,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   name="cohortId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Preferred Cohort</FormLabel>
+                      <FormLabel>Preferred cohort</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger className="bg-secondary border-border" data-testid="select-cohort">
+                          <SelectTrigger data-testid="select-cohort">
                             <SelectValue placeholder="Select a cohort" />
                           </SelectTrigger>
                         </FormControl>
@@ -745,37 +773,36 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
           {/* Step 5: Documents & Links */}
           {currentStep === 5 && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <FileText className="w-5 h-5" />
-                  <span>Documents & Links</span>
+                  <span>Documents and links</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-base font-medium">Resume/CV (Required)</Label>
+                    <Label className="text-base font-medium">Resume or CV (required)</Label>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Upload your current resume or CV
+                      Upload your current resume or CV.
                     </p>
                     <ObjectUploader
                       maxFileSize={10 * 1024 * 1024}
                       accept=".pdf,.doc,.docx"
                       onUploaded={(file) => handleUploadComplete(file, 'resume')}
-                      buttonClassName="bg-primary hover:bg-primary/90"
                     >
                       <Upload className="w-4 h-4 mr-2" />
-                      Upload Resume
+                      Upload resume
                     </ObjectUploader>
                     {uploadedFiles.filter(f => f.type === 'resume').map(f => (
-                      <div key={f.path} className="flex items-center space-x-2 mt-2">
-                        <CheckCircle className="w-4 h-4 text-green-400" />
+                      <div key={f.path} className="flex items-center space-x-2 mt-3">
+                        <CheckCircle className="w-4 h-4 text-success" />
                         <a
                           href={fileUrl(f.path)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-green-400 hover:underline"
+                          className="text-sm text-accent hover:underline"
                           data-testid="link-uploaded-resume"
                         >
                           {f.fileName}
@@ -790,12 +817,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="portfolioUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Portfolio URL (Optional)</FormLabel>
+                          <FormLabel>Portfolio URL (optional)</FormLabel>
                           <FormControl>
                             <Input 
                               {...field}
                               placeholder="https://your-portfolio.com"
-                              className="bg-secondary border-border input-glow"
                               data-testid="input-portfolio-url"
                             />
                           </FormControl>
@@ -809,12 +835,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                       name="githubUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>GitHub Profile (Optional)</FormLabel>
+                          <FormLabel>GitHub profile (optional)</FormLabel>
                           <FormControl>
                             <Input 
                               {...field}
                               placeholder="https://github.com/username"
-                              className="bg-secondary border-border input-glow"
                               data-testid="input-github-url"
                             />
                           </FormControl>
@@ -829,12 +854,11 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     name="linkedinUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>LinkedIn Profile (Optional)</FormLabel>
+                        <FormLabel>LinkedIn profile (optional)</FormLabel>
                         <FormControl>
                           <Input 
                             {...field}
                             placeholder="https://linkedin.com/in/username"
-                            className="bg-secondary border-border input-glow"
                             data-testid="input-linkedin-url"
                           />
                         </FormControl>
@@ -849,9 +873,9 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
 
           {/* Step 6: Terms & Submit */}
           {currentStep === 6 && (
-            <Card className="glass-card">
+            <Card>
               <CardHeader>
-                <CardTitle>Review & Submit</CardTitle>
+                <CardTitle>Review and submit</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
@@ -874,10 +898,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                                 href="/terms" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-primary hover:underline"
+                                className="text-accent hover:underline"
                                 data-testid="link-terms"
                               >
-                                Terms and Conditions
+                                terms and conditions
                               </a>
                             </Label>
                             <p className="text-xs text-muted-foreground">
@@ -909,10 +933,10 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                                 href="/privacy" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-primary hover:underline"
+                                className="text-accent hover:underline"
                                 data-testid="link-privacy"
                               >
-                                Privacy Policy
+                                privacy policy
                               </a>
                             </Label>
                             <p className="text-xs text-muted-foreground">
@@ -926,15 +950,15 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                   />
                 </div>
 
-                <Card className="bg-accent/10 border-accent/20">
+                <Card className="bg-secondary border-0 shadow-none">
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-2">
                       <AlertCircle className="w-5 h-5 text-accent mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium">Application Review Process</p>
+                        <p className="text-sm font-medium">How we review applications</p>
                         <p className="text-sm text-muted-foreground">
-                          After submission, your application will be reviewed by our admissions team. 
-                          Selected candidates will be invited for interviews. You'll receive updates via email.
+                          After you submit, our admissions team reviews your application and invites selected
+                          candidates to an interview. We will keep you updated by email.
                         </p>
                       </div>
                     </div>
@@ -945,7 +969,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
           )}
 
           {/* Navigation Buttons */}
-          <Card className="glass-card">
+          <Card>
             <CardContent className="p-6">
               <div className="flex justify-between">
                 <Button 
@@ -964,16 +988,15 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                     onClick={nextStep}
                     data-testid="button-next"
                   >
-                    Next Step
+                    Next step
                   </Button>
                 ) : (
                   <Button 
                     type="submit" 
                     disabled={submitApplication.isPending}
-                    className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
                     data-testid="button-submit-application"
                   >
-                    {submitApplication.isPending ? "Submitting..." : "Submit Application"}
+                    {submitApplication.isPending ? "Submitting..." : "Submit application"}
                   </Button>
                 )}
               </div>

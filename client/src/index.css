@@ -109,23 +109,6 @@
 }
 
 @layer components {
-  /*
-   * Legacy class names from the dark theme, mapped to the brand so every
-   * screen reads correctly until it is converted (redesign phase 4).
-   */
-  .glass-card {
-    @apply bg-card text-card-foreground border border-border rounded-xl;
-    box-shadow: 0 1px 2px hsl(var(--navy) / 0.06);
-  }
-
-  .input-glow:focus {
-    box-shadow: none;
-  }
-
-  .progress-ring {
-    transform: rotate(-90deg);
-  }
-
   /* Brand surfaces */
   .panel {
     @apply bg-card text-card-foreground border border-border rounded-xl;
@@ -153,14 +136,6 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: hsl(var(--mist));
     border-radius: 2px;
-  }
-}
-
-@layer utilities {
-  /* Legacy: gradient headings become solid navy (no gradient over text) */
-  .text-gradient,
-  .text-gradient-violet {
-    color: hsl(var(--foreground));
   }
 }
 

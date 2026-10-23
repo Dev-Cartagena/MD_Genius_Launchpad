@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConnectorBadge } from "@/components/brand";
+import { cn } from "@/lib/utils";
 
 // Form handling
 import { useForm, type UseFormReturn } from "react-hook-form";
@@ -128,30 +130,12 @@ function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFor
         name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Template Name</FormLabel>
+            <FormLabel>Template name</FormLabel>
             <FormControl>
               <Input
                 {...field}
-                placeholder="e.g., 8-Week AI Startup Accelerator"
+                placeholder="e.g., 8-week AI startup accelerator"
                 data-testid="input-template-name"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                placeholder="Describe the program structure and goals..."
-                data-testid="textarea-template-description"
               />
             </FormControl>
             <FormMessage />
@@ -193,10 +177,28 @@ function TemplateFormFields({ form, cohorts }: { form: UseFormReturn<TemplateFor
 
       <FormField
         control={form.control}
+        name="description"
+        render={({ field }) => (
+          <FormItem className="md:col-span-2">
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                {...field}
+                placeholder="The program structure and goals"
+                data-testid="textarea-template-description"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
         name="isDefault"
         render={({ field }) => (
-          <FormItem className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5 pr-4">
+          <FormItem className="flex items-center justify-between gap-4 rounded-xl border p-4 md:col-span-2">
+            <div className="space-y-0.5">
               <FormLabel>Default for its cohort</FormLabel>
               <FormDescription>
                 Assigned automatically to every project that joins this cohort.
@@ -306,15 +308,15 @@ export default function AdminRoadmapManager() {
   const handleError = (error: unknown, fallback: string) => {
     if (isUnauthorizedError(error as Error)) {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Signed out",
+        description: "Your session has ended. Taking you to sign in.",
         variant: "destructive",
       });
       setTimeout(() => window.location.href = "/login", 500);
       return;
     }
     toast({
-      title: "Error",
+      title: "Something went wrong",
       description: getApiErrorMessage(error, fallback),
       variant: "destructive",
     });
@@ -333,14 +335,14 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Template Created",
-        description: "Roadmap template has been created successfully.",
+        title: "Template created",
+        description: "The roadmap template is saved.",
       });
       invalidateTemplates();
       templateForm.reset(emptyTemplateForm);
       setIsCreateTemplateOpen(false);
     },
-    onError: (error) => handleError(error, "Failed to create template. Please try again."),
+    onError: (error) => handleError(error, "The template could not be created. Please try again."),
   });
 
   const updateTemplateMutation = useMutation({
@@ -350,15 +352,15 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: (_result, variables) => {
       toast({
-        title: "Template Updated",
+        title: "Template updated",
         description: variables.data.isActive === true
-          ? "Template has been restored."
-          : "Roadmap template has been updated.",
+          ? "The template is available for new assignments again."
+          : "Your changes are saved.",
       });
       invalidateTemplates();
       setEditingTemplate(null);
     },
-    onError: (error) => handleError(error, "Failed to update template. Please try again."),
+    onError: (error) => handleError(error, "The template could not be updated. Please try again."),
   });
 
   const deactivateTemplateMutation = useMutation({
@@ -368,12 +370,12 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Template Deactivated",
-        description: "The template is hidden from new assignments. You can restore it at any time.",
+        title: "Template deactivated",
+        description: "It is hidden from new assignments. You can restore it at any time.",
       });
       invalidateTemplates();
     },
-    onError: (error) => handleError(error, "Failed to deactivate template. Please try again."),
+    onError: (error) => handleError(error, "The template could not be deactivated. Please try again."),
   });
 
   const assignTemplateMutation = useMutation({
@@ -384,7 +386,7 @@ export default function AdminRoadmapManager() {
     onSuccess: (result) => {
       const count = Array.isArray(result) ? result.length : undefined;
       toast({
-        title: "Roadmap Assigned",
+        title: "Roadmap assigned",
         description: count !== undefined
           ? `${count} roadmap item${count === 1 ? "" : "s"} assigned to the project.`
           : "The roadmap was assigned to the project.",
@@ -392,7 +394,7 @@ export default function AdminRoadmapManager() {
       setAssigningTemplate(null);
       setAssignProjectId("");
     },
-    onError: (error) => handleError(error, "Failed to assign the roadmap. Please try again."),
+    onError: (error) => handleError(error, "The roadmap could not be assigned. Please try again."),
   });
 
   const createItemMutation = useMutation({
@@ -402,14 +404,14 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Item Created",
-        description: "Roadmap item has been created successfully.",
+        title: "Item added",
+        description: "The roadmap item is saved.",
       });
       invalidateItems();
       itemForm.reset(emptyItemForm);
       setIsCreateItemOpen(false);
     },
-    onError: (error) => handleError(error, "Failed to create item. Please try again."),
+    onError: (error) => handleError(error, "The item could not be added. Please try again."),
   });
 
   const updateItemMutation = useMutation({
@@ -419,14 +421,14 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Item Updated",
-        description: "Roadmap item has been updated successfully.",
+        title: "Item updated",
+        description: "Your changes are saved.",
       });
       invalidateItems();
       itemForm.reset(emptyItemForm);
       setEditingItem(null);
     },
-    onError: (error) => handleError(error, "Failed to update item. Please try again."),
+    onError: (error) => handleError(error, "The item could not be updated. Please try again."),
   });
 
   const deleteItemMutation = useMutation({
@@ -436,12 +438,12 @@ export default function AdminRoadmapManager() {
     },
     onSuccess: () => {
       toast({
-        title: "Item Deleted",
-        description: "Roadmap item has been deleted successfully.",
+        title: "Item deleted",
+        description: "The item was removed from this template.",
       });
       invalidateItems();
     },
-    onError: (error) => handleError(error, "Failed to delete item. Please try again."),
+    onError: (error) => handleError(error, "The item could not be deleted. Please try again."),
   });
 
   // Populate the edit-template form when a template is picked for editing.
@@ -473,7 +475,7 @@ export default function AdminRoadmapManager() {
   const handleDeactivateTemplate = (template: RoadmapTemplate) => {
     setConfirmRequest({
       title: `Deactivate "${template.name}"?`,
-      description: "Existing project roadmaps are kept.",
+      description: "It will no longer be offered for new assignments. Project roadmaps already created from it are kept, and you can restore the template later.",
       confirmLabel: "Deactivate",
       onConfirm: () => deactivateTemplateMutation.mutate(template.id),
     });
@@ -512,34 +514,26 @@ export default function AdminRoadmapManager() {
   const handleDeleteItem = (itemId: string, itemTitle?: string) => {
     setConfirmRequest({
       title: itemTitle ? `Delete roadmap item "${itemTitle}"?` : "Delete this roadmap item?",
-      description: "This cannot be undone.",
+      description: "This removes the item from the template and cannot be undone.",
       onConfirm: () => deleteItemMutation.mutate(itemId),
     });
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case "task": return <CheckCircle className="w-4 h-4" />;
-      case "assignment": return <Edit className="w-4 h-4" />;
-      case "deliverable": return <Clock className="w-4 h-4" />;
-      case "milestone": return <Target className="w-4 h-4" />;
-      case "checkin": return <Users className="w-4 h-4" />;
-      case "learning": return <Calendar className="w-4 h-4" />;
-      default: return <CheckCircle className="w-4 h-4" />;
+      case "task": return <CheckCircle className="w-4 h-4 shrink-0 text-primary" />;
+      case "assignment": return <Edit className="w-4 h-4 shrink-0 text-primary" />;
+      case "deliverable": return <Clock className="w-4 h-4 shrink-0 text-primary" />;
+      case "milestone": return <Target className="w-4 h-4 shrink-0 text-primary" />;
+      case "checkin": return <Users className="w-4 h-4 shrink-0 text-primary" />;
+      case "learning": return <Calendar className="w-4 h-4 shrink-0 text-primary" />;
+      default: return <CheckCircle className="w-4 h-4 shrink-0 text-primary" />;
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "task": return "default";
-      case "assignment": return "secondary";
-      case "deliverable": return "outline";
-      case "milestone": return "destructive";
-      case "checkin": return "default";
-      case "learning": return "default";
-      default: return "default";
-    }
-  };
+  // Item types are categories, not statuses: one neutral badge style for all of them.
+  const typeLabel = (type: string) =>
+    type === "checkin" ? "Check-in" : type.charAt(0).toUpperCase() + type.slice(1);
 
   const autoCompletionLabel = (item: RoadmapItem) => {
     switch (item.autoCompletionType) {
@@ -555,11 +549,11 @@ export default function AdminRoadmapManager() {
   return (
     <div className="space-y-6">
       {/* Template Management Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">Roadmap Templates</h3>
+          <h3 className="text-lg">Roadmap templates</h3>
           <p className="text-sm text-muted-foreground">
-            {activeCount} active template{activeCount !== 1 ? 's' : ''}
+            <span className="font-display">{activeCount}</span> active template{activeCount !== 1 ? 's' : ''}
             {templates.length > activeCount ? `, ${templates.length - activeCount} inactive` : ""}
           </p>
         </div>
@@ -574,24 +568,26 @@ export default function AdminRoadmapManager() {
           <DialogTrigger asChild>
             <Button data-testid="button-create-template">
               <Plus className="w-4 h-4 mr-2" />
-              Create Template
+              Add template
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Roadmap Template</DialogTitle>
+              <DialogTitle>Add roadmap template</DialogTitle>
             </DialogHeader>
             <Form {...templateForm}>
-              <form onSubmit={templateForm.handleSubmit(handleCreateTemplate)} className="space-y-4">
+              <form onSubmit={templateForm.handleSubmit(handleCreateTemplate)} className="grid gap-4 md:grid-cols-2">
                 <TemplateFormFields form={templateForm} cohorts={cohorts} />
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={createTemplateMutation.isPending}
-                  data-testid="button-submit-template"
-                >
-                  {createTemplateMutation.isPending ? "Creating..." : "Create Template"}
-                </Button>
+                <div className="flex justify-end pt-2 md:col-span-2">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto"
+                    disabled={createTemplateMutation.isPending}
+                    data-testid="button-submit-template"
+                  >
+                    {createTemplateMutation.isPending ? "Creating..." : "Add template"}
+                  </Button>
+                </div>
               </form>
             </Form>
           </DialogContent>
@@ -600,21 +596,23 @@ export default function AdminRoadmapManager() {
 
       {/* Edit Template Dialog */}
       <Dialog open={!!editingTemplate} onOpenChange={(open) => { if (!open) setEditingTemplate(null); }}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Roadmap Template</DialogTitle>
+            <DialogTitle>Edit roadmap template</DialogTitle>
           </DialogHeader>
           <Form {...editTemplateForm}>
-            <form onSubmit={editTemplateForm.handleSubmit(handleUpdateTemplate)} className="space-y-4">
+            <form onSubmit={editTemplateForm.handleSubmit(handleUpdateTemplate)} className="grid gap-4 md:grid-cols-2">
               <TemplateFormFields form={editTemplateForm} cohorts={cohorts} />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={updateTemplateMutation.isPending}
-                data-testid="button-update-template"
-              >
-                {updateTemplateMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
+              <div className="flex justify-end pt-2 md:col-span-2">
+                <Button
+                  type="submit"
+                  className="w-full sm:w-auto"
+                  disabled={updateTemplateMutation.isPending}
+                  data-testid="button-update-template"
+                >
+                  {updateTemplateMutation.isPending ? "Saving..." : "Save changes"}
+                </Button>
+              </div>
             </form>
           </Form>
         </DialogContent>
@@ -639,13 +637,13 @@ export default function AdminRoadmapManager() {
               Every item in this template is added to the project's roadmap. Items the project already has are kept.
             </p>
             <div className="space-y-2">
-              <Label>Project</Label>
+              <Label className="font-display">Project</Label>
               {projects.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No projects exist yet.</p>
               ) : (
                 <Select value={assignProjectId} onValueChange={setAssignProjectId}>
                   <SelectTrigger data-testid="select-assign-project">
-                    <SelectValue placeholder="Pick a project" />
+                    <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
                     {[...projects]
@@ -666,18 +664,20 @@ export default function AdminRoadmapManager() {
                 </Select>
               )}
             </div>
-            <Button
-              className="w-full"
-              disabled={!assignProjectId || assignTemplateMutation.isPending}
-              onClick={() => {
-                if (assigningTemplate && assignProjectId) {
-                  assignTemplateMutation.mutate({ templateId: assigningTemplate.id, projectId: assignProjectId });
-                }
-              }}
-              data-testid="button-confirm-assign"
-            >
-              {assignTemplateMutation.isPending ? "Assigning..." : "Assign Roadmap"}
-            </Button>
+            <div className="flex justify-end">
+              <Button
+                className="w-full sm:w-auto"
+                disabled={!assignProjectId || assignTemplateMutation.isPending}
+                onClick={() => {
+                  if (assigningTemplate && assignProjectId) {
+                    assignTemplateMutation.mutate({ templateId: assigningTemplate.id, projectId: assignProjectId });
+                  }
+                }}
+                data-testid="button-confirm-assign"
+              >
+                {assignTemplateMutation.isPending ? "Assigning..." : "Assign roadmap"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -686,7 +686,7 @@ export default function AdminRoadmapManager() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {templatesLoading ? (
           Array.from({ length: 3 }).map((_, index) => (
-            <Card key={index} className="glass-card">
+            <Card key={index}>
               <CardHeader>
                 <Skeleton className="h-6 w-3/4" />
                 <Skeleton className="h-4 w-full" />
@@ -697,24 +697,24 @@ export default function AdminRoadmapManager() {
             </Card>
           ))
         ) : templates.length === 0 ? (
-          <Card className="glass-card col-span-full">
-            <CardContent className="p-8 text-center">
-              <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Templates Found</h3>
-              <p className="text-muted-foreground">
-                Create your first roadmap template to get started.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="col-span-full rounded-xl border border-dashed border-steel/50 p-8 text-center">
+            <Calendar className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+            <h3 className="text-lg mb-1">No templates yet</h3>
+            <p className="text-sm text-muted-foreground">
+              Add a roadmap template to set out the weekly tasks and milestones for a program.
+            </p>
+          </div>
         ) : (
           templates.map((template) => {
             const inactive = template.isActive === false;
             return (
               <Card
                 key={template.id}
-                className={`glass-card cursor-pointer transition-all hover:border-primary/50 ${
-                  selectedTemplate === template.id ? 'border-primary bg-primary/5' : ''
-                } ${inactive ? 'opacity-70' : ''}`}
+                className={cn(
+                  "cursor-pointer transition-colors hover:border-steel/60",
+                  selectedTemplate === template.id && "border-primary ring-1 ring-primary",
+                  inactive && "opacity-70",
+                )}
                 onClick={() => setSelectedTemplate(template.id)}
                 data-testid={`template-card-${template.id}`}
               >
@@ -722,7 +722,7 @@ export default function AdminRoadmapManager() {
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base">{template.name}</CardTitle>
                     <div className="flex flex-wrap gap-1 justify-end">
-                      {inactive && <Badge variant="secondary">Inactive</Badge>}
+                      {inactive && <Badge variant="outline" className="border-transparent bg-muted text-muted-foreground">Inactive</Badge>}
                       {template.isDefault && <Badge>Default</Badge>}
                     </div>
                   </div>
@@ -735,7 +735,7 @@ export default function AdminRoadmapManager() {
                     <Users className="w-3 h-3 mr-1" />
                     {cohortName(template.cohortId)}
                   </div>
-                  <div className="flex flex-wrap items-center justify-end gap-1 mt-4 pt-4 border-t">
+                  <div className="flex flex-wrap items-center justify-end mt-4 pt-3 border-t">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -745,7 +745,7 @@ export default function AdminRoadmapManager() {
                       }}
                       data-testid={`button-select-template-${template.id}`}
                     >
-                      <Eye className="w-3 h-3 mr-1" />
+                      <Eye className="w-3 h-3" />
                       View
                     </Button>
                     <Button
@@ -757,7 +757,7 @@ export default function AdminRoadmapManager() {
                       }}
                       data-testid={`button-edit-template-${template.id}`}
                     >
-                      <Edit className="w-3 h-3 mr-1" />
+                      <Edit className="w-3 h-3" />
                       Edit
                     </Button>
                     {inactive ? (
@@ -771,7 +771,7 @@ export default function AdminRoadmapManager() {
                         disabled={updateTemplateMutation.isPending}
                         data-testid={`button-restore-template-${template.id}`}
                       >
-                        <RotateCcw className="w-3 h-3 mr-1" />
+                        <RotateCcw className="w-3 h-3" />
                         Restore
                       </Button>
                     ) : (
@@ -785,7 +785,7 @@ export default function AdminRoadmapManager() {
                           }}
                           data-testid={`button-assign-template-${template.id}`}
                         >
-                          <Send className="w-3 h-3 mr-1" />
+                          <Send className="w-3 h-3" />
                           Assign
                         </Button>
                         <Button
@@ -814,15 +814,15 @@ export default function AdminRoadmapManager() {
 
       {/* Template Items Management */}
       {selectedTemplate && (
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle>
-                  {selectedTemplateData?.name} - Items
+                  {selectedTemplateData?.name}: items
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {selectedTemplateItems.length} item{selectedTemplateItems.length !== 1 ? 's' : ''} configured
+                  <span className="font-display">{selectedTemplateItems.length}</span> item{selectedTemplateItems.length !== 1 ? 's' : ''} in this template
                 </p>
               </div>
 
@@ -836,13 +836,13 @@ export default function AdminRoadmapManager() {
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-item">
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Item
+                    Add item
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>
-                      {editingItem ? "Edit Roadmap Item" : "Create Roadmap Item"}
+                      {editingItem ? "Edit roadmap item" : "Add roadmap item"}
                     </DialogTitle>
                   </DialogHeader>
                   <Form {...itemForm}>
@@ -859,7 +859,7 @@ export default function AdminRoadmapManager() {
                             <FormControl>
                               <Input
                                 {...field}
-                                placeholder="e.g., Complete Market Research"
+                                placeholder="e.g., Complete market research"
                                 data-testid="input-item-title"
                               />
                             </FormControl>
@@ -877,7 +877,7 @@ export default function AdminRoadmapManager() {
                             <FormControl>
                               <Textarea
                                 {...field}
-                                placeholder="Detailed description of the task or milestone..."
+                                placeholder="What the founder needs to do, and what done looks like"
                                 data-testid="textarea-item-description"
                               />
                             </FormControl>
@@ -939,7 +939,7 @@ export default function AdminRoadmapManager() {
                           name="orderIndex"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Order Index</FormLabel>
+                              <FormLabel>Order</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
@@ -1081,7 +1081,7 @@ export default function AdminRoadmapManager() {
                         control={itemForm.control}
                         name="isOptional"
                         render={({ field }) => (
-                          <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                          <FormItem className="flex items-center justify-between gap-4 rounded-xl border p-4">
                             <FormLabel>Optional item</FormLabel>
                             <FormControl>
                               <Switch
@@ -1094,18 +1094,20 @@ export default function AdminRoadmapManager() {
                         )}
                       />
 
-                      <Button
-                        type="submit"
-                        className="w-full"
-                        disabled={editingItem ? updateItemMutation.isPending : createItemMutation.isPending}
-                        data-testid="button-submit-item"
-                      >
-                        {editingItem ? (
-                          updateItemMutation.isPending ? "Updating..." : "Update Item"
-                        ) : (
-                          createItemMutation.isPending ? "Creating..." : "Create Item"
-                        )}
-                      </Button>
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          type="submit"
+                          className="w-full sm:w-auto"
+                          disabled={editingItem ? updateItemMutation.isPending : createItemMutation.isPending}
+                          data-testid="button-submit-item"
+                        >
+                          {editingItem ? (
+                            updateItemMutation.isPending ? "Saving..." : "Save changes"
+                          ) : (
+                            createItemMutation.isPending ? "Adding..." : "Add item"
+                          )}
+                        </Button>
+                      </div>
                     </form>
                   </Form>
                 </DialogContent>
@@ -1120,11 +1122,11 @@ export default function AdminRoadmapManager() {
                 ))}
               </div>
             ) : selectedTemplateItems.length === 0 ? (
-              <div className="text-center py-8">
-                <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h4 className="text-lg font-semibold mb-2">No Items Yet</h4>
-                <p className="text-muted-foreground">
-                  Add tasks, milestones, and deliverables to structure your program.
+              <div className="rounded-xl border border-dashed border-steel/50 py-8 px-4 text-center">
+                <Target className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+                <h4 className="text-lg mb-1">No items yet</h4>
+                <p className="text-sm text-muted-foreground">
+                  Add tasks, milestones and deliverables to structure the program week by week.
                 </p>
               </div>
             ) : (
@@ -1133,41 +1135,38 @@ export default function AdminRoadmapManager() {
                   .sort(([a], [b]) => parseInt(a) - parseInt(b))
                   .map(([week, items]) => (
                     <div key={week} className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="outline" className="font-semibold">
-                          Week {week}
-                        </Badge>
-                        <div className="text-sm text-muted-foreground">
-                          {items.length} item{items.length !== 1 ? 's' : ''}
+                      <div className="flex items-center gap-3">
+                        <ConnectorBadge state="current">{week}</ConnectorBadge>
+                        <div>
+                          <p className="font-display font-medium">Week {week}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {items.length} item{items.length !== 1 ? 's' : ''}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="divide-y rounded-xl border">
                         {items.map((item) => {
                           const autoLabel = autoCompletionLabel(item);
                           return (
-                            <Card key={item.id} className="bg-secondary/30">
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
+                            <div key={item.id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                       {getTypeIcon(item.type)}
                                       <h5 className="font-medium" data-testid={`item-title-${item.id}`}>
                                         {item.title}
                                       </h5>
-                                      <Badge
-                                        variant={getTypeColor(item.type) as any}
-                                        className="text-xs"
-                                      >
-                                        {item.type}
+                                      <Badge variant="outline" className="border-transparent bg-secondary text-foreground">
+                                        {typeLabel(item.type)}
                                       </Badge>
                                       {item.isOptional && (
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge variant="outline" className="border-dashed border-steel/60 bg-transparent text-muted-foreground">
                                           Optional
                                         </Badge>
                                       )}
                                       {autoLabel && (
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge variant="outline" className="text-muted-foreground">
                                           {autoLabel}
                                         </Badge>
                                       )}
@@ -1177,7 +1176,7 @@ export default function AdminRoadmapManager() {
                                     </p>
                                   </div>
 
-                                  <div className="flex items-center space-x-2 ml-4">
+                                  <div className="flex shrink-0 items-center gap-1">
                                     <Button
                                       size="sm"
                                       variant="ghost"
@@ -1201,8 +1200,7 @@ export default function AdminRoadmapManager() {
                                     </Button>
                                   </div>
                                 </div>
-                              </CardContent>
-                            </Card>
+                            </div>
                           );
                         })}
                       </div>

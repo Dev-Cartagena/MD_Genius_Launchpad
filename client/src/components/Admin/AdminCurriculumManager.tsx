@@ -7,7 +7,7 @@ import { formatCohortDate } from "@/lib/dates";
 import type { Module, Lesson, Quiz, Cohort } from "@shared/schema";
 
 // UI Components
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ConnectorBadge } from "@/components/brand";
 
 // Form handling
 import { useForm, type UseFormReturn } from "react-hook-form";
@@ -114,7 +116,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Quiz Title</FormLabel>
+            <FormLabel>Quiz title</FormLabel>
             <FormControl>
               <Input
                 placeholder="e.g., Week 1 Assessment: AI Fundamentals"
@@ -132,7 +134,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
           name="passThreshold"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Pass Threshold (%)</FormLabel>
+              <FormLabel>Pass threshold (%)</FormLabel>
               <FormControl>
                 <Input type="number" min={1} max={100} {...field} data-testid={`input-${idPrefix}-threshold`} />
               </FormControl>
@@ -145,7 +147,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
           name="maxAttempts"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Max Attempts</FormLabel>
+              <FormLabel>Max attempts</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -162,7 +164,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
       </div>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium">Questions ({questions.length})</h4>
+          <h4 className="font-display text-sm font-medium">Questions ({questions.length})</h4>
           <Button
             type="button"
             size="sm"
@@ -170,7 +172,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
             data-testid={`button-${idPrefix}-add-question`}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Question
+            Add question
           </Button>
         </div>
         {typeof questionErrors?.message === "string" && (
@@ -179,7 +181,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
         {questions.map((q, qIndex) => {
           const errors = Array.isArray(questionErrors) ? questionErrors[qIndex] : undefined;
           return (
-            <div key={qIndex} className="p-4 border border-white/10 rounded-lg bg-white/5 space-y-3">
+            <div key={qIndex} className="space-y-3 rounded-lg border border-border bg-card p-4">
               <div className="flex items-start gap-2">
                 <Badge variant="outline" className="mt-2">{qIndex + 1}</Badge>
                 <div className="flex-1 space-y-1">
@@ -266,7 +268,7 @@ function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>;
                 data-testid={`button-${idPrefix}-add-option-${qIndex}`}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Option
+                Add option
               </Button>
             </div>
           );
@@ -540,11 +542,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Module created successfully" });
+      toast({ title: "Module created" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error creating module",
+        title: "Could not create module",
         description: error.message,
         variant: "destructive",
       });
@@ -570,11 +572,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Module updated successfully" });
+      toast({ title: "Module updated" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error updating module",
+        title: "Could not update module",
         description: error.message,
         variant: "destructive",
       });
@@ -599,11 +601,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Module deleted successfully" });
+      toast({ title: "Module deleted" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error deleting module",
+        title: "Could not delete module",
         description: error.message,
         variant: "destructive",
       });
@@ -630,11 +632,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Module duplicated successfully" });
+      toast({ title: "Module duplicated" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error duplicating module",
+        title: "Could not duplicate module",
         description: error.message,
         variant: "destructive",
       });
@@ -668,11 +670,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Lesson created successfully" });
+      toast({ title: "Lesson created" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error creating lesson",
+        title: "Could not create lesson",
         description: error.message,
         variant: "destructive",
       });
@@ -712,11 +714,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Lesson updated successfully" });
+      toast({ title: "Lesson updated" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error updating lesson",
+        title: "Could not update lesson",
         description: error.message,
         variant: "destructive",
       });
@@ -747,11 +749,11 @@ export default function AdminCurriculumManager({
           exact: true 
         });
       }
-      toast({ title: "Lesson deleted successfully" });
+      toast({ title: "Lesson deleted" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error deleting lesson",
+        title: "Could not delete lesson",
         description: error.message,
         variant: "destructive",
       });
@@ -767,11 +769,11 @@ export default function AdminCurriculumManager({
       setIsCreateQuizOpen(false);
       quizForm.reset();
       queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
-      toast({ title: "Quiz created successfully" });
+      toast({ title: "Quiz created" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error creating quiz",
+        title: "Could not create quiz",
         description: error.message,
         variant: "destructive",
       });
@@ -786,11 +788,11 @@ export default function AdminCurriculumManager({
     onSuccess: () => {
       setEditingQuiz(null);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
-      toast({ title: "Quiz updated successfully" });
+      toast({ title: "Quiz updated" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error updating quiz",
+        title: "Could not update quiz",
         description: error.message,
         variant: "destructive",
       });
@@ -804,11 +806,11 @@ export default function AdminCurriculumManager({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
-      toast({ title: "Quiz deleted successfully" });
+      toast({ title: "Quiz deleted" });
     },
     onError: (error: any) => {
       toast({
-        title: "Error deleting quiz",
+        title: "Could not delete quiz",
         description: error.message,
         variant: "destructive",
       });
@@ -865,7 +867,7 @@ export default function AdminCurriculumManager({
       const cohort = (cohorts as Cohort[]).find((c: Cohort) => c.id === module.cohortId);
       return {
         ...module,
-        cohortName: cohort?.name || "Unknown Cohort",
+        cohortName: cohort?.name || "Unknown cohort",
         lessons: expandedModules.has(module.id) ? (lessons as Lesson[]) : undefined,
       };
     });
@@ -883,27 +885,22 @@ export default function AdminCurriculumManager({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Curriculum Management
-          </h2>
-          <p className="text-muted-foreground">
-            Manage modules, lessons, and quizzes for your accelerator program
-          </p>
-        </div>
+      <div>
+        <h2 className="font-display text-2xl font-medium text-foreground">Curriculum</h2>
+        <p className="text-sm text-muted-foreground">
+          Manage the modules, lessons and quizzes for each cohort.
+        </p>
       </div>
 
       {/* Cohort Selection */}
-      <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Select Cohort
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select 
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex shrink-0 items-center gap-2 font-display text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            Cohort
+          </div>
+          <div className="w-full sm:max-w-md">
+          <Select
             value={selectedCohort || ""} 
             onValueChange={setSelectedCohort}
             data-testid="select-cohort"
@@ -919,6 +916,7 @@ export default function AdminCurriculumManager({
               ))}
             </SelectContent>
           </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -942,7 +940,7 @@ export default function AdminCurriculumManager({
           {/* Modules Tab */}
           <TabsContent value="modules" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Curriculum Modules</h3>
+              <h3 className="text-lg">Modules</h3>
               <Dialog
                 open={isCreateModuleOpen}
                 onOpenChange={(open) => {
@@ -962,12 +960,12 @@ export default function AdminCurriculumManager({
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-module">
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Module
+                    Create module
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Create New Module</DialogTitle>
+                    <DialogTitle>New module</DialogTitle>
                   </DialogHeader>
                   <Form {...moduleForm}>
                     <form onSubmit={moduleForm.handleSubmit(handleCreateModule)} className="space-y-4">
@@ -976,7 +974,7 @@ export default function AdminCurriculumManager({
                         name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Module Title</FormLabel>
+                            <FormLabel>Module title</FormLabel>
                             <FormControl>
                               <Input 
                                 placeholder="e.g., Introduction to AI Fundamentals" 
@@ -1011,7 +1009,7 @@ export default function AdminCurriculumManager({
                           name="week"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Week Number</FormLabel>
+                              <FormLabel>Week</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
@@ -1029,7 +1027,7 @@ export default function AdminCurriculumManager({
                           name="orderIndex"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Order Index</FormLabel>
+                              <FormLabel>Order</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
@@ -1085,7 +1083,7 @@ export default function AdminCurriculumManager({
                           disabled={createModuleMutation.isPending}
                           data-testid="button-submit-module"
                         >
-                          {createModuleMutation.isPending ? "Creating..." : "Create Module"}
+                          {createModuleMutation.isPending ? "Creating..." : "Create module"}
                         </Button>
                       </div>
                     </form>
@@ -1101,182 +1099,182 @@ export default function AdminCurriculumManager({
                 ))}
               </div>
             ) : modulesWithLessons.length === 0 ? (
-              <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No modules yet</h3>
-                  <p className="text-muted-foreground text-center">
-                    Create your first curriculum module to get started.
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="dashed-zone flex flex-col items-center justify-center bg-card px-6 py-12 text-center">
+                <BookOpen className="mb-3 h-8 w-8 text-muted-foreground" />
+                <h3 className="mb-1 text-base">No modules yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create the first module for this cohort to get started.
+                </p>
+              </div>
             ) : (
-              <div className="space-y-4">
+              <Card className="divide-y divide-border">
                 {modulesWithLessons.map((module) => (
-                  <Card key={module.id} className="border-white/10 bg-white/5 backdrop-blur-sm">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <Collapsible>
-                          <CollapsibleTrigger 
-                            onClick={() => toggleModuleExpansion(module.id)}
-                            className="flex items-center gap-2 text-left"
-                            data-testid={`button-expand-module-${module.id}`}
-                          >
-                            {expandedModules.has(module.id) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <div>
-                              <CardTitle className="text-lg">{module.title}</CardTitle>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Badge variant="outline">Week {module.week}</Badge>
-                                <Badge variant="secondary">{module.cohortName}</Badge>
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  Order: {module.orderIndex}
-                                </span>
-                              </div>
-                            </div>
-                          </CollapsibleTrigger>
-                        </Collapsible>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setDuplicateTargetCohort("");
-                              setDuplicatingModule(module);
-                            }}
-                            aria-label={`Duplicate module ${module.title} to another cohort`}
-                            title="Duplicate to another cohort"
-                            data-testid={`button-duplicate-module-${module.id}`}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingModule(module)}
-                            aria-label={`Edit module ${module.title}`}
-                            title="Edit module"
-                            data-testid={`button-edit-module-${module.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setConfirmRequest({
-                              title: `Delete module "${module.title}"?`,
-                              description: "This deletes the module and its lessons. This cannot be undone.",
-                              onConfirm: () => deleteModuleMutation.mutate(module.id),
-                            })}
-                            aria-label={`Delete module ${module.title}`}
-                            title="Delete module"
-                            data-testid={`button-delete-module-${module.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                  <div key={module.id}>
+                    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <ConnectorBadge state="upcoming" className="mt-0.5">{module.week}</ConnectorBadge>
+                        <div className="min-w-0 space-y-1">
+                          <Collapsible>
+                            <CollapsibleTrigger
+                              onClick={() => toggleModuleExpansion(module.id)}
+                              className="flex items-center gap-1.5 text-left"
+                              data-testid={`button-expand-module-${module.id}`}
+                            >
+                              {expandedModules.has(module.id) ? (
+                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="font-display text-base font-medium text-foreground">{module.title}</span>
+                            </CollapsibleTrigger>
+                          </Collapsible>
+                          <div className="flex flex-wrap items-center gap-2 font-display text-xs text-muted-foreground">
+                            <span>Week {module.week}</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Order {module.orderIndex}
+                            </span>
+                            <Badge variant="secondary">{module.cohortName}</Badge>
+                          </div>
+                          {module.description && (
+                            <p className="text-sm text-muted-foreground">{module.description}</p>
+                          )}
                         </div>
                       </div>
-                      <p className="text-muted-foreground">{module.description}</p>
-                    </CardHeader>
+                      <div className="flex shrink-0 items-center gap-2 sm:pl-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDuplicateTargetCohort("");
+                            setDuplicatingModule(module);
+                          }}
+                          aria-label={`Duplicate module ${module.title} to another cohort`}
+                          title="Duplicate to another cohort"
+                          data-testid={`button-duplicate-module-${module.id}`}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingModule(module)}
+                          aria-label={`Edit module ${module.title}`}
+                          title="Edit module"
+                          data-testid={`button-edit-module-${module.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setConfirmRequest({
+                            title: `Delete module "${module.title}"?`,
+                            description: "This deletes the module and its lessons. This cannot be undone.",
+                            onConfirm: () => deleteModuleMutation.mutate(module.id),
+                          })}
+                          aria-label={`Delete module ${module.title}`}
+                          title="Delete module"
+                          data-testid={`button-delete-module-${module.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                     <Collapsible open={expandedModules.has(module.id)}>
                       <CollapsibleContent>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-medium">Lessons</h4>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  lessonForm.setValue("moduleId", module.id);
-                                  setIsCreateLessonOpen(true);
-                                }}
-                                data-testid={`button-add-lesson-${module.id}`}
-                              >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Add Lesson
-                              </Button>
-                            </div>
-                            {module.lessons && module.lessons.length > 0 ? (
-                              <div className="space-y-2">
-                                {module.lessons.map((lesson: Lesson, index: number) => (
-                                  <div
-                                    key={lesson.id}
-                                    className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <Badge variant="outline">{index + 1}</Badge>
-                                      <div>
-                                        <div className="font-medium">{lesson.title}</div>
-                                        <div className="text-sm text-muted-foreground">
-                                          <span className="flex items-center gap-1">
-                                            <Clock className="h-3 w-3" />
-                                            Lesson {index + 1}
-                                          </span>
-                                        </div>
+                        <div className="space-y-3 border-t border-border bg-secondary/40 px-4 py-4 sm:pl-16">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-display text-sm text-muted-foreground">Lessons</h4>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                lessonForm.setValue("moduleId", module.id);
+                                setIsCreateLessonOpen(true);
+                              }}
+                              data-testid={`button-add-lesson-${module.id}`}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add lesson
+                            </Button>
+                          </div>
+                          {module.lessons && module.lessons.length > 0 ? (
+                            <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                              {module.lessons.map((lesson: Lesson, index: number) => (
+                                <div
+                                  key={lesson.id}
+                                  className="flex items-center justify-between gap-3 px-3 py-2.5"
+                                >
+                                  <div className="flex min-w-0 items-center gap-3">
+                                    <span className="w-5 shrink-0 text-right font-display text-sm text-muted-foreground">{index + 1}</span>
+                                    <div className="min-w-0">
+                                      <div className="truncate font-medium">{lesson.title}</div>
+                                      <div className="flex items-center gap-1 font-display text-xs text-muted-foreground">
+                                        <Clock className="h-3 w-3" />
+                                        Lesson {index + 1}
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setEditingLesson(lesson)}
-                                        aria-label={`Edit lesson ${lesson.title}`}
-                                        title="Edit lesson"
-                                        data-testid={`button-edit-lesson-${lesson.id}`}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setConfirmRequest({
-                                          title: `Delete lesson "${lesson.title}"?`,
-                                          description: "This cannot be undone.",
-                                          onConfirm: () => deleteLessonMutation.mutate(lesson.id),
-                                        })}
-                                        aria-label={`Delete lesson ${lesson.title}`}
-                                        title="Delete lesson"
-                                        data-testid={`button-delete-lesson-${lesson.id}`}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
                                   </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-muted-foreground text-center py-4">
-                                No lessons yet. Click "Add Lesson" to create the first one.
-                              </p>
-                            )}
-                          </div>
-                        </CardContent>
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditingLesson(lesson)}
+                                      aria-label={`Edit lesson ${lesson.title}`}
+                                      title="Edit lesson"
+                                      data-testid={`button-edit-lesson-${lesson.id}`}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setConfirmRequest({
+                                        title: `Delete lesson "${lesson.title}"?`,
+                                        description: "This cannot be undone.",
+                                        onConfirm: () => deleteLessonMutation.mutate(lesson.id),
+                                      })}
+                                      aria-label={`Delete lesson ${lesson.title}`}
+                                      title="Delete lesson"
+                                      data-testid={`button-delete-lesson-${lesson.id}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="rounded-lg border border-dashed border-steel/50 py-4 text-center text-sm text-muted-foreground">
+                              No lessons yet. Use "Add lesson" to create the first one.
+                            </p>
+                          )}
+                        </div>
                       </CollapsibleContent>
                     </Collapsible>
-                  </Card>
+                  </div>
                 ))}
-              </div>
+              </Card>
             )}
           </TabsContent>
 
           {/* Lessons Tab */}
           <TabsContent value="lessons" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">All Lessons</h3>
+              <h3 className="text-lg">Lessons by module</h3>
               <Dialog open={isCreateLessonOpen} onOpenChange={setIsCreateLessonOpen}>
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-lesson">
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Lesson
+                    Create lesson
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Create New Lesson</DialogTitle>
+                    <DialogTitle>New lesson</DialogTitle>
                   </DialogHeader>
                   <Form {...lessonForm}>
                     <form onSubmit={lessonForm.handleSubmit(handleCreateLesson)} className="space-y-4">
@@ -1285,7 +1283,7 @@ export default function AdminCurriculumManager({
                         name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Lesson Title</FormLabel>
+                            <FormLabel>Lesson title</FormLabel>
                             <FormControl>
                               <Input 
                                 placeholder="e.g., Introduction to Machine Learning" 
@@ -1346,11 +1344,11 @@ export default function AdminCurriculumManager({
                         name="media"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Media Resources</FormLabel>
+                            <FormLabel>Media resources</FormLabel>
                             <FormControl>
                               <div className="space-y-3">
                                 {field.value.map((resource: string, index: number) => (
-                                  <div key={index} className="flex items-center gap-2 p-3 border border-white/10 rounded-lg bg-white/5">
+                                  <div key={index} className="flex items-center gap-2 rounded-md border border-border bg-card p-3">
                                     <div className="flex-1">
                                       <Input
                                         placeholder="Enter URL or file reference (e.g., https://youtube.com/watch?v=..., file.pdf, https://docs.google.com/...)"
@@ -1414,15 +1412,15 @@ export default function AdminCurriculumManager({
                                   data-testid="button-add-resource"
                                 >
                                   <Plus className="h-4 w-4 mr-2" />
-                                  Add Media Resource
+                                  Add media resource
                                 </Button>
                                 <div className="text-sm text-muted-foreground">
-                                  <p>Supported resources:</p>
+                                  <p className="font-display">Supported resources</p>
                                   <ul className="list-disc list-inside space-y-1 mt-1">
-                                    <li><strong>Video URLs:</strong> YouTube, Vimeo, or direct video links</li>
-                                    <li><strong>PDF Files:</strong> Document links or uploaded files</li>
-                                    <li><strong>External Links:</strong> Websites, articles, or other resources</li>
-                                    <li><strong>File References:</strong> Any uploaded files or assets</li>
+                                    <li><span className="font-medium text-foreground">Video:</span> YouTube, Vimeo or direct video links</li>
+                                    <li><span className="font-medium text-foreground">PDF:</span> document links or uploaded files</li>
+                                    <li><span className="font-medium text-foreground">Links:</span> websites, articles or other resources</li>
+                                    <li><span className="font-medium text-foreground">Files:</span> any uploaded files or assets</li>
                                   </ul>
                                 </div>
                               </div>
@@ -1439,7 +1437,7 @@ export default function AdminCurriculumManager({
                           name="orderIndex"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Order Index</FormLabel>
+                              <FormLabel>Order</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
@@ -1467,7 +1465,7 @@ export default function AdminCurriculumManager({
                           disabled={createLessonMutation.isPending}
                           data-testid="button-submit-lesson"
                         >
-                          {createLessonMutation.isPending ? "Creating..." : "Create Lesson"}
+                          {createLessonMutation.isPending ? "Creating..." : "Create lesson"}
                         </Button>
                       </div>
                     </form>
@@ -1476,134 +1474,132 @@ export default function AdminCurriculumManager({
               </Dialog>
             </div>
             
-{/* Lesson Overview - All lessons grouped by module */}
+            {/* Lesson Overview - All lessons grouped by module */}
             {isLoadingAllLessons ? (
               <div className="space-y-4">
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-32 w-full" />
               </div>
             ) : allCohortLessons.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Group lessons by module */}
                 {modulesWithLessons.map((module) => {
                   const moduleLessons = allCohortLessons.filter((lesson: any) => lesson.moduleId === module.id);
                   
                   return (
-                    <Card key={module.id} className="border-white/10 bg-white/5 backdrop-blur-sm">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="flex items-center gap-2">
-                              <BookOpen className="h-5 w-5" />
-                              {module.title}
-                              <Badge variant="secondary" className="ml-2">
+                    <Card key={module.id}>
+                      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ConnectorBadge state="upcoming">{module.week}</ConnectorBadge>
+                          <div className="min-w-0">
+                            <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                              <span className="truncate">{module.title}</span>
+                              <Badge variant="secondary">
                                 {moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}
                               </Badge>
                             </CardTitle>
-                            <p className="text-sm text-muted-foreground">
-                              {module.cohortName} • Week {module.week}
+                            <p className="font-display text-xs text-muted-foreground">
+                              {module.cohortName} · Week {module.week}
                             </p>
                           </div>
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              lessonForm.reset({
-                                title: "",
-                                content: "",
-                                moduleId: module.id,
-                                orderIndex: moduleLessons.length,
-                                media: [],
-                                quizId: null,
-                              });
-                              setIsCreateLessonOpen(true);
-                            }}
-                            data-testid={`button-add-lesson-overview-${module.id}`}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Lesson
-                          </Button>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        {moduleLessons.length > 0 ? (
-                          <div className="space-y-2">
-                            {moduleLessons.map((lesson: any, index: number) => (
-                              <div
-                                key={lesson.id}
-                                className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Badge variant="outline">{index + 1}</Badge>
-                                  <div>
-                                    <div className="font-medium">{lesson.title}</div>
-                                    <div className="text-sm text-muted-foreground">
-                                      <span className="flex items-center gap-2">
-                                        <Clock className="h-3 w-3" />
-                                        Lesson {index + 1}
-                                        {lesson.media && lesson.media.length > 0 && (
-                                          <>
-                                            • <FileText className="h-3 w-3" />
-                                            {lesson.media.length} resource{lesson.media.length !== 1 ? 's' : ''}
-                                          </>
-                                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="self-start sm:self-auto"
+                          onClick={() => {
+                            lessonForm.reset({
+                              title: "",
+                              content: "",
+                              moduleId: module.id,
+                              orderIndex: moduleLessons.length,
+                              media: [],
+                              quizId: null,
+                            });
+                            setIsCreateLessonOpen(true);
+                          }}
+                          data-testid={`button-add-lesson-overview-${module.id}`}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add lesson
+                        </Button>
+                      </div>
+                      {moduleLessons.length > 0 ? (
+                        <div className="divide-y divide-border">
+                          {moduleLessons.map((lesson: any, index: number) => (
+                            <div
+                              key={lesson.id}
+                              className="flex items-center justify-between gap-3 px-4 py-3"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <span className="w-5 shrink-0 text-right font-display text-sm text-muted-foreground">{index + 1}</span>
+                                <div className="min-w-0">
+                                  <div className="truncate font-medium">{lesson.title}</div>
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-display text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      Lesson {index + 1}
+                                    </span>
+                                    {lesson.media && lesson.media.length > 0 && (
+                                      <span className="flex items-center gap-1">
+                                        <FileText className="h-3 w-3" />
+                                        {lesson.media.length} resource{lesson.media.length !== 1 ? 's' : ''}
                                       </span>
-                                    </div>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setEditingLesson(lesson)}
-                                    aria-label={`Edit lesson ${lesson.title}`}
-                                    title="Edit lesson"
-                                    data-testid={`button-edit-lesson-overview-${lesson.id}`}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setConfirmRequest({
-                                      title: `Delete lesson "${lesson.title}"?`,
-                                      description: "This cannot be undone.",
-                                      onConfirm: () => deleteLessonMutation.mutate(lesson.id),
-                                    })}
-                                    aria-label={`Delete lesson ${lesson.title}`}
-                                    title="Delete lesson"
-                                    data-testid={`button-delete-lesson-overview-${lesson.id}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-4 text-muted-foreground">
-                            No lessons in this module yet. Click "Add Lesson" to create the first one.
-                          </div>
-                        )}
-                      </CardContent>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditingLesson(lesson)}
+                                  aria-label={`Edit lesson ${lesson.title}`}
+                                  title="Edit lesson"
+                                  data-testid={`button-edit-lesson-overview-${lesson.id}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setConfirmRequest({
+                                    title: `Delete lesson "${lesson.title}"?`,
+                                    description: "This cannot be undone.",
+                                    onConfirm: () => deleteLessonMutation.mutate(lesson.id),
+                                  })}
+                                  aria-label={`Delete lesson ${lesson.title}`}
+                                  title="Delete lesson"
+                                  data-testid={`button-delete-lesson-overview-${lesson.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="m-4 rounded-lg border border-dashed border-steel/50 py-4 text-center text-sm text-muted-foreground">
+                          No lessons in this module yet. Use "Add lesson" to create the first one.
+                        </div>
+                      )}
                     </Card>
                   );
                 })}
               </div>
             ) : (
-              <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <p className="text-muted-foreground text-center">
-                    No lessons found for this cohort. Create modules and lessons to get started.
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="dashed-zone bg-card p-6">
+                <p className="text-center text-sm text-muted-foreground">
+                  No lessons found for this cohort. Create modules and lessons to get started.
+                </p>
+              </div>
             )}
           </TabsContent>
 
           {/* Quizzes Tab */}
           <TabsContent value="quizzes" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Assessment Quizzes</h3>
+              <h3 className="text-lg">Quizzes</h3>
               <Dialog
                 open={isCreateQuizOpen}
                 onOpenChange={(open) => {
@@ -1617,12 +1613,12 @@ export default function AdminCurriculumManager({
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-quiz">
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Quiz
+                    Create quiz
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Create New Quiz</DialogTitle>
+                    <DialogTitle>New quiz</DialogTitle>
                   </DialogHeader>
                   <Form {...quizForm}>
                     <form onSubmit={quizForm.handleSubmit(handleCreateQuiz)} className="space-y-4">
@@ -1641,7 +1637,7 @@ export default function AdminCurriculumManager({
                           disabled={createQuizMutation.isPending}
                           data-testid="button-submit-quiz"
                         >
-                          {createQuizMutation.isPending ? "Creating..." : "Create Quiz"}
+                          {createQuizMutation.isPending ? "Creating..." : "Create quiz"}
                         </Button>
                       </div>
                     </form>
@@ -1657,65 +1653,73 @@ export default function AdminCurriculumManager({
                 ))}
               </div>
             ) : !allQuizzes || !Array.isArray(allQuizzes) || allQuizzes.length === 0 ? (
-              <Card className="border-white/10 bg-white/5 backdrop-blur-sm">
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <HelpCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No quizzes yet</h3>
-                  <p className="text-muted-foreground text-center">
-                    Create your first assessment quiz to test participant knowledge.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {(allQuizzes as Quiz[]).map((quiz: Quiz) => (
-                  <Card key={quiz.id} className="border-white/10 bg-white/5 backdrop-blur-sm">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Badge variant="outline">{Array.isArray(quiz.questions) ? quiz.questions.length : 0} questions</Badge>
-                            <Badge variant="secondary">Pass: {quiz.passThreshold}%</Badge>
-                            {quiz.maxAttempts && (
-                              <span className="flex items-center gap-1">
-                                <Target className="h-3 w-3" />
-                                Max attempts: {quiz.maxAttempts}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingQuiz(quiz)}
-                            aria-label={`Edit quiz ${quiz.title}`}
-                            title="Edit quiz"
-                            data-testid={`button-edit-quiz-${quiz.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => setConfirmRequest({
-                              title: `Delete quiz "${quiz.title}"?`,
-                              description: "Lessons using this quiz will no longer have a quiz. This cannot be undone.",
-                              onConfirm: () => deleteQuizMutation.mutate(quiz.id),
-                            })}
-                            aria-label={`Delete quiz ${quiz.title}`}
-                            title="Delete quiz"
-                            data-testid={`button-delete-quiz-${quiz.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
+              <div className="dashed-zone flex flex-col items-center justify-center bg-card px-6 py-12 text-center">
+                <HelpCircle className="mb-3 h-8 w-8 text-muted-foreground" />
+                <h3 className="mb-1 text-base">No quizzes yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create a quiz to check what participants have learned.
+                </p>
               </div>
+            ) : (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Quiz</TableHead>
+                      <TableHead>Questions</TableHead>
+                      <TableHead>Pass mark</TableHead>
+                      <TableHead>Max attempts</TableHead>
+                      <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(allQuizzes as Quiz[]).map((quiz: Quiz) => (
+                      <TableRow key={quiz.id}>
+                        <TableCell className="min-w-[12rem] font-medium">{quiz.title}</TableCell>
+                        <TableCell className="font-display">{Array.isArray(quiz.questions) ? quiz.questions.length : 0}</TableCell>
+                        <TableCell className="font-display">{quiz.passThreshold}%</TableCell>
+                        <TableCell className="font-display text-muted-foreground">
+                          {quiz.maxAttempts && (
+                            <span className="flex items-center gap-1">
+                              <Target className="h-3 w-3" />
+                              {quiz.maxAttempts}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingQuiz(quiz)}
+                              aria-label={`Edit quiz ${quiz.title}`}
+                              title="Edit quiz"
+                              data-testid={`button-edit-quiz-${quiz.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => setConfirmRequest({
+                                title: `Delete quiz "${quiz.title}"?`,
+                                description: "Lessons using this quiz will no longer have a quiz. This cannot be undone.",
+                                onConfirm: () => deleteQuizMutation.mutate(quiz.id),
+                              })}
+                              aria-label={`Delete quiz ${quiz.title}`}
+                              title="Delete quiz"
+                              data-testid={`button-delete-quiz-${quiz.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
             )}
           </TabsContent>
         </Tabs>
@@ -1733,7 +1737,7 @@ export default function AdminCurriculumManager({
       >
         <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
-            <DialogTitle>Duplicate Module</DialogTitle>
+            <DialogTitle>Duplicate module</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -1793,7 +1797,7 @@ export default function AdminCurriculumManager({
         <Dialog open={!!editingModule} onOpenChange={() => setEditingModule(null)}>
           <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Module</DialogTitle>
+              <DialogTitle>Edit module</DialogTitle>
             </DialogHeader>
             <Form {...moduleForm}>
               <form onSubmit={moduleForm.handleSubmit(handleUpdateModule)} className="space-y-4">
@@ -1802,7 +1806,7 @@ export default function AdminCurriculumManager({
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Module Title</FormLabel>
+                      <FormLabel>Module title</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., Introduction to AI Fundamentals" 
@@ -1837,7 +1841,7 @@ export default function AdminCurriculumManager({
                     name="week"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Week Number</FormLabel>
+                        <FormLabel>Week</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -1855,7 +1859,7 @@ export default function AdminCurriculumManager({
                     name="orderIndex"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Order Index</FormLabel>
+                        <FormLabel>Order</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -1911,7 +1915,7 @@ export default function AdminCurriculumManager({
                     disabled={updateModuleMutation.isPending}
                     data-testid="button-save-module"
                   >
-                    {updateModuleMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateModuleMutation.isPending ? "Saving..." : "Save changes"}
                   </Button>
                 </div>
               </form>
@@ -1925,7 +1929,7 @@ export default function AdminCurriculumManager({
         <Dialog open={!!editingLesson} onOpenChange={() => setEditingLesson(null)}>
           <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Lesson</DialogTitle>
+              <DialogTitle>Edit lesson</DialogTitle>
             </DialogHeader>
             <Form {...lessonForm}>
               <form onSubmit={lessonForm.handleSubmit(handleUpdateLesson)} className="space-y-4">
@@ -1934,7 +1938,7 @@ export default function AdminCurriculumManager({
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Lesson Title</FormLabel>
+                      <FormLabel>Lesson title</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="e.g., Introduction to Machine Learning" 
@@ -1995,11 +1999,11 @@ export default function AdminCurriculumManager({
                   name="media"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Media Resources</FormLabel>
+                      <FormLabel>Media resources</FormLabel>
                       <FormControl>
                         <div className="space-y-3">
                           {field.value.map((resource: string, index: number) => (
-                            <div key={index} className="flex items-center gap-2 p-3 border border-white/10 rounded-lg bg-white/5">
+                            <div key={index} className="flex items-center gap-2 rounded-md border border-border bg-card p-3">
                               <div className="flex-1">
                                 <Input
                                   placeholder="Enter URL or file reference (e.g., https://youtube.com/watch?v=..., file.pdf, https://docs.google.com/...)"
@@ -2063,15 +2067,15 @@ export default function AdminCurriculumManager({
                             data-testid="button-add-edit-resource"
                           >
                             <Plus className="h-4 w-4 mr-2" />
-                            Add Media Resource
+                            Add media resource
                           </Button>
                           <div className="text-sm text-muted-foreground">
-                            <p>Supported resources:</p>
+                            <p className="font-display">Supported resources</p>
                             <ul className="list-disc list-inside space-y-1 mt-1">
-                              <li><strong>Video URLs:</strong> YouTube, Vimeo, or direct video links</li>
-                              <li><strong>PDF Files:</strong> Document links or uploaded files</li>
-                              <li><strong>External Links:</strong> Websites, articles, or other resources</li>
-                              <li><strong>File References:</strong> Any uploaded files or assets</li>
+                              <li><span className="font-medium text-foreground">Video:</span> YouTube, Vimeo or direct video links</li>
+                              <li><span className="font-medium text-foreground">PDF:</span> document links or uploaded files</li>
+                              <li><span className="font-medium text-foreground">Links:</span> websites, articles or other resources</li>
+                              <li><span className="font-medium text-foreground">Files:</span> any uploaded files or assets</li>
                             </ul>
                           </div>
                         </div>
@@ -2088,7 +2092,7 @@ export default function AdminCurriculumManager({
                     name="orderIndex"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Order Index</FormLabel>
+                        <FormLabel>Order</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -2116,7 +2120,7 @@ export default function AdminCurriculumManager({
                     disabled={updateLessonMutation.isPending}
                     data-testid="button-save-lesson"
                   >
-                    {updateLessonMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateLessonMutation.isPending ? "Saving..." : "Save changes"}
                   </Button>
                 </div>
               </form>
@@ -2130,7 +2134,7 @@ export default function AdminCurriculumManager({
         <Dialog open={!!editingQuiz} onOpenChange={() => setEditingQuiz(null)}>
           <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Quiz</DialogTitle>
+              <DialogTitle>Edit quiz</DialogTitle>
             </DialogHeader>
             <Form {...quizForm}>
               <form onSubmit={quizForm.handleSubmit(handleUpdateQuiz)} className="space-y-4">
@@ -2149,7 +2153,7 @@ export default function AdminCurriculumManager({
                     disabled={updateQuizMutation.isPending}
                     data-testid="button-save-quiz"
                   >
-                    {updateQuizMutation.isPending ? "Saving..." : "Save Changes"}
+                    {updateQuizMutation.isPending ? "Saving..." : "Save changes"}
                   </Button>
                 </div>
               </form>

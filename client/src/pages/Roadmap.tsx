@@ -17,18 +17,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  assignmentStatusClass,
-  assignmentStatusLabel,
   countAssignmentStatuses,
   isAssignmentDone,
 } from "@/lib/roadmapStatus";
+import { ConnectorBadge, MistPanel, ProgressRing, StatusChip } from "@/components/brand";
+import { cn } from "@/lib/utils";
 import {
   MoreVertical,
   Ban,
   SkipForward,
   RotateCcw,
   CheckCircle2,
-  Clock,
   Play,
   BookOpen,
   Target,
@@ -116,14 +115,14 @@ export default function Roadmap() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'roadmap'] });
       toast({
-        title: "Status Updated",
-        description: "Roadmap item status has been updated successfully.",
+        title: "Status updated",
+        description: "The roadmap item has been updated.",
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update roadmap item status.",
+        title: "Could not update status",
+        description: "The roadmap item was not updated. Please try again.",
         variant: "destructive",
       });
     }
@@ -132,23 +131,6 @@ export default function Roadmap() {
   const handleStatusUpdate = (assignmentId: string, status: string) => {
     updateStatusMutation.mutate({ assignmentId, status });
   };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
-      case 'in_progress':
-        return <Play className="w-4 h-4 text-blue-600" />;
-      case 'blocked':
-        return <Ban className="w-4 h-4 text-red-600" />;
-      case 'waived':
-        return <SkipForward className="w-4 h-4 text-purple-600" />;
-      default:
-        return <Clock className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  const getStatusColor = assignmentStatusClass;
 
   const getItemTypeIcon = (itemType: string) => {
     switch (itemType) {
@@ -189,7 +171,7 @@ export default function Roadmap() {
     if (item.progressData.type === 'lesson') {
       return (
         <div className="text-xs text-muted-foreground">
-          {item.progressData.isCompleted ? '✓ Completed' : 'Not started'}
+          {item.progressData.isCompleted ? 'Completed' : 'Not started'}
           {item.progressData.score && ` • Score: ${item.progressData.score}%`}
         </div>
       );
@@ -210,7 +192,7 @@ export default function Roadmap() {
         <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">Roadmap access is only available for participants.</p>
+              <p className="text-muted-foreground">The roadmap is available to program participants.</p>
             </CardContent>
           </Card>
         </div>
@@ -220,7 +202,7 @@ export default function Roadmap() {
 
   if (projectsLoading) {
     return (
-      <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
+      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
         <div className="md:p-6 space-y-6">
           <Card>
             <CardHeader>
@@ -239,11 +221,11 @@ export default function Roadmap() {
 
   if (!projectId) {
     return (
-      <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
+      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
         <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">You don't have a project yet. Create a project to access your roadmap.</p>
+              <p className="text-muted-foreground">You don't have a project yet. Create your project to see your roadmap.</p>
             </CardContent>
           </Card>
         </div>
@@ -253,7 +235,7 @@ export default function Roadmap() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
+      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
         <div className="md:p-6 space-y-6">
           <Card>
             <CardHeader>
@@ -283,14 +265,14 @@ export default function Roadmap() {
 
   if (!roadmap || !roadmap.items.length) {
     return (
-      <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
+      <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
         <div className="md:p-6">
           <Card>
             <CardContent className="p-8 text-center">
-              <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Roadmap Assigned</h3>
+              <Target className="w-10 h-10 mx-auto text-primary mb-4" />
+              <h3 className="text-lg mb-2">No roadmap assigned yet</h3>
               <p className="text-muted-foreground">
-                Your program roadmap hasn't been assigned yet. Check back later or contact your program coordinator.
+                Your program roadmap has not been assigned yet. Check back later or contact your program coordinator.
               </p>
             </CardContent>
           </Card>
@@ -315,49 +297,64 @@ export default function Roadmap() {
 
   const weeks = Object.keys(itemsByWeek).map(Number).sort((a, b) => a - b);
 
+  // Timeline states: a week is done when all its items are done;
+  // the first week that is not done is the current one.
+  const isWeekDone = (week: number) =>
+    (itemsByWeek[week] || []).every(item => isAssignmentDone(item.assignment?.status));
+  const currentTimelineWeek = weeks.find(week => !isWeekDone(week));
+  const weekState = (week: number): "done" | "current" | "upcoming" => {
+    if (isWeekDone(week)) return "done";
+    if (week === currentTimelineWeek) return "current";
+    return "upcoming";
+  };
+
+  const statTiles = [
+    { label: "Completed", value: counts.completed },
+    { label: "Waived", value: counts.waived },
+    { label: "In progress", value: counts.inProgress },
+    { label: "Blocked", value: counts.blocked },
+    { label: "Pending", value: counts.pending },
+  ];
+
   return (
-    <AppLayout title="Program Roadmap" subtitle="Track your startup journey">
+    <AppLayout title="Program roadmap" subtitle="Your week-by-week plan through the program">
       <div className="md:p-6 space-y-6">
         {/* Progress Overview */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
               {roadmap.template.name}
             </CardTitle>
-            <p className="text-muted-foreground">{roadmap.template.description}</p>
+            {roadmap.template.description && (
+              <p className="text-muted-foreground">{roadmap.template.description}</p>
+            )}
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Overall Progress</span>
-                  <span>{doneItems}/{totalItems} done</span>
-                </div>
-                <Progress value={progressPercentage} className="h-2" />
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{counts.completed}</div>
-                  <div className="text-sm text-green-600">Completed</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">{counts.waived}</div>
-                  <div className="text-sm text-purple-600">Waived</div>
-                </div>
-                <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{counts.inProgress}</div>
-                  <div className="text-sm text-blue-600">In progress</div>
-                </div>
-                <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">{counts.blocked}</div>
-                  <div className="text-sm text-red-600">Blocked</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 dark:bg-gray-950/20 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-600">{counts.pending}</div>
-                  <div className="text-sm text-gray-600">Pending</div>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+              <ProgressRing
+                value={progressPercentage}
+                size={112}
+                caption={`${doneItems} of ${totalItems} done`}
+                className="self-center sm:self-auto"
+              />
+              <div className="grid flex-1 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px overflow-hidden rounded-xl border border-border bg-border">
+                {statTiles.map((tile, i) => (
+                  <div
+                    key={tile.label}
+                    className={cn("bg-card p-3", i === statTiles.length - 1 && "col-span-2 lg:col-span-1")}
+                  >
+                    <div
+                      className={cn(
+                        "font-display text-3xl font-medium",
+                        tile.label === "Blocked" && tile.value > 0 ? "text-destructive" : "text-foreground",
+                      )}
+                    >
+                      {tile.value}
+                    </div>
+                    <div className="font-display text-sm text-muted-foreground">{tile.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -371,7 +368,7 @@ export default function Roadmap() {
             className="whitespace-nowrap"
             data-testid="button-all-weeks"
           >
-            All Weeks
+            All weeks
           </Button>
           {weeks.map((week) => (
             <Button
@@ -386,80 +383,91 @@ export default function Roadmap() {
           ))}
         </div>
 
-        {/* Roadmap Items */}
-        <div className="space-y-4">
+        {/* Roadmap Items: week timeline on a hairline */}
+        <ol className="relative space-y-6 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-px before:bg-primary/20 before:content-['']">
           {weeks
             .filter(week => selectedWeek === null || week === selectedWeek)
-            .map((week) => (
-            <Card key={week} className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Week {week}
-                  <Badge variant="outline" className="ml-auto">
-                    {(itemsByWeek[week] || []).filter(item => isAssignmentDone(item.assignment?.status)).length}/
-                    {(itemsByWeek[week] || []).length} done
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {(itemsByWeek[week] || [])
+            .map((week) => {
+            const state = weekState(week);
+            const weekItems = itemsByWeek[week] || [];
+            const doneCount = weekItems.filter(item => isAssignmentDone(item.assignment?.status)).length;
+            const WeekPanel = state === "current" ? MistPanel : "div";
+            return (
+            <li key={week} className="relative flex gap-3 sm:gap-4">
+              <ConnectorBadge state={state} className="mt-4">{week}</ConnectorBadge>
+              <WeekPanel
+                className={cn(
+                  "min-w-0 flex-1 p-0",
+                  state !== "current" && "panel",
+                )}
+              >
+                <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-6">
+                  <h3 className="font-display text-lg font-medium">Week {week}</h3>
+                  {state === "current" && (
+                    <span className="font-display text-xs text-accent">Current week</span>
+                  )}
+                  <span className={cn("ml-auto font-display text-sm", state === "current" ? "text-foreground/80" : "text-muted-foreground")}>
+                    {doneCount}/{weekItems.length} done
+                  </span>
+                </div>
+                <div className={cn("divide-y divide-border", state === "current" && "rounded-b-xl bg-card")}>
+                  {weekItems
                     .sort((a, b) => a.orderIndex - b.orderIndex)
                     .map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 py-4 sm:px-6"
                     >
-                      <div className="flex items-center gap-2">
-                        {getItemTypeIcon(item.type)}
-                        {getStatusIcon(item.assignment?.status || 'not_started')}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium">{item.title}</h4>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                        
-                        {/* Learning item specific info */}
-                        {isLearningItem(item) && (
-                          <div className="mt-1">
-                            {item.lesson && (
-                              <p className="text-xs text-blue-600">📚 Lesson: {item.lesson.title}</p>
-                            )}
-                            {item.module && (
-                              <p className="text-xs text-blue-600">📖 Module: {item.module.title}</p>
-                            )}
-                            {getProgressDisplay(item)}
-                          </div>
-                        )}
-                        
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {item.type.replace(/_/g, ' ')}
-                          </Badge>
-                          {item.assignment?.autoCompleted && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-600 border-green-200">
-                              Auto-completed
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 shrink-0 rounded-lg bg-secondary text-primary flex items-center justify-center">
+                          {getItemTypeIcon(item.type)}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium">{item.title}</h4>
+                          {item.description && (
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                          )}
+
+                          {/* Learning item specific info */}
+                          {isLearningItem(item) && (
+                            <div className="mt-1 space-y-0.5">
+                              {item.lesson && (
+                                <p className="text-xs text-accent">Lesson: {item.lesson.title}</p>
+                              )}
+                              {item.module && (
+                                <p className="text-xs text-accent">Module: {item.module.title}</p>
+                              )}
+                              {getProgressDisplay(item)}
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {item.type.replace(/_/g, ' ')}
                             </Badge>
-                          )}
-                          {item.estimatedHours > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              ~{item.estimatedHours}h
-                            </span>
-                          )}
-                          {item.assignment?.dueDate && (
-                            <span className="text-xs text-muted-foreground">
-                              Due: {new Date(item.assignment.dueDate).toLocaleDateString()}
-                            </span>
-                          )}
+                            {item.assignment?.autoCompleted && (
+                              <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20">
+                                Auto-completed
+                              </Badge>
+                            )}
+                            {item.estimatedHours > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                ~{item.estimatedHours}h
+                              </span>
+                            )}
+                            {item.assignment?.dueDate && (
+                              <span className="text-xs text-muted-foreground">
+                                Due {new Date(item.assignment.dueDate).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={getStatusColor(item.assignment?.status || 'not_started')}>
-                          {assignmentStatusLabel(item.assignment?.status)}
-                        </Badge>
-                        
+
+                      <div className="flex flex-wrap items-center gap-2 pl-11 sm:pl-0">
+                        <StatusChip status={item.assignment?.status || 'not_started'} />
+
                         {/* Learning items: Show curriculum navigation */}
                         {isLearningItem(item) ? (
                           <div className="flex gap-1">
@@ -470,7 +478,7 @@ export default function Roadmap() {
                               data-testid={`button-curriculum-${item.id}`}
                             >
                               <BookOpen className="w-3 h-3 mr-1" />
-                              {item.lesson ? 'View Lesson' : 'View Module'}
+                              {item.lesson ? 'View lesson' : 'View module'}
                             </Button>
                           </div>
                         ) : (
@@ -554,10 +562,11 @@ export default function Roadmap() {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </WeekPanel>
+            </li>
+            );
+          })}
+        </ol>
       </div>
     </AppLayout>
   );

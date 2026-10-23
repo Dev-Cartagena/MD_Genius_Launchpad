@@ -123,8 +123,8 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     },
     onSuccess: () => {
       toast({
-        title: "Session Booked!",
-        description: `Your session with ${mentor.firstName} has been scheduled successfully.`,
+        title: "Session booked",
+        description: `Your session with ${mentor.firstName} is scheduled.`,
       });
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["/api/mentors"] });
@@ -133,8 +133,8 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     },
     onError: (error) => {
       toast({
-        title: "Booking Failed",
-        description: getApiErrorMessage(error, "Failed to book session. Please try again."),
+        title: "Could not book session",
+        description: getApiErrorMessage(error, "The session could not be booked. Please try again."),
         variant: "destructive",
       });
     },
@@ -148,7 +148,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Schedule Session with {mentor.firstName} {mentor.lastName}</DialogTitle>
+          <DialogTitle>Schedule a session with {mentor.firstName} {mentor.lastName}</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
@@ -158,10 +158,10 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Title</FormLabel>
+                  <FormLabel>Session title</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., Product Strategy Discussion"
+                      placeholder="e.g., Product strategy discussion"
                       {...field}
                       data-testid={`input-session-title-${mentor.id}`}
                     />
@@ -176,7 +176,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="startTime"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Available Time Slots</FormLabel>
+                  <FormLabel>Available time slots</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-timeslot-${mentor.id}`}>
@@ -201,7 +201,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Duration</FormLabel>
+                  <FormLabel>Session duration</FormLabel>
                   <Select onValueChange={(value) => field.onChange(Number(value))} defaultValue={String(field.value)}>
                     <FormControl>
                       <SelectTrigger data-testid={`select-duration-${mentor.id}`}>
@@ -225,10 +225,10 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
               name="agenda"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Session Agenda</FormLabel>
+                  <FormLabel>Session agenda</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="What would you like to discuss in this session? Include specific questions or topics..."
+                      placeholder="What would you like to discuss? Include specific questions or topics."
                       className="min-h-[80px]"
                       {...field}
                       data-testid={`textarea-session-agenda-${mentor.id}`}
@@ -255,7 +255,7 @@ function SessionBookingDialog({ mentor, isOpen, onClose }: {
                 className="flex-1"
                 data-testid={`button-confirm-booking-${mentor.id}`}
               >
-                {bookSession.isPending ? "Booking..." : "Book Session"}
+                {bookSession.isPending ? "Booking..." : "Book session"}
               </Button>
             </div>
           </form>
@@ -319,12 +319,12 @@ export default function Mentors() {
   if (isLoading) {
     return (
       <AppLayout title="Mentors" subtitle="Loading mentor directory...">
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="glass-card animate-pulse">
+            <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-muted rounded-full"></div>
+                  <div className="h-11 w-11 bg-muted rounded-lg"></div>
                   <div className="flex-1 space-y-2">
                     <div className="h-4 bg-muted rounded w-1/3"></div>
                     <div className="h-3 bg-muted rounded w-full"></div>
@@ -342,32 +342,28 @@ export default function Mentors() {
   return (
     <AppLayout 
       title="Mentors" 
-      subtitle="Connect with industry experts and successful entrepreneurs"
+      subtitle="Meet experienced operators and founders who can advise on your venture"
     >
       <div className="space-y-6">
         {/* Search and Filters */}
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <div className="panel p-3 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+              <div className="relative flex-1 min-w-0 sm:min-w-[240px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search mentors by name or expertise..." 
-                    className="pl-10 bg-secondary border-border"
+                    placeholder="Search by name or expertise" 
+                    className="pl-10"
+                    aria-label="Search mentors"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     data-testid="input-search-mentors"
                   />
-                </div>
               </div>
-              <div className="flex gap-2">
                 <Select value={selectedExpertise} onValueChange={setSelectedExpertise}>
-                  <SelectTrigger className="w-48 bg-secondary border-border" data-testid="select-expertise-filter">
+                  <SelectTrigger className="w-full sm:w-48" aria-label="Filter by expertise" data-testid="select-expertise-filter">
                     <SelectValue placeholder="Expertise" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Expertise</SelectItem>
+                    <SelectItem value="all">All expertise</SelectItem>
                     {expertiseOptions.map((expertise) => (
                       <SelectItem key={expertise} value={expertise}>{expertise}</SelectItem>
                     ))}
@@ -375,65 +371,61 @@ export default function Mentors() {
                 </Select>
                 
                 <Select value={selectedIndustry} onValueChange={setSelectedIndustry}>
-                  <SelectTrigger className="w-48 bg-secondary border-border" data-testid="select-industry-filter">
+                  <SelectTrigger className="w-full sm:w-48" aria-label="Filter by industry" data-testid="select-industry-filter">
                     <SelectValue placeholder="Industry" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Industries</SelectItem>
+                    <SelectItem value="all">All industries</SelectItem>
                     {industryOptions.map((industry) => (
                       <SelectItem key={industry} value={industry}>{industry}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        </div>
 
         {/* Mentors Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredMentors.map((mentor) => (
-            <Card key={mentor.id} className="glass-card hover:scale-105 transition-transform duration-200">
+            <Card key={mentor.id} className="transition-colors hover:border-accent/40">
               <CardHeader>
-                <div className="flex items-start space-x-4">
-                  <Avatar className="w-16 h-16">
-                    <AvatarImage src={mentor.profileImageUrl ?? undefined} alt={`${mentor.firstName ?? ''} ${mentor.lastName ?? ''}`} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-lg">
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-11 w-11 rounded-lg">
+                    <AvatarImage className="object-cover" src={mentor.profileImageUrl ?? undefined} alt={`${mentor.firstName ?? ''} ${mentor.lastName ?? ''}`} />
+                    <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-display text-base">
                       {((mentor.firstName ?? '')[0] ?? '') + ((mentor.lastName ?? '')[0] ?? '') || '?'}
                     </AvatarFallback>
                   </Avatar>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg" data-testid={`mentor-name-${mentor.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="font-display text-lg font-medium" data-testid={`mentor-name-${mentor.id}`}>
                         {(mentor.firstName ?? '')} {(mentor.lastName ?? '')}
                       </CardTitle>
                       <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-medium" data-testid={`mentor-rating-${mentor.id}`}>
+                        <Star className="w-4 h-4 text-accent" />
+                        <span className="font-display text-sm font-medium" data-testid={`mentor-rating-${mentor.id}`}>
                           {mentor.rating ?? '—'}
                         </span>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
                       <span className="flex items-center space-x-1">
                         <MessageCircle className="w-3 h-3" />
-                        <span>{mentor.totalSessions ?? 0} sessions</span>
+                        <span>{mentor.totalSessions ?? 0} {(mentor.totalSessions ?? 0) === 1 ? 'session' : 'sessions'}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <Clock className="w-3 h-3" />
-                        <span>Responds {mentor.responseTime ?? 'varies'}</span>
+                        <span>{mentor.responseTime ? `Responds ${mentor.responseTime}` : 'Response time varies'}</span>
                       </span>
                     </div>
                     
                     <div className="flex items-center mt-2">
                       <div className={`w-2 h-2 rounded-full mr-2 ${
-                        mentor.isAvailable ? 'bg-green-400' : 'bg-yellow-400'
+                        mentor.isAvailable ? 'bg-success' : 'bg-warning'
                       }`}></div>
                       <span className={`text-xs ${
-                        mentor.isAvailable ? 'text-green-400' : 'text-yellow-400'
+                        mentor.isAvailable ? 'text-success' : 'text-warning'
                       }`}>
                         {mentor.isAvailable ? `Available ${mentor.nextAvailable ?? 'now'}` : 'Not currently taking sessions'}
                       </span>
@@ -444,12 +436,12 @@ export default function Mentors() {
               
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4 leading-relaxed" data-testid={`mentor-bio-${mentor.id}`}>
-                  {mentor.mentorProfile?.bio || mentor.bio || "No bio available"}
+                  {mentor.mentorProfile?.bio || mentor.bio || "No bio yet"}
                 </p>
                 
                 <div className="space-y-3 mb-4">
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Expertise</h4>
+                    <h4 className="font-display text-sm text-muted-foreground mb-2">Expertise</h4>
                     <div className="flex flex-wrap gap-1">
                       {(mentor.mentorProfile?.expertise ?? []).map((skill: string, index: number) => (
                         <Badge key={index} variant="secondary" className="text-xs">
@@ -460,7 +452,7 @@ export default function Mentors() {
                   </div>
                   
                   <div>
-                    <h4 className="text-sm font-medium mb-2">Industries</h4>
+                    <h4 className="font-display text-sm text-muted-foreground mb-2">Industries</h4>
                     <div className="flex flex-wrap gap-1">
                       {(mentor.mentorProfile?.industries ?? []).map((industry: string, index: number) => (
                         <Badge key={index} variant="outline" className="text-xs">
@@ -471,7 +463,7 @@ export default function Mentors() {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-border">
                   <div className="flex space-x-2">
                     {mentor.linkedinUrl && (
                     <Button 
@@ -498,12 +490,11 @@ export default function Mentors() {
                     <Button
                       size="sm"
                       disabled={mentor.isAvailable === false}
-                      className={(mentor.isAvailable ?? true) ? "bg-primary" : ""}
                       onClick={() => setSelectedMentorForBooking(mentor)}
                       data-testid={`button-schedule-${mentor.id}`}
                     >
                       <Calendar className="w-3 h-3 mr-1" />
-                      Schedule Session
+                      Schedule session
                     </Button>
                   )}
                 </div>
@@ -513,54 +504,52 @@ export default function Mentors() {
         </div>
 
         {filteredMentors.length === 0 && (
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No mentors found</h3>
+          <div className="rounded-xl border border-dashed border-steel/50 p-8 text-center">
+              <Users className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg mb-2">No mentors found</h3>
               <p className="text-muted-foreground">
-                Try adjusting your search criteria or filters to find mentors that match your needs.
+                Try a different search or adjust the filters.
               </p>
-            </CardContent>
-          </Card>
+          </div>
         )}
 
         {/* Mentorship Guidelines */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+            <CardTitle className="flex items-center space-x-2 font-display font-medium">
               <Award className="w-5 h-5" />
-              <span>Getting the Most from Mentorship</span>
+              <span>Getting the most from mentorship</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Calendar className="w-6 h-6 text-primary" />
+                <div className="w-11 h-11 bg-secondary text-primary rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Calendar className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold mb-2">Come Prepared</h4>
+                <h4 className="font-medium mb-2">Come prepared</h4>
                 <p className="text-sm text-muted-foreground">
                   Have specific questions and challenges ready to discuss. Share context about your project beforehand.
                 </p>
               </div>
               
               <div className="text-center">
-                <div className="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <MessageCircle className="w-6 h-6 text-accent" />
+                <div className="w-11 h-11 bg-secondary text-primary rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <MessageCircle className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold mb-2">Be Responsive</h4>
+                <h4 className="font-medium mb-2">Be responsive</h4>
                 <p className="text-sm text-muted-foreground">
                   Respond promptly to mentor communications and follow through on action items discussed.
                 </p>
               </div>
               
               <div className="text-center">
-                <div className="w-12 h-12 bg-green-400/20 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Award className="w-6 h-6 text-green-400" />
+                <div className="w-11 h-11 bg-secondary text-primary rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Award className="w-5 h-5" />
                 </div>
-                <h4 className="font-semibold mb-2">Show Appreciation</h4>
+                <h4 className="font-medium mb-2">Show appreciation</h4>
                 <p className="text-sm text-muted-foreground">
-                  Acknowledge your mentor's time and expertise. Share updates on your progress and wins.
+                  Acknowledge your mentor's time and expertise. Share updates on your progress.
                 </p>
               </div>
             </div>

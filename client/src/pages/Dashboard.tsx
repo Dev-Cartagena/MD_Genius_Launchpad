@@ -98,7 +98,7 @@ export default function Dashboard() {
       alerts.push({
         id: "pending-reviews",
         type: "warning",
-        title: "Applications Pending Review",
+        title: "Applications pending review",
         message: `${pendingReviews} application${pendingReviews > 1 ? 's' : ''} awaiting review`,
         priority: pendingReviews > 5 ? "high" : "medium"
       });
@@ -110,7 +110,7 @@ export default function Dashboard() {
       alerts.push({
         id: "active-cohorts",
         type: "info",
-        title: "Active Cohorts",
+        title: "Active cohorts",
         message: cohortMessage,
         priority: "low"
       });
@@ -131,10 +131,10 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <AppLayout title="Dashboard" subtitle="Loading your dashboard...">
+      <AppLayout title="Dashboard" subtitle="Loading your dashboard">
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="glass-card animate-pulse">
+            <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
                 <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
                 <div className="h-4 bg-muted rounded w-full mb-2"></div>
@@ -160,7 +160,7 @@ export default function Dashboard() {
           return (
             <div className="space-y-6">
               {[1, 2, 3].map((i) => (
-                <Card key={i} className="glass-card animate-pulse">
+                <Card key={i} className="animate-pulse">
                   <CardContent className="p-6">
                     <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
                     <div className="h-4 bg-muted rounded w-full mb-2"></div>
@@ -181,20 +181,22 @@ export default function Dashboard() {
         );
       case 'applicant':
         return (
-          <Card className="glass-card">
-            <CardContent className="p-8 text-center">
-              <CheckCircle className="w-12 h-12 mx-auto text-green-600 mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Application Under Review</h3>
-              <p className="text-muted-foreground mb-4">
-                Your application has been submitted and is currently under review by our admissions team.
+          <Card className="mx-auto max-w-2xl">
+            <CardContent className="p-6 sm:p-8">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-primary">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <h3 className="font-display text-xl font-medium mb-2">Application under review</h3>
+              <p className="text-muted-foreground mb-6">
+                Your application has been submitted and is being reviewed by our admissions team.
               </p>
-              <div className="text-left bg-secondary/30 p-4 rounded-lg">
-                <h4 className="font-medium mb-2">What happens next:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Our team will review your application within 5-7 business days</li>
-                  <li>• You'll receive an email notification with the decision</li>
-                  <li>• If accepted, you'll get access to the full participant dashboard</li>
-                  <li>• Check your email regularly for updates</li>
+              <div className="rounded-lg bg-secondary p-4">
+                <h4 className="font-display text-sm font-medium mb-2">What happens next</h4>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                  <li>Our team will review your application within 5–7 business days.</li>
+                  <li>You will receive an email with the decision.</li>
+                  <li>If you are accepted, you will get access to the full participant dashboard.</li>
+                  <li>Please check your email for updates.</li>
                 </ul>
               </div>
             </CardContent>
@@ -202,10 +204,10 @@ export default function Dashboard() {
         );
       default:
         return (
-          <Card className="glass-card">
+          <Card>
             <CardContent className="p-8 text-center">
-              <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Dashboard Not Available</h3>
+              <AlertCircle className="w-10 h-10 mx-auto text-primary mb-4" />
+              <h3 className="font-display text-xl font-medium mb-2">Dashboard not available</h3>
               <p className="text-muted-foreground">
                 Your current role ({user?.role || 'unknown'}) doesn't have a dashboard available.
                 Please contact support if you believe this is an error.
@@ -219,15 +221,15 @@ export default function Dashboard() {
   const getDashboardTitle = () => {
     switch (user?.role) {
       case 'participant':
-        return "Participant Dashboard";
+        return "Participant dashboard";
       case 'mentor':
-        return "Mentor Dashboard";
+        return "Mentor dashboard";
       case 'investor':
-        return "Investor Dashboard";
+        return "Investor dashboard";
       case 'administrator':
-        return "Admin Dashboard";
+        return "Admin dashboard";
       case 'applicant':
-        return "Application Status";
+        return "Application status";
       default:
         return "Dashboard";
     }
@@ -237,17 +239,17 @@ export default function Dashboard() {
     const name = user?.firstName ? `, ${user.firstName}` : '';
     switch (user?.role) {
       case 'participant':
-        return `Welcome back${name}! Let's build something amazing.`;
+        return `Welcome back${name}. Here is where your startup stands this week.`;
       case 'mentor':
-        return `Welcome back${name}! Guide the next generation of AI entrepreneurs.`;
+        return `Welcome back${name}. Here are your sessions and mentees.`;
       case 'investor':
-        return `Welcome back${name}! Discover promising AI startups.`;
+        return `Welcome back${name}. Here are the startups in the program and your pipeline.`;
       case 'administrator':
-        return `Welcome back${name}! Manage the launchpad platform.`;
+        return `Welcome back${name}. Here is an overview of the program.`;
       case 'applicant':
-        return `Thank you${name} for applying to MD Genius AI Launchpad`;
+        return `Thank you for applying to MD Genius Launchpad${name}.`;
       default:
-        return `Welcome back${name}!`;
+        return `Welcome back${name}.`;
     }
   };
 
@@ -257,12 +259,12 @@ export default function Dashboard() {
       subtitle={getDashboardSubtitle()}
     >
       {showSubmissionSuccess && (
-        <Alert className="mb-6 border-green-500 bg-green-500/10">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800">Application Successfully Submitted!</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Thank you for applying to MD Genius AI Launchpad. We've received your application.
-            Our team will review it and get back to you within 5-7 business days. You can follow its status here.
+        <Alert className="mb-6 border-success/30 bg-success/10">
+          <CheckCircle className="h-4 w-4 text-success" />
+          <AlertTitle className="font-display text-foreground">Application submitted</AlertTitle>
+          <AlertDescription className="text-foreground/80">
+            Thank you for applying to MD Genius Launchpad. We have received your application.
+            Our team will review it and reply within 5–7 business days. You can follow its status here.
           </AlertDescription>
         </Alert>
       )}

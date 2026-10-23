@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { getApiErrorMessage } from "@/lib/utils";
 import SimpleMarkdown from "./SimpleMarkdown";
+import { BlockLoader, Logo } from "@/components/brand";
 
 interface Message {
   role: "user" | "assistant";
@@ -25,11 +26,11 @@ interface ChatModalProps {
 }
 
 const chatModes = [
-  { id: "process_guide", label: "Process Guide", icon: Target, description: "Deadlines, steps, checklists" },
+  { id: "process_guide", label: "Process guide", icon: Target, description: "Deadlines, steps, checklists" },
   { id: "ideation", label: "Ideation", icon: Lightbulb, description: "Problem framing, solution ideas" },
   { id: "technical", label: "Technical", icon: Code, description: "AI/ML fundamentals, implementation" },
-  { id: "gtm", label: "Go-to-Market", icon: TrendingUp, description: "Customer discovery, messaging" },
-  { id: "pitch", label: "Pitch Coach", icon: Mic, description: "Investor preparation, storytelling" },
+  { id: "gtm", label: "Go-to-market", icon: TrendingUp, description: "Customer discovery, messaging" },
+  { id: "pitch", label: "Pitch coach", icon: Mic, description: "Investor preparation, storytelling" },
 ];
 
 // Server limits: user messages up to 4000 chars, at most 40 messages per request.
@@ -46,7 +47,7 @@ function trimHistory(history: Message[]) {
 
 const createWelcomeMessage = (): Message => ({
   role: "assistant",
-  content: "Hi! I'm your AI Coach for the MD Genius Launchpad. I'm here to help you with your startup journey. What would you like to focus on today?",
+  content: "Hello, I'm your AI Coach for MD Genius Launchpad. I can help you think through your venture at each step of the program. What would you like to focus on today?",
   timestamp: new Date(),
   sources: []
 });
@@ -101,8 +102,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
       setIsTyping(false);
       if (isUnauthorizedError(error)) {
         toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
+          title: "Session expired",
+          description: "You have been signed out. Taking you to sign in.",
           variant: "destructive",
         });
         setTimeout(() => {
@@ -111,8 +112,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
         return;
       }
       toast({
-        title: "Error",
-        description: getApiErrorMessage(error, "Failed to get AI response. Please try again."),
+        title: "No response",
+        description: getApiErrorMessage(error, "The AI Coach could not respond. Please try again."),
         variant: "destructive",
       });
     }
@@ -160,20 +161,17 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-2xl h-[80vh] p-0 glass-card">
-        <DialogHeader className="p-6 pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <DialogTitle className="flex items-center space-x-2">
-                  <span>AI Coach</span>
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow"></div>
+      <DialogContent className="flex flex-col gap-0 overflow-hidden p-0 w-full max-w-2xl h-[100dvh] max-sm:border-0 max-sm:rounded-none sm:h-[80vh]" hideClose>
+        <DialogHeader className="shrink-0 bg-primary text-primary-foreground px-4 py-3 sm:px-6 sm:py-4 text-left">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Logo layout="symbol" tone="reversed" className="h-6 shrink-0" />
+              <div className="min-w-0">
+                <DialogTitle className="font-display text-lg font-medium text-primary-foreground">
+                  AI Coach
                 </DialogTitle>
-                <p className="text-sm text-muted-foreground">
-                  Mode: {currentModeInfo?.label} • {currentModeInfo?.description}
+                <p className="text-sm text-primary-foreground/70 truncate">
+                  {currentModeInfo?.label} · {currentModeInfo?.description}
                 </p>
               </div>
             </div>
@@ -181,6 +179,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
               variant="ghost"
               size="icon"
               onClick={handleClose}
+              className="shrink-0 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
               aria-label="Close AI Coach"
               title="Close AI Coach"
               data-testid="button-close-chat"
@@ -191,8 +190,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
         </DialogHeader>
 
         {/* Mode Selection */}
-        <div className="px-6 py-2 border-b border-border">
-          <div className="flex flex-wrap gap-2">
+        <div className="shrink-0 px-4 sm:px-6 py-2 border-b border-border">
+          <div className="flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible pb-1 sm:pb-0">
             {chatModes.map((mode) => {
               const Icon = mode.icon;
               return (
@@ -201,7 +200,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                   variant={currentMode === mode.id ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentMode(mode.id)}
-                  className="flex items-center space-x-1"
+                  className="flex shrink-0 items-center space-x-1"
                   data-testid={`button-mode-${mode.id}`}
                 >
                   <Icon className="w-3 h-3" />
@@ -213,7 +212,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 px-6">
+        <ScrollArea className="flex-1 min-h-0 px-4 sm:px-6">
           <div className="space-y-4 py-4">
             {messages.map((message, index) => (
               <div
@@ -222,30 +221,30 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                 data-testid={`message-${message.role}-${index}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-lg ${
+                  className={`max-w-[88%] sm:max-w-[80%] min-w-0 px-4 py-3 rounded-xl ${
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-secondary-foreground"
+                      : "bg-card border border-accent/40 text-foreground"
                   }`}
                 >
                   {message.role === "assistant" ? (
-                    <SimpleMarkdown content={message.content} className="text-sm" />
+                    <SimpleMarkdown content={message.content} className="text-sm leading-relaxed" />
                   ) : (
                     <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   )}
                   {message.sources && message.sources.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs opacity-70">Sources:</p>
+                    <div className="mt-3 space-y-1 border-t border-border pt-2">
+                      <p className="font-display text-xs text-muted-foreground">Sources</p>
                       <div className="flex flex-wrap gap-1">
                         {message.sources.map((source, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
+                          <Badge key={idx} variant="secondary" className="text-xs">
                             {source}
                           </Badge>
                         ))}
                       </div>
                     </div>
                   )}
-                  <p className="text-xs opacity-50 mt-1">
+                  <p className={`text-xs mt-1 ${message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                     {message.timestamp.toLocaleTimeString()}
                   </p>
                 </div>
@@ -254,12 +253,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
             
             {isTyping && (
               <div className="flex justify-start" data-testid="typing-indicator">
-                <div className="bg-secondary text-secondary-foreground p-3 rounded-lg">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
+                <div className="bg-card border border-accent/40 px-4 py-3 rounded-xl">
+                  <BlockLoader label="AI Coach is thinking" className="flex-row gap-3" />
                 </div>
               </div>
             )}
@@ -268,22 +263,23 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
         </ScrollArea>
 
         {/* Input */}
-        <div className="p-6 pt-4 border-t border-border">
-          <div className="flex space-x-2">
+        <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-t border-border bg-card">
+          <div className="flex gap-2">
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value.slice(0, MAX_USER_MESSAGE_LENGTH))}
               maxLength={MAX_USER_MESSAGE_LENGTH}
               onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about your startup journey..."
-              className="flex-1 bg-secondary border-border input-glow"
+              placeholder="Ask about your startup or the program"
+              aria-label="Message the AI Coach"
+              className="flex-1 min-w-0"
               disabled={isTyping}
               data-testid="input-chat-message"
             />
             <Button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isTyping}
-              className="px-4"
+              className="px-4 shrink-0"
               aria-label="Send message"
               title="Send message"
               data-testid="button-send-message"

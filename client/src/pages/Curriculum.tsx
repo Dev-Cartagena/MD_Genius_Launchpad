@@ -3,6 +3,7 @@ import CurriculumView from "@/components/Curriculum/CurriculumView";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
 
 const CURRICULUM_ROLES = ['participant', 'mentor', 'administrator'];
 
@@ -34,12 +35,12 @@ export default function Curriculum() {
     return (
       <AppLayout title="Curriculum" subtitle="Not available for your role">
         <div className="flex items-center justify-center min-h-96">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-              <span className="text-2xl">🔒</span>
+          <div className="panel max-w-lg p-8 text-center space-y-4">
+            <div className="w-12 h-12 mx-auto bg-secondary text-primary rounded-lg flex items-center justify-center">
+              <Lock className="w-6 h-6" aria-hidden="true" />
             </div>
-            <h3 className="text-xl font-semibold">Curriculum not available</h3>
-            <p className="text-muted-foreground max-w-md" data-testid="text-curriculum-restricted">
+            <h3 className="text-xl">Curriculum not available</h3>
+            <p className="text-muted-foreground max-w-md mx-auto" data-testid="text-curriculum-restricted">
               {message}
             </p>
             {action && (
@@ -54,9 +55,9 @@ export default function Curriculum() {
   }
 
   return (
-    <AppLayout 
-      title="Curriculum" 
-      subtitle="Access comprehensive learning modules and track your progress"
+    <AppLayout
+      title="Curriculum"
+      subtitle="Weekly learning modules for the program, with your progress"
     >
       <CurriculumView />
     </AppLayout>

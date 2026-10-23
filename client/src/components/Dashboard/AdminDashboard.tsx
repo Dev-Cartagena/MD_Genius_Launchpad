@@ -3,7 +3,6 @@ import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/r
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,19 +11,17 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { formatCohortDate } from "@/lib/dates";
 import { Link } from "wouter";
-import { 
-  Users,
+import { MistPanel, DropZone } from "@/components/brand";
+import {
   FileText,
-  TrendingUp,
   Calendar,
   Settings,
   AlertCircle,
   CheckCircle,
   Clock,
-  DollarSign,
-  BarChart3,
   UserCheck,
-  GraduationCap
+  GraduationCap,
+  type LucideIcon,
 } from "lucide-react";
 import type { Cohort } from "@shared/schema";
 
@@ -68,6 +65,9 @@ interface AdminDashboardProps {
 
 type UpdateStatusMutation = UseMutationResult<unknown, Error, { id: string; status: string; notes?: string }>;
 
+const formatStatus = (status: string) =>
+  status.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+
 // Application Status Dialog Component (module scope so its state survives parent re-renders)
 function ApplicationStatusDialog({ application, updateStatus }: { application: ProcessedApplication; updateStatus: UpdateStatusMutation }) {
   const { toast } = useToast();
@@ -78,8 +78,8 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
   const handleStatusUpdate = () => {
     if (!selectedStatus) {
       toast({
-        title: "Error",
-        description: "Please select a status",
+        title: "Select a status",
+        description: "Choose a new status before saving.",
         variant: "destructive",
       });
       return;
@@ -114,28 +114,28 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update Application Status</DialogTitle>
+          <DialogTitle>Update application status</DialogTitle>
           <div className="text-sm text-muted-foreground">
             Application by {application.applicant} for {application.project}
           </div>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Current Status</label>
-            <p className="text-sm text-muted-foreground capitalize">
-              {application.status.replace('_', ' ')}
+            <label className="font-display text-sm font-medium">Current status</label>
+            <p className="text-sm text-muted-foreground">
+              {formatStatus(application.status)}
             </p>
           </div>
           
           <div>
-            <label className="text-sm font-medium">New Status</label>
+            <label className="font-display text-sm font-medium">New status</label>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger data-testid={`select-new-status-${application.id}`}>
                 <SelectValue placeholder="Select new status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="under_review">Under Review</SelectItem>
+                <SelectItem value="under_review">Under review</SelectItem>
                 <SelectItem value="shortlisted">Shortlisted</SelectItem>
                 <SelectItem value="interview">Interview</SelectItem>
                 <SelectItem value="offer">Offer</SelectItem>
@@ -146,16 +146,16 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
           </div>
           
           <div>
-            <label className="text-sm font-medium">Reviewer Notes</label>
+            <label className="font-display text-sm font-medium">Reviewer notes</label>
             <Textarea 
-              placeholder="Add reviewer notes (optional)..."
+              placeholder="Add reviewer notes (optional)"
               value={reviewerNotes}
               onChange={(e) => setReviewerNotes(e.target.value)}
               data-testid={`textarea-reviewer-notes-${application.id}`}
             />
           </div>
           
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
@@ -164,7 +164,7 @@ function ApplicationStatusDialog({ application, updateStatus }: { application: P
               disabled={updateStatus.isPending}
               data-testid={`button-update-status-${application.id}`}
             >
-              {updateStatus.isPending ? "Updating..." : "Update Status"}
+              {updateStatus.isPending ? "Updating..." : "Update status"}
             </Button>
           </div>
         </div>
@@ -188,8 +188,8 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
     },
     onSuccess: () => {
       toast({
-        title: "Application Updated!",
-        description: "Application status has been updated successfully.",
+        title: "Application updated",
+        description: "The new status has been saved.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/applications"] });
       // Accepting an application can change the applicant's role
@@ -208,8 +208,8 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         return;
       }
       toast({
-        title: "Error",
-        description: "Failed to update application. Please try again.",
+        title: "Could not update application",
+        description: "Please try again in a moment.",
         variant: "destructive",
       });
     }
@@ -218,137 +218,91 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Applications</p>
-                <p className="text-2xl font-bold" data-testid="metric-applications">{metrics.totalApplications}</p>
-                <p className="text-xs text-green-400 mt-1">All time</p>
-              </div>
-              <FileText className="w-8 h-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Acceptance Rate</p>
-                <p className="text-2xl font-bold" data-testid="metric-acceptance-rate">{metrics.acceptanceRate}%</p>
-                <p className="text-xs text-accent mt-1">Of all applications</p>
-              </div>
-              <UserCheck className="w-8 h-8 text-accent opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
-                <p className="text-2xl font-bold" data-testid="metric-projects">{metrics.totalProjects}</p>
-                <p className="text-xs text-primary mt-1">Across {metrics.activeCohorts} cohorts</p>
-              </div>
-              <GraduationCap className="w-8 h-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Cohorts</p>
-                <p className="text-2xl font-bold" data-testid="metric-active-cohorts">{metrics.activeCohorts}</p>
-                <p className="text-xs text-green-400 mt-1">{cohorts.length} in total</p>
-              </div>
-              <Calendar className="w-8 h-8 text-green-400 opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Total applications" value={metrics.totalApplications} hint="All time" icon={FileText} testId="metric-applications" />
+        <KpiCard label="Acceptance rate" value={`${metrics.acceptanceRate}%`} hint="Of all applications" icon={UserCheck} testId="metric-acceptance-rate" />
+        <KpiCard label="Projects" value={metrics.totalProjects} hint={`${metrics.activeCohorts} active cohort${metrics.activeCohorts === 1 ? '' : 's'}`} icon={GraduationCap} testId="metric-projects" />
+        <KpiCard label="Active cohorts" value={metrics.activeCohorts} hint={`${cohorts.length} in total`} icon={Calendar} testId="metric-active-cohorts" />
       </section>
 
       {/* Application Review and Cohort Management */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Applications */}
-        <Card className="glass-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Recent Applications</CardTitle>
-              <Link href="/admin">
-                <Button size="sm" data-testid="button-view-all-applications">View All</Button>
-              </Link>
+        {/* Recent Applications (next step) */}
+        <MistPanel>
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-sm text-foreground/80">Latest submissions</p>
+              <h2 className="font-display text-xl font-medium">Recent applications</h2>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentApplications.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No applications yet.</p>
-              )}
-              {recentApplications.slice(0, 5).map((application) => (
-                <Card key={application.id} className="bg-secondary/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm" data-testid={`application-name-${application.id}`}>
-                          {application.applicant}
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {application.project}
-                        </p>
-                        <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant={
-                              application.status === 'interview' ? 'default' :
-                              application.status === 'shortlisted' ? 'secondary' :
-                              application.status === 'under_review' ? 'outline' :
-                              'outline'
-                            }
-                            data-testid={`application-status-${application.id}`}
-                          >
-                            {application.status.replace('_', ' ')}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {application.submittedDays} days ago
-                          </span>
-                        </div>
+            <Link href="/admin">
+              <Button size="sm" data-testid="button-view-all-applications">View all</Button>
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {recentApplications.length === 0 && (
+              <DropZone className="bg-card/60 py-8">
+                <p className="text-sm">New applications will appear here as they are submitted.</p>
+              </DropZone>
+            )}
+            {recentApplications.slice(0, 5).map((application) => (
+              <Card key={application.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-display font-medium text-sm" data-testid={`application-name-${application.id}`}>
+                        {application.applicant}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {application.project}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={
+                            application.status === 'accepted' ? 'default' :
+                            application.status === 'interview' || application.status === 'shortlisted' || application.status === 'offer' ? 'secondary' :
+                            'outline'
+                          }
+                          data-testid={`application-status-${application.id}`}
+                        >
+                          {formatStatus(application.status)}
+                        </Badge>
+                        <span className="font-display text-xs text-muted-foreground">
+                          {application.submittedDays} days ago
+                        </span>
                       </div>
-                      <ApplicationStatusDialog updateStatus={updateApplicationStatus} application={application} />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                    <ApplicationStatusDialog updateStatus={updateApplicationStatus} application={application} />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </MistPanel>
 
         {/* Cohorts */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Cohorts</CardTitle>
+            <CardTitle className="text-xl">Cohorts</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {cohorts.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No cohorts yet. Create one in the Admin Panel to open applications.
-                </p>
+                <DropZone className="py-6">
+                  <p className="text-sm">Create a cohort in the Admin Panel to open applications.</p>
+                </DropZone>
               )}
               {cohorts.map((cohort, index) => (
-                <div key={cohort.id} className="flex items-center justify-between" data-testid={`cohort-${index}`}>
-                  <div>
-                    <p className="font-medium text-sm" data-testid={`cohort-name-${index}`}>
+                <div key={cohort.id} className="flex items-center justify-between gap-3 border-b border-border pb-4 last:border-0 last:pb-0" data-testid={`cohort-${index}`}>
+                  <div className="min-w-0">
+                    <p className="font-display font-medium text-sm" data-testid={`cohort-name-${index}`}>
                       {cohort.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)} • Capacity {cohort.capacity}
+                    <p className="font-display text-xs text-muted-foreground">
+                      {formatCohortDate(cohort.startDate)} – {formatCohortDate(cohort.endDate)} · Capacity {cohort.capacity}
                     </p>
                   </div>
-                  <Badge variant={cohort.isActive ? "default" : "secondary"}>
+                  <Badge variant={cohort.isActive ? "default" : "outline"}>
                     {cohort.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </div>
@@ -361,9 +315,9 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
       {/* System Health and Quick Actions */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
+            <CardTitle className="text-xl">Quick actions</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
@@ -379,54 +333,76 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
         </Card>
 
         {/* Alerts & Notifications */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-yellow-400" />
-              <span>System Alerts</span>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-primary" />
+              <span>System alerts</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {systemAlerts.length > 0 ? (
                 systemAlerts.map((alert) => (
-                  <Card 
-                    key={alert.id} 
-                    className={`${
-                      alert.type === 'warning' ? 'bg-yellow-400/10 border-yellow-400/20' :
-                      alert.type === 'error' ? 'bg-destructive/10 border-destructive/20' :
-                      alert.type === 'success' ? 'bg-green-400/10 border-green-400/20' :
-                      'bg-primary/10 border-primary/20'
+                  <div
+                    key={alert.id}
+                    className={`rounded-lg border p-3 ${
+                      alert.type === 'warning' ? 'bg-warning/10 border-warning/30' :
+                      alert.type === 'error' ? 'bg-destructive/10 border-destructive/30' :
+                      alert.type === 'success' ? 'bg-success/10 border-success/30' :
+                      'bg-secondary border-border'
                     }`}
                   >
-                    <CardContent className="p-3">
-                      <div className="flex items-start space-x-2">
-                        {alert.type === 'warning' && <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5" />}
-                        {alert.type === 'error' && <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />}
-                        {alert.type === 'success' && <CheckCircle className="w-4 h-4 text-green-400 mt-0.5" />}
-                        {alert.type === 'info' && <Clock className="w-4 h-4 text-primary mt-0.5" />}
-                        <div>
-                          <p className="text-sm font-medium" data-testid={`alert-title-${alert.id}`}>
-                            {alert.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground" data-testid={`alert-message-${alert.id}`}>
-                            {alert.message}
-                          </p>
-                        </div>
+                    <div className="flex items-start gap-2">
+                      {alert.type === 'warning' && <AlertCircle className="w-4 h-4 shrink-0 text-warning mt-0.5" />}
+                      {alert.type === 'error' && <AlertCircle className="w-4 h-4 shrink-0 text-destructive mt-0.5" />}
+                      {alert.type === 'success' && <CheckCircle className="w-4 h-4 shrink-0 text-success mt-0.5" />}
+                      {alert.type === 'info' && <Clock className="w-4 h-4 shrink-0 text-primary mt-0.5" />}
+                      <div>
+                        <p className="font-display text-sm font-medium" data-testid={`alert-title-${alert.id}`}>
+                          {alert.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground" data-testid={`alert-message-${alert.id}`}>
+                          {alert.message}
+                        </p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 ))
               ) : (
-                <div className="text-center py-4">
-                  <CheckCircle className="w-8 h-8 mx-auto text-green-400 mb-2" />
-                  <p className="text-sm text-muted-foreground">Nothing needs attention right now</p>
-                </div>
+                <DropZone className="py-6">
+                  <p className="text-sm">Nothing needs attention right now.</p>
+                </DropZone>
               )}
             </div>
           </CardContent>
         </Card>
       </section>
     </div>
+  );
+}
+
+function KpiCard({ label, value, hint, icon: Icon, testId }: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  icon: LucideIcon;
+  testId: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-display text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 font-display text-3xl font-medium text-foreground" data-testid={testId}>{value}</p>
+            {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

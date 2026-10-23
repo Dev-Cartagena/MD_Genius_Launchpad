@@ -2,18 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import { MistPanel, DropZone } from "@/components/brand";
+import {
   Calendar,
   Clock,
   Users,
   MessageCircle,
   TrendingUp,
   CheckCircle,
-  Star,
   Video,
-  FileText,
-  Target
+  type LucideIcon,
 } from "lucide-react";
 import { Link } from "wouter";
 import type { MentorSession } from "@shared/schema";
@@ -56,7 +54,7 @@ export default function MentorDashboard() {
       .slice(0, 5) // Show next 5 sessions
       .map(session => ({
         id: session.id,
-        title: session.title || "Mentor Session",
+        title: session.title || "Mentor session",
         agenda: session.agenda || "Mentoring session",
         time: formatSessionTime(session.startTime),
         duration: calculateDuration(session.startTime, session.endTime),
@@ -123,7 +121,7 @@ export default function MentorDashboard() {
       id: session.id,
       mentee: (session.participantIds?.[0] && menteeNames.get(session.participantIds[0])) || session.participantIds?.[0] || "Participant",
       project: session.title || "Session",
-      milestone: session.agenda || "Session Notes",
+      milestone: session.agenda || "Session notes",
       status: new Date(session.endTime) < new Date() ? "completed" : "upcoming",
       lastUpdated: new Date(session.startTime).toLocaleDateString()
     }));
@@ -150,7 +148,7 @@ export default function MentorDashboard() {
     
     return {
       name: menteeNames.get(participantId) || `Participant ${participantId.slice(0, 8)}`,
-      project: (lastSession ?? nextSession)?.title || "No Recent Sessions",
+      project: (lastSession ?? nextSession)?.title || "No recent sessions",
       sessionCount, // Show real session count instead of synthetic progress
       lastSessionDate: lastSession ? new Date(lastSession.startTime).toLocaleDateString() : "None yet",
       nextSessionDate: nextSession ? new Date(nextSession.startTime).toLocaleDateString() : "None scheduled",
@@ -161,191 +159,126 @@ export default function MentorDashboard() {
   return (
     <div className="space-y-6">
       {/* Mentor Stats Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Mentees</p>
-                <p className="text-2xl font-bold" data-testid="metric-mentees">{mentorStats.activeMentees}</p>
-                <p className="text-xs text-primary mt-1">Current mentees</p>
-              </div>
-              <Users className="w-8 h-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Sessions</p>
-                <p className="text-2xl font-bold" data-testid="metric-total">{mentorStats.totalSessions}</p>
-                <p className="text-xs text-accent mt-1">All time</p>
-              </div>
-              <Clock className="w-8 h-8 text-accent opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Upcoming Sessions</p>
-                <p className="text-2xl font-bold" data-testid="metric-upcoming">{mentorStats.upcomingSessions}</p>
-                <p className="text-xs text-primary mt-1">Next 7 days</p>
-              </div>
-              <Clock className="w-8 h-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Completed Sessions</p>
-                <p className="text-2xl font-bold" data-testid="metric-completed">{mentorStats.completedSessions}</p>
-                <p className="text-xs text-green-400 mt-1">Past sessions</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-400 opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Active mentees" value={mentorStats.activeMentees} hint="Current mentees" icon={Users} testId="metric-mentees" />
+        <KpiCard label="Total sessions" value={mentorStats.totalSessions} hint="All time" icon={Clock} testId="metric-total" />
+        <KpiCard label="Upcoming sessions" value={mentorStats.upcomingSessions} hint="Next 7 days" icon={Calendar} testId="metric-upcoming" />
+        <KpiCard label="Completed sessions" value={mentorStats.completedSessions} hint="Past sessions" icon={CheckCircle} testId="metric-completed" />
       </section>
 
       {/* Upcoming Sessions and Recent Activity */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Sessions */}
-        <Card className="glass-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-                <Calendar className="w-5 h-5" />
-                <span>Upcoming Sessions</span>
-              </CardTitle>
-              <Link href="/mentor-profile">
-                <Button size="sm" data-testid="button-manage-schedule">
-                  Edit Availability
-                </Button>
-              </Link>
+        {/* Upcoming Sessions (next step) */}
+        <MistPanel>
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-sm text-foreground/80">Next 7 days</p>
+              <h2 className="font-display text-xl font-medium">Upcoming sessions</h2>
             </div>
-          </CardHeader>
-          <CardContent>
-            {sessionsLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-muted rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
-            ) : upcomingSessions.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-sm font-medium mb-2">No Upcoming Sessions</h3>
-                <p className="text-xs text-muted-foreground">
-                  Your schedule is clear for this week. Sessions will appear here once participants book them.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {upcomingSessions.map((session) => (
-                  <Card key={session.id} className="bg-secondary/30">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <p className="font-medium text-sm" data-testid={`session-title-${session.id}`}>
-                              {session.title}
-                            </p>
-                            <Badge
-                              variant="default"
-                              data-testid={`session-status-${session.id}`}
-                            >
-                              {session.status}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {session.agenda} • {session.participants} participant{session.participants !== 1 ? 's' : ''}
-                          </p>
-                          <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                            <span className="flex items-center space-x-1">
-                              <Clock className="w-3 h-3" />
-                              <span data-testid={`session-time-${session.id}`}>{session.time}</span>
-                            </span>
-                            <span>{session.duration}</span>
-                          </div>
-                        </div>
-                        {session.sessionData.meetingLink && (
-                          <Button
-                            size="sm"
-                            className="bg-primary"
-                            asChild
-                            data-testid={`button-join-${session.id}`}
-                          >
-                            <a href={session.sessionData.meetingLink} target="_blank" rel="noopener noreferrer">
-                              <Video className="w-3 h-3 mr-1" />
-                              Join
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <Link href="/mentor-profile">
+              <Button size="sm" data-testid="button-manage-schedule">
+                Edit availability
+              </Button>
+            </Link>
+          </div>
 
-        {/* Recent Feedback & Reviews */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-              <MessageCircle className="w-5 h-5" />
-              <span>Recent Feedback</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentFeedback.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Notes you add to past sessions will appear here.
-                </p>
-              )}
-              {recentFeedback.map((feedback) => (
-                <Card key={feedback.id} className="bg-secondary/30">
+          {sessionsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : upcomingSessions.length === 0 ? (
+            <DropZone className="bg-card/60 py-8">
+              <p className="text-sm">Sessions will appear here once participants book time with you.</p>
+            </DropZone>
+          ) : (
+            <div className="space-y-3">
+              {upcomingSessions.map((session) => (
+                <Card key={session.id}>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm" data-testid={`feedback-mentee-${feedback.id}`}>
-                          {feedback.mentee}
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {feedback.project} • {feedback.milestone}
-                        </p>
-                        <div className="flex items-center space-x-2">
-                          <Badge 
-                            variant={
-                              feedback.status === 'approved' ? 'default' :
-                              feedback.status === 'needs_revision' ? 'destructive' :
-                              'outline'
-                            }
-                            data-testid={`feedback-status-${feedback.id}`}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <p className="font-display font-medium text-sm" data-testid={`session-title-${session.id}`}>
+                            {session.title}
+                          </p>
+                          <Badge
+                            variant="secondary"
+                            data-testid={`session-status-${session.id}`}
                           >
-                            {feedback.status.replace('_', ' ')}
+                            {session.status}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {feedback.lastUpdated}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {session.agenda} · {session.participants} participant{session.participants !== 1 ? 's' : ''}
+                        </p>
+                        <div className="flex items-center gap-4 font-display text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            <span data-testid={`session-time-${session.id}`}>{session.time}</span>
                           </span>
+                          <span>{session.duration}</span>
                         </div>
                       </div>
+                      {session.sessionData.meetingLink && (
+                        <Button
+                          size="sm"
+                          asChild
+                          data-testid={`button-join-${session.id}`}
+                        >
+                          <a href={session.sessionData.meetingLink} target="_blank" rel="noopener noreferrer">
+                            <Video className="w-3 h-3 mr-1" />
+                            Join
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
+              ))}
+            </div>
+          )}
+        </MistPanel>
+
+        {/* Recent Feedback & Reviews */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-primary" />
+              <span>Recent feedback</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentFeedback.length === 0 && (
+                <DropZone className="py-6">
+                  <p className="text-sm">Notes you add to past sessions will appear here.</p>
+                </DropZone>
+              )}
+              {recentFeedback.map((feedback) => (
+                <div key={feedback.id} className="rounded-lg border border-border p-4">
+                  <p className="font-display font-medium text-sm" data-testid={`feedback-mentee-${feedback.id}`}>
+                    {feedback.mentee}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {feedback.project} · {feedback.milestone}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={feedback.status === 'completed' ? 'default' : 'outline'}
+                      data-testid={`feedback-status-${feedback.id}`}
+                    >
+                      {feedback.status === 'completed' ? 'Completed' : 'Upcoming'}
+                    </Badge>
+                    <span className="font-display text-xs text-muted-foreground">
+                      {feedback.lastUpdated}
+                    </span>
+                  </div>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -354,66 +287,64 @@ export default function MentorDashboard() {
 
       {/* Mentee Progress Tracking */}
       <section>
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5" />
-              <span>Mentee Progress</span>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <span>Mentee progress</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {menteeProgress.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No mentees yet. Participants appear here after they book a session with you.
-              </p>
+              <DropZone className="py-6">
+                <p className="text-sm">Participants appear here after they book a session with you.</p>
+              </DropZone>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {menteeProgress.map((mentee, index) => (
-                <Card key={index} className="bg-secondary/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback>{mentee.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <p className="font-medium text-sm" data-testid={`mentee-name-${index}`}>
-                            {mentee.name}
-                          </p>
-                          <Badge variant="outline" data-testid={`mentee-sessions-${index}`}>
-                            {mentee.sessionCount} sessions
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          {mentee.project}
-                        </p>
-                        
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span>Last Session</span>
-                            <span className="font-medium" data-testid={`mentee-last-session-${index}`}>
-                              {mentee.lastSessionDate}
-                            </span>
-                          </div>
-
-                          <div className="flex justify-between text-xs">
-                            <span>Next Session</span>
-                            <span className="font-medium" data-testid={`mentee-next-session-${index}`}>
-                              {mentee.nextSessionDate}
-                            </span>
-                          </div>
-                          
-                          <div className="flex justify-between text-xs">
-                            <span>Has Notes</span>
-                            <span className={`font-medium ${mentee.hasNotes ? 'text-green-600' : 'text-gray-500'}`} data-testid={`mentee-notes-${index}`}>
-                              {mentee.hasNotes ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                <div key={index} className="rounded-lg border border-border p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary font-display text-sm font-medium text-primary-foreground" aria-hidden="true">
+                      {mentee.name.slice(0, 2).toUpperCase()}
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <p className="font-display font-medium text-sm" data-testid={`mentee-name-${index}`}>
+                          {mentee.name}
+                        </p>
+                        <Badge variant="outline" data-testid={`mentee-sessions-${index}`}>
+                          {mentee.sessionCount} {mentee.sessionCount === 1 ? 'session' : 'sessions'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {mentee.project}
+                      </p>
+
+                      <dl className="space-y-2 text-xs">
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Last session</dt>
+                          <dd className="font-display font-medium" data-testid={`mentee-last-session-${index}`}>
+                            {mentee.lastSessionDate}
+                          </dd>
+                        </div>
+
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Next session</dt>
+                          <dd className="font-display font-medium" data-testid={`mentee-next-session-${index}`}>
+                            {mentee.nextSessionDate}
+                          </dd>
+                        </div>
+
+                        <div className="flex justify-between gap-2">
+                          <dt className="text-muted-foreground">Has notes</dt>
+                          <dd className={`font-display font-medium ${mentee.hasNotes ? 'text-foreground' : 'text-muted-foreground'}`} data-testid={`mentee-notes-${index}`}>
+                            {mentee.hasNotes ? 'Yes' : 'No'}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -422,22 +353,22 @@ export default function MentorDashboard() {
 
       {/* Quick Actions */}
       <section>
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
+            <CardTitle className="text-xl">Quick actions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Link href="/mentor-profile">
                 <Button className="w-full justify-start" variant="outline" data-testid="button-update-availability">
                   <Clock className="w-4 h-4 mr-2" />
-                  Update Profile & Availability
+                  Update profile and availability
                 </Button>
               </Link>
               <Link href="/mentors">
                 <Button className="w-full justify-start" variant="outline" data-testid="button-mentor-directory">
                   <Users className="w-4 h-4 mr-2" />
-                  Mentor Directory
+                  Mentor directory
                 </Button>
               </Link>
             </div>
@@ -445,5 +376,30 @@ export default function MentorDashboard() {
         </Card>
       </section>
     </div>
+  );
+}
+
+function KpiCard({ label, value, hint, icon: Icon, testId }: {
+  label: string;
+  value: number | string;
+  hint?: string;
+  icon: LucideIcon;
+  testId: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-display text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 font-display text-3xl font-medium text-foreground" data-testid={testId}>{value}</p>
+            {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
