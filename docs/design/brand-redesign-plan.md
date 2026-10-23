@@ -1,5 +1,17 @@
 # Launchpad redesign plan (MDGeniusAI brand)
 
+> **Status: delivered (2026-10-23).**
+> - Phases 1–3 shipped in PR #5, and phases 4–6 in PR #6.
+> - PR #7 then changed the controls to match the guideline's button samples (p. 32):
+>   - pill buttons with Steel→Navy and white→Mist fills;
+>   - 44px inputs;
+>   - segmented pill tabs;
+>   - 16px cards with soft shadows.
+>
+>   This replaces the "8px controls, underlined tabs" choice in sections 3 and 5 below.
+> - PR #7 also added the Home hero, which shows the program as a track of modular blocks (`ProgramTrack`).
+> - The design system is summarized in the README, under "Design system".
+
 Source: *MDGeniusAI – Brand Guideline* (46 pages, Jan 2026). Launchpad is a sub-brand of the
 MDGeniusAI master brand, in the same family as PICS, AURA, NOVA and PREP AI: its own mark,
 clearly the same ecosystem.
