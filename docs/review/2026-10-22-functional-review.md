@@ -1,16 +1,16 @@
-# Functional review, 2026-10-22 (paused)
+# Functional review, 2026-10-22
 
-Status: two of three checks finished; **no fixes applied yet**. Production
+**Status: resolved (2026-10-23).** Every finding below was fixed in PR #4 and verified with
+62 API tests plus two browser walkthroughs of every role at desktop and 390px width.
+Not built (no screens existed and none were in scope): milestone/deliverable creation and
+their auto-completion types. Known product questions left as-is: mentors can accept
+applications; rejecting an accepted applicant keeps the participant role.
+
+Original notes, kept for reference:
+ Production
 (https://md-genius-launchpad.vercel.app) is healthy: no 5xx in runtime logs, 40 tests pass,
 type check clean. One real admin exists in production (cto@mdgeniusai.com); the database is
 otherwise empty. No test files were left in the production storage bucket.
-
-## To resume
-
-1. Re-run the browser walkthrough (it was stopped at the admin "Cohort Assignments" step,
-   before applicant/participant/mentor/investor flows, uploads, AI Coach and password reset).
-2. Fix the items below in one branch, one commit per area, with a test per server fix.
-3. Re-run `npm run check && npm test`, then the walkthrough, then open a PR.
 
 ## Server findings (verified against the local API)
 
