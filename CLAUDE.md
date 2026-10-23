@@ -42,7 +42,8 @@ supabase orgs list                  # mdgeniusai must be listed
 
 - GitHub repo: https://github.com/Dev-Cartagena/MD_Genius_Launchpad (public). Pushes to main deploy to production on Vercel; other branches get preview deployments.
 - Supabase project: `md-genius-launchpad`, ref `klpwffswfhfwvsuqosct`, us-east-1, org mdgeniusai
-- Vercel project: `md-genius-launchpad`, team mdgeniusai. Production: https://md-genius-launchpad.vercel.app
+- Vercel project: `md-genius-launchpad`, team mdgeniusai. Production: https://launchpad.mdgeniusai.com
+  (CNAME `launchpad` in GoDaddy DNS for mdgeniusai.com; md-genius-launchpad.vercel.app redirects to it)
 - Production credentials live in Vercel env vars and in the gitignored `.env.supabase`.
   Never put production credentials in `.env` (local dev must not touch production data).
 
