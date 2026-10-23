@@ -21,7 +21,8 @@ export function appBaseUrl(): string {
   return `http://localhost:${process.env.PORT || 5000}`;
 }
 
-export async function sendEmail(message: EmailMessage): Promise<void> {
+/** Sends an email. Returns false when no provider is configured (nothing sent). */
+export async function sendEmail(message: EmailMessage): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || "MD Genius Launchpad <no-reply@mdgeniusai.com>";
 
@@ -32,7 +33,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     } else {
       console.log(`[email] RESEND_API_KEY not set; not sending "${message.subject}" to ${message.to}.\n${message.text}`);
     }
-    return;
+    return false;
   }
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -48,6 +49,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     const body = await response.text();
     throw new Error(`Resend API error ${response.status}: ${body}`);
   }
+  return true;
 }
 
 function escapeHtml(value: string): string {

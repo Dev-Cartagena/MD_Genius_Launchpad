@@ -356,7 +356,10 @@ export const investors = pgTable("investors", {
   ndaStatus: boolean("nda_status").default(false),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  // A user account links to at most one investor record (NULLs allowed).
+  uniqueIndex("investors_user_id_unique").on(table.userId),
+]);
 
 export const investorInterests = pgTable("investor_interests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

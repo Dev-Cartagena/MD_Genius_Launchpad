@@ -15,6 +15,13 @@
       "when": 1792710088668,
       "tag": "0001_lock_down_public_api",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792756682420,
+      "tag": "0002_investor_user_unique",
+      "breakpoints": true
     }
   ]
 }
