@@ -339,8 +339,11 @@ export default function Roadmap() {
                 className="self-center sm:self-auto"
               />
               <div className="grid flex-1 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px overflow-hidden rounded-xl border border-border bg-border">
-                {statTiles.map((tile) => (
-                  <div key={tile.label} className="bg-card p-3">
+                {statTiles.map((tile, i) => (
+                  <div
+                    key={tile.label}
+                    className={cn("bg-card p-3", i === statTiles.length - 1 && "col-span-2 lg:col-span-1")}
+                  >
                     <div
                       className={cn(
                         "font-display text-3xl font-medium",

@@ -11,7 +11,8 @@ interface ConnectorBadgeProps {
 }
 
 /**
- * Step marker built from the gradient connector: a main block with a small offset block.
+ * Step marker built from the gradient connector: a main block with a small offset block,
+ * both inside the 36px footprint so stacked markers never touch.
  * done = Navy, current = Steel, upcoming = dashed outline.
  */
 export function ConnectorBadge({ state = "upcoming", children, className }: ConnectorBadgeProps) {
@@ -19,13 +20,13 @@ export function ConnectorBadge({ state = "upcoming", children, className }: Conn
     <span className={cn("relative inline-flex h-9 w-9 shrink-0", className)} aria-hidden="true">
       <span
         className={cn(
-          "absolute -right-1 -top-1 h-3 w-3 rounded-[3px]",
+          "absolute right-0 top-0 h-2.5 w-2.5 rounded-[3px]",
           state === "upcoming" ? "border border-dashed border-steel/60" : "bg-steel",
         )}
       />
       <span
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-lg font-display text-sm font-medium",
+          "absolute bottom-0 left-0 flex h-8 w-8 items-center justify-center rounded-lg font-display text-sm font-medium",
           state === "done" && "bg-brand-gradient text-white",
           state === "current" && "bg-steel text-white",
           state === "upcoming" && "border border-dashed border-steel/60 bg-card text-muted-foreground",
