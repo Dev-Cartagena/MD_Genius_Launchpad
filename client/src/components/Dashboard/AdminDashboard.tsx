@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatCohortDate } from "@/lib/dates";
+import { Link } from "wouter";
 import { 
   Users,
   FileText,
@@ -213,14 +215,6 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
     }
   });
 
-  // Calculate cohort performance from real cohort data
-  const cohortPerformance = cohorts.map((cohort) => ({
-    name: cohort.name,
-    participants: 0, // TODO: Calculate from participants assigned to cohort
-    completion: 0, // TODO: Calculate from actual completion data
-    avgReadiness: Math.round(metrics.averageReadiness) // Use calculated average for now
-  }));
-
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
@@ -268,11 +262,11 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Funding Disbursed</p>
-                <p className="text-2xl font-bold" data-testid="metric-funding">${(metrics.fundingDisbursed / 1000).toFixed(0)}K</p>
-                <p className="text-xs text-green-400 mt-1">Approved disbursements</p>
+                <p className="text-sm font-medium text-muted-foreground">Active Cohorts</p>
+                <p className="text-2xl font-bold" data-testid="metric-active-cohorts">{metrics.activeCohorts}</p>
+                <p className="text-xs text-green-400 mt-1">{cohorts.length} in total</p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-400 opacity-80" />
+              <Calendar className="w-8 h-8 text-green-400 opacity-80" />
             </div>
           </CardContent>
         </Card>
@@ -285,12 +279,17 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg font-semibold">Recent Applications</CardTitle>
-              <Button size="sm" data-testid="button-view-all-applications">View All</Button>
+              <Link href="/admin">
+                <Button size="sm" data-testid="button-view-all-applications">View All</Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentApplications.map((application) => (
+              {recentApplications.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No applications yet.</p>
+              )}
+              {recentApplications.slice(0, 5).map((application) => (
                 <Card key={application.id} className="bg-secondary/30">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
@@ -327,34 +326,31 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
           </CardContent>
         </Card>
 
-        {/* Cohort Performance */}
+        {/* Cohorts */}
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Cohort Performance</CardTitle>
+            <CardTitle className="text-lg font-semibold">Cohorts</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {cohortPerformance.map((cohort, index) => (
-                <div key={index} className="space-y-2" data-testid={`cohort-${index}`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm" data-testid={`cohort-name-${index}`}>
-                        {cohort.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {cohort.participants} participants
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium" data-testid={`cohort-completion-${index}`}>
-                        {cohort.completion}% completion
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Avg readiness: {cohort.avgReadiness}%
-                      </p>
-                    </div>
+              {cohorts.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No cohorts yet. Create one in the Admin Panel to open applications.
+                </p>
+              )}
+              {cohorts.map((cohort, index) => (
+                <div key={cohort.id} className="flex items-center justify-between" data-testid={`cohort-${index}`}>
+                  <div>
+                    <p className="font-medium text-sm" data-testid={`cohort-name-${index}`}>
+                      {cohort.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)} • Capacity {cohort.capacity}
+                    </p>
                   </div>
-                  <Progress value={cohort.completion} className="h-2" />
+                  <Badge variant={cohort.isActive ? "default" : "secondary"}>
+                    {cohort.isActive ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -363,81 +359,22 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
       </section>
 
       {/* System Health and Quick Actions */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* System Health */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center space-x-2">
-              <BarChart3 className="w-5 h-5" />
-              <span>System Health</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Mentor Utilization</span>
-                <span className="text-sm font-medium text-green-400" data-testid="mentor-utilization">
-                  {metrics.mentorUtilization}%
-                </span>
-              </div>
-              <Progress value={metrics.mentorUtilization} className="h-2" />
-
-            </div>
-          </CardContent>
-        </Card>
-
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-create-cohort"
-              >
-                <Calendar className="w-4 h-4 mr-2" />
-                Create New Cohort
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-review-applications"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Review Applications
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-manage-mentors"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Manage Mentors
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-funding-management"
-              >
-                <DollarSign className="w-4 h-4 mr-2" />
-                Funding Management
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-system-settings"
-              >
+            <p className="text-sm text-muted-foreground mb-4">
+              Cohorts, applications, curriculum, roadmaps, mentors, investors and users are managed in the Admin Panel.
+            </p>
+            <Link href="/admin">
+              <Button className="w-full justify-start" variant="outline" data-testid="button-open-admin-panel">
                 <Settings className="w-4 h-4 mr-2" />
-                System Settings
+                Open Admin Panel
               </Button>
-            </div>
+            </Link>
           </CardContent>
         </Card>
 
@@ -483,7 +420,7 @@ export default function AdminDashboard({ metrics, recentApplications, cohorts, s
               ) : (
                 <div className="text-center py-4">
                   <CheckCircle className="w-8 h-8 mx-auto text-green-400 mb-2" />
-                  <p className="text-sm text-muted-foreground">All systems operating normally</p>
+                  <p className="text-sm text-muted-foreground">Nothing needs attention right now</p>
                 </div>
               )}
             </div>

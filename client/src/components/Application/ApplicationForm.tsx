@@ -31,6 +31,7 @@ import {
   FileText
 } from "lucide-react";
 import type { Cohort } from "@shared/schema";
+import { formatCohortDate } from "@/lib/dates";
 
 const applicationSchema = z.object({
   // Personal Information
@@ -728,7 +729,7 @@ export default function ApplicationForm({ onComplete }: ApplicationFormProps) {
                                 value={cohort.id}
                                 data-testid={`select-item-cohort-${cohort.id}`}
                               >
-                                {cohort.name} - Starts {new Date(cohort.startDate).toLocaleDateString()}
+                                {cohort.name} - Starts {formatCohortDate(cohort.startDate)}
                               </SelectItem>
                             ))
                           )}

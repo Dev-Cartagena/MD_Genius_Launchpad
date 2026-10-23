@@ -31,6 +31,18 @@ const chatModes = [
   { id: "pitch", label: "Pitch Coach", icon: Mic, description: "Investor preparation, storytelling" },
 ];
 
+// Server limits: user messages up to 4000 chars, at most 40 messages per request.
+// Send only the most recent part of the conversation; the full list stays in the UI.
+const MAX_USER_MESSAGE_LENGTH = 4000;
+const MAX_HISTORY_MESSAGES = 20;
+
+// Keep the last MAX_HISTORY_MESSAGES, and make sure the history starts with a user turn.
+function trimHistory(history: Message[]) {
+  const recent = history.slice(-MAX_HISTORY_MESSAGES);
+  const firstUser = recent.findIndex((m) => m.role === "user");
+  return (firstUser === -1 ? [] : recent.slice(firstUser)).map(({ role, content }) => ({ role, content }));
+}
+
 const createWelcomeMessage = (): Message => ({
   role: "assistant",
   content: "Hi! I'm your AI Coach for the MD Genius Launchpad. I'm here to help you with your startup journey. What would you like to focus on today?",
@@ -61,8 +73,9 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
   const chatMutation = useMutation({
     mutationFn: async ({ messages: messageHistory, mode }: { messages: Message[], mode: string; session: number }) => {
       const response = await apiRequest("POST", "/api/ai-coach/chat", {
-        // The first message is the local welcome greeting; only send the real exchange
-        messages: messageHistory.slice(1).map(({ role, content }) => ({ role, content })),
+        // The first message is the local welcome greeting; only send the real exchange,
+        // trimmed to the most recent messages.
+        messages: trimHistory(messageHistory.slice(1)),
         mode,
         ...(conversationId ? { conversationId } : {}),
       });
@@ -109,7 +122,7 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
 
     const userMessage: Message = {
       role: "user",
-      content: inputValue,
+      content: inputValue.slice(0, MAX_USER_MESSAGE_LENGTH),
       timestamp: new Date()
     };
 
@@ -252,7 +265,8 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
           <div className="flex space-x-2">
             <Input
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => setInputValue(e.target.value.slice(0, MAX_USER_MESSAGE_LENGTH))}
+              maxLength={MAX_USER_MESSAGE_LENGTH}
               onKeyPress={handleKeyPress}
               placeholder="Ask me anything about your startup journey..."
               className="flex-1 bg-secondary border-border input-glow"
@@ -269,7 +283,10 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Press Enter to send, Shift+Enter for new line
+            Press Enter to send
+            {inputValue.length > MAX_USER_MESSAGE_LENGTH - 500 && (
+              <span className="ml-2">{inputValue.length}/{MAX_USER_MESSAGE_LENGTH} characters</span>
+            )}
           </p>
         </div>
       </DialogContent>

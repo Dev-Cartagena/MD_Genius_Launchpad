@@ -5,6 +5,8 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatCohortDate } from "@/lib/dates";
+import type { Cohort } from "@shared/schema";
 import { 
   ArrowRight, 
   Calendar, 
@@ -23,6 +25,11 @@ export default function Home() {
   const { data: applications = [], isLoading: applicationsLoading } = useQuery<any[]>({
     queryKey: ["/api/applications/my"],
     enabled: !!user && user.role === 'applicant'
+  });
+
+  // Open cohorts (public, active only)
+  const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
+    queryKey: ["/api/cohorts"],
   });
 
   // Auto-redirect applicants with pending applications to dashboard
@@ -51,7 +58,7 @@ export default function Home() {
     {
       icon: FileText,
       title: "Apply to Accelerator",
-      description: "Start your startup application for Q1 2025",
+      description: "Apply to an upcoming cohort",
       href: "/apply",
       color: "primary",
       show: user?.role === "public_visitor"
@@ -106,54 +113,6 @@ export default function Home() {
     },
   ].filter(action => action.show);
 
-  const announcements = [
-    {
-      id: 1,
-      title: "Q1 2025 Cohort Applications Open",
-      description: "Applications are now being accepted for our upcoming cohort starting in January.",
-      type: "info",
-      date: "2025-09-12"
-    },
-    {
-      id: 2,
-      title: "New AI Ethics Workshop Available",
-      description: "Learn about responsible AI development and ethical considerations in our latest workshop.",
-      type: "update", 
-      date: "2025-09-10"
-    },
-    {
-      id: 3,
-      title: "Demo Day Success Stories",
-      description: "Congratulations to our Q2 cohort! 8 out of 12 startups secured funding after Demo Day.",
-      type: "success",
-      date: "2025-09-08"
-    }
-  ];
-
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: "AI Startup Fundamentals Webinar",
-      date: "2025-09-19",
-      time: "2:00 PM PST",
-      type: "webinar"
-    },
-    {
-      id: 2,
-      title: "Q3 Demo Day",
-      date: "2025-09-24",
-      time: "10:00 AM PST", 
-      type: "demo_day"
-    },
-    {
-      id: 3,
-      title: "Mentor Office Hours",
-      date: "2025-09-21",
-      time: "3:00 PM PST",
-      type: "office_hours"
-    }
-  ];
-
   const roleDescriptions = {
     public_visitor: "Welcome! Explore our AI startup accelerator program.",
     applicant: "Your application is being reviewed. Check your dashboard for updates.",
@@ -194,7 +153,7 @@ export default function Home() {
             <h2 className="text-2xl font-bold mb-6 text-center">Quick Actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {quickActions.map((action, index) => (
-                <Card key={index} className="bg-secondary/30 hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => window.location.href = action.href}>
+                <Card key={index} className="bg-secondary/30 hover:scale-105 transition-transform duration-200 cursor-pointer" onClick={() => navigate(action.href)}>
                   <CardContent className="p-6">
                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
                       action.color === 'primary' ? 'bg-primary/20' :
@@ -228,106 +187,38 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Announcements and Events */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Announcements */}
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-bold mb-4">Latest Announcements</h3>
-              <div className="space-y-4">
-                {announcements.map((announcement) => (
-                  <Card key={announcement.id} className="bg-secondary/30">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold text-sm" data-testid={`announcement-title-${announcement.id}`}>
-                          {announcement.title}
-                        </h4>
-                        <Badge 
-                          variant={
-                            announcement.type === 'success' ? 'default' :
-                            announcement.type === 'info' ? 'secondary' :
-                            'outline'
-                          }
-                          className="text-xs"
-                        >
-                          {announcement.type}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2" data-testid={`announcement-description-${announcement.id}`}>
-                        {announcement.description}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(announcement.date).toLocaleDateString()}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full mt-4" data-testid="button-view-all-announcements">
-                View All Announcements
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Upcoming Events */}
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-bold mb-4">Upcoming Events</h3>
-              <div className="space-y-4">
-                {upcomingEvents.map((event) => (
-                  <Card key={event.id} className="bg-secondary/30">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold text-sm" data-testid={`event-title-${event.id}`}>
-                          {event.title}
-                        </h4>
-                        <Badge 
-                          className={
-                            event.type === 'demo_day' ? 'bg-accent/20 text-accent' :
-                            event.type === 'webinar' ? 'bg-primary/20 text-primary' :
-                            'bg-green-400/20 text-green-400'
-                          }
-                        >
-                          {event.type.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span className="flex items-center space-x-1">
-                          <Calendar className="w-3 h-3" />
-                          <span data-testid={`event-date-${event.id}`}>
-                            {new Date(event.date).toLocaleDateString()}
-                          </span>
-                        </span>
-                        <span data-testid={`event-time-${event.id}`}>{event.time}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full mt-4" data-testid="button-view-calendar">
-                View Full Calendar
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Resource Links */}
+        {/* Cohorts */}
         <Card className="glass-card">
-          <CardContent className="p-8 text-center">
-            <h3 className="text-xl font-bold mb-4">Need Help?</h3>
-            <p className="text-muted-foreground mb-6">
-              Access our comprehensive resources or get support from our team.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="outline" data-testid="button-help-center">
-                <FileText className="w-4 h-4 mr-2" />
-                Help Center
-              </Button>
-              <Button variant="outline" data-testid="button-contact-support">
-                <Users className="w-4 h-4 mr-2" />
-                Contact Support
-              </Button>
-            </div>
+          <CardContent className="p-6">
+            <h3 className="text-xl font-bold mb-4">Cohorts</h3>
+            {cohortsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading cohorts...</p>
+            ) : cohorts.length === 0 ? (
+              <p className="text-sm text-muted-foreground" data-testid="text-no-cohorts">
+                No cohorts are open right now. Check back soon.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cohorts.map((cohort) => (
+                  <Card key={cohort.id} className="bg-secondary/30">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold text-sm mb-1" data-testid={`cohort-title-${cohort.id}`}>
+                        {cohort.name}
+                      </h4>
+                      {cohort.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{cohort.description}</p>
+                      )}
+                      <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        <span data-testid={`cohort-dates-${cohort.id}`}>
+                          {formatCohortDate(cohort.startDate)} - {formatCohortDate(cohort.endDate)}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

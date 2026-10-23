@@ -40,6 +40,10 @@ export default function Auth() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Optional return path, e.g. /login?next=/apply. Only same-site paths are allowed.
+  const nextParam = new URLSearchParams(window.location.search).get("next");
+  const afterAuthPath = nextParam && /^\/(?!\/)/.test(nextParam) ? nextParam : "/";
+
   // Forms
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -62,7 +66,7 @@ export default function Auth() {
     onSuccess: () => {
       toast({ title: "Login successful", description: "Welcome back!" });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      navigate("/");
+      navigate(afterAuthPath);
     },
     onError: (error: any) => {
       toast({
@@ -78,7 +82,7 @@ export default function Auth() {
     onSuccess: () => {
       toast({ title: "Registration successful", description: "Welcome to MD Genius!" });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      navigate("/");
+      navigate(afterAuthPath);
     },
     onError: (error: any) => {
       toast({

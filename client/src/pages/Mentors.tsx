@@ -273,6 +273,7 @@ export default function Mentors() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isParticipant = user?.role === "participant";
 
   // Fetch mentors with proper typing
   const { data: mentors = [], isLoading } = useQuery<ExtendedMentor[]>({
@@ -385,10 +386,6 @@ export default function Mentors() {
                   </SelectContent>
                 </Select>
                 
-                <Button variant="outline" data-testid="button-advanced-filters">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                </Button>
               </div>
             </div>
           </CardContent>
@@ -494,45 +491,21 @@ export default function Mentors() {
                     </Button>
                     )}
                     
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          data-testid={`button-contact-${mentor.id}`}
-                        >
-                          <Mail className="w-3 h-3 mr-1" />
-                          Contact
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Contact {mentor.firstName} {mentor.lastName}</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <Textarea 
-                            placeholder="Introduce yourself and explain what you'd like to discuss..."
-                            className="min-h-[100px]"
-                            data-testid={`textarea-contact-message-${mentor.id}`}
-                          />
-                          <Button className="w-full" data-testid={`button-send-message-${mentor.id}`}>
-                            Send Message
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
                   </div>
                   
-                  <Button 
-                    size="sm"
-                    disabled={mentor.isAvailable === false}
-                    className={(mentor.isAvailable ?? true) ? "bg-primary" : ""}
-                    onClick={() => setSelectedMentorForBooking(mentor)}
-                    data-testid={`button-schedule-${mentor.id}`}
-                  >
-                    <Calendar className="w-3 h-3 mr-1" />
-                    Schedule Session
-                  </Button>
+                  {/* Only participants can book sessions (the server rejects other roles) */}
+                  {isParticipant && (
+                    <Button
+                      size="sm"
+                      disabled={mentor.isAvailable === false}
+                      className={(mentor.isAvailable ?? true) ? "bg-primary" : ""}
+                      onClick={() => setSelectedMentorForBooking(mentor)}
+                      data-testid={`button-schedule-${mentor.id}`}
+                    >
+                      <Calendar className="w-3 h-3 mr-1" />
+                      Schedule Session
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

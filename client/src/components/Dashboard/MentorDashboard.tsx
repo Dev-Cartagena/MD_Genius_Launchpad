@@ -15,8 +15,7 @@ import {
   FileText,
   Target
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 import type { MentorSession } from "@shared/schema";
 
 type Mentee = {
@@ -30,8 +29,6 @@ type Mentee = {
 };
 
 export default function MentorDashboard() {
-  const { user } = useAuth();
-  const { toast } = useToast();
 
   // Fetch mentor-specific data
   const { data: mentees = [] } = useQuery<Mentee[]>({
@@ -64,7 +61,7 @@ export default function MentorDashboard() {
         time: formatSessionTime(session.startTime),
         duration: calculateDuration(session.startTime, session.endTime),
         participants: session.participantIds?.length || 0,
-        status: "confirmed" as const,
+        status: "Upcoming" as const,
         sessionData: session
       }));
   };
@@ -112,7 +109,7 @@ export default function MentorDashboard() {
     activeMentees: mentees.length || Array.from(new Set(mentorSessions.flatMap(s => s.participantIds || []))).length,
     totalSessions: mentorSessions.length,
     upcomingSessions: getUpcomingSessions().length,
-    completedSessions: mentorSessions.filter(s => new Date(s.startTime) < new Date()).length
+    completedSessions: mentorSessions.filter(s => new Date(s.endTime) < new Date()).length
   };
   
   const upcomingSessions = getUpcomingSessions();
@@ -127,7 +124,7 @@ export default function MentorDashboard() {
       mentee: (session.participantIds?.[0] && menteeNames.get(session.participantIds[0])) || session.participantIds?.[0] || "Participant",
       project: session.title || "Session",
       milestone: session.agenda || "Session Notes",
-      status: new Date(session.startTime) > new Date() ? "scheduled" : "completed",
+      status: new Date(session.endTime) < new Date() ? "completed" : "upcoming",
       lastUpdated: new Date(session.startTime).toLocaleDateString()
     }));
 
@@ -220,18 +217,11 @@ export default function MentorDashboard() {
                 <Calendar className="w-5 h-5" />
                 <span>Upcoming Sessions</span>
               </CardTitle>
-              <Button 
-                size="sm" 
-                onClick={() => {
-                  toast({
-                    title: "Schedule Management",
-                    description: "Schedule management functionality will be available soon.",
-                  });
-                }}
-                data-testid="button-manage-schedule"
-              >
-                Manage Schedule
-              </Button>
+              <Link href="/mentor-profile">
+                <Button size="sm" data-testid="button-manage-schedule">
+                  Edit Availability
+                </Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent>
@@ -248,12 +238,9 @@ export default function MentorDashboard() {
               <div className="text-center py-8">
                 <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-sm font-medium mb-2">No Upcoming Sessions</h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Your schedule is clear for this week. Sessions will appear here once booked.
+                <p className="text-xs text-muted-foreground">
+                  Your schedule is clear for this week. Sessions will appear here once participants book them.
                 </p>
-                <Button size="sm" variant="outline" data-testid="button-create-session">
-                  Create Session
-                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -266,8 +253,8 @@ export default function MentorDashboard() {
                             <p className="font-medium text-sm" data-testid={`session-title-${session.id}`}>
                               {session.title}
                             </p>
-                            <Badge 
-                              variant={session.status === 'confirmed' ? 'default' : 'outline'}
+                            <Badge
+                              variant="default"
                               data-testid={`session-status-${session.id}`}
                             >
                               {session.status}
@@ -284,30 +271,19 @@ export default function MentorDashboard() {
                             <span>{session.duration}</span>
                           </div>
                         </div>
-                        <div className="flex flex-col space-y-1">
-                          <Button 
-                            size="sm" 
+                        {session.sessionData.meetingLink && (
+                          <Button
+                            size="sm"
                             className="bg-primary"
+                            asChild
                             data-testid={`button-join-${session.id}`}
                           >
-                            <Video className="w-3 h-3 mr-1" />
-                            Join
+                            <a href={session.sessionData.meetingLink} target="_blank" rel="noopener noreferrer">
+                              <Video className="w-3 h-3 mr-1" />
+                              Join
+                            </a>
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              // TODO: Open reschedule modal or navigate to reschedule page
-                              toast({
-                                title: "Reschedule Session",
-                                description: "Session rescheduling functionality will be available soon.",
-                              });
-                            }}
-                            data-testid={`button-reschedule-${session.id}`}
-                          >
-                            Reschedule
-                          </Button>
-                        </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -327,6 +303,11 @@ export default function MentorDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {recentFeedback.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Notes you add to past sessions will appear here.
+                </p>
+              )}
               {recentFeedback.map((feedback) => (
                 <Card key={feedback.id} className="bg-secondary/30">
                   <CardContent className="p-4">
@@ -354,13 +335,6 @@ export default function MentorDashboard() {
                           </span>
                         </div>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        data-testid={`button-review-${feedback.id}`}
-                      >
-                        Review
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -380,6 +354,11 @@ export default function MentorDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {menteeProgress.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No mentees yet. Participants appear here after they book a session with you.
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {menteeProgress.map((mentee, index) => (
                 <Card key={index} className="bg-secondary/30">
@@ -426,108 +405,26 @@ export default function MentorDashboard() {
         </Card>
       </section>
 
-      {/* Mentor Resources and Tools */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Mentor Resources */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Mentor Resources</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { icon: FileText, title: "Mentoring Best Practices", description: "Guidelines and frameworks", color: "primary" },
-                { icon: Target, title: "Evaluation Rubrics", description: "Milestone assessment tools", color: "accent" },
-                { icon: MessageCircle, title: "Feedback Templates", description: "Structured feedback forms", color: "green" },
-                { icon: TrendingUp, title: "Progress Tracking", description: "Mentee development metrics", color: "yellow" },
-              ].map((resource, index) => (
-                <Card key={index} className="bg-secondary/50">
-                  <CardContent className="flex items-center justify-between p-3">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        resource.color === 'primary' ? 'bg-primary/20' :
-                        resource.color === 'accent' ? 'bg-accent/20' :
-                        resource.color === 'green' ? 'bg-green-400/20' :
-                        'bg-yellow-400/20'
-                      }`}>
-                        <resource.icon className={`w-4 h-4 ${
-                          resource.color === 'primary' ? 'text-primary' :
-                          resource.color === 'accent' ? 'text-accent' :
-                          resource.color === 'green' ? 'text-green-400' :
-                          'text-yellow-400'
-                        }`} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{resource.title}</p>
-                        <p className="text-xs text-muted-foreground">{resource.description}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="text-xs text-accent hover:underline"
-                      data-testid={`button-mentor-resource-${index}`}
-                    >
-                      Access
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
+      {/* Quick Actions */}
+      <section>
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-schedule-session"
-              >
-                <Calendar className="w-4 h-4 mr-2" />
-                Schedule Session
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-review-deliverables"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Review Deliverables
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-update-availability"
-              >
-                <Clock className="w-4 h-4 mr-2" />
-                Update Availability
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-mentee-progress"
-              >
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Track Progress
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-send-message"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Send Message
-              </Button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Link href="/mentor-profile">
+                <Button className="w-full justify-start" variant="outline" data-testid="button-update-availability">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Update Profile & Availability
+                </Button>
+              </Link>
+              <Link href="/mentors">
+                <Button className="w-full justify-start" variant="outline" data-testid="button-mentor-directory">
+                  <Users className="w-4 h-4 mr-2" />
+                  Mentor Directory
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

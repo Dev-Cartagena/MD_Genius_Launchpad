@@ -1,4 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import type { Cohort } from "@shared/schema";
+import { formatCohortDate } from "@/lib/dates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -16,6 +19,14 @@ import {
 } from "lucide-react";
 
 export default function Landing() {
+  // Public endpoint: active cohorts open to applicants
+  const { data: openCohorts = [] } = useQuery<Cohort[]>({
+    queryKey: ["/api/cohorts"],
+  });
+  const nextCohort = [...openCohorts].sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+  )[0];
+
   // Stats will be populated with real data when available
   const stats: any[] = [];
 
@@ -59,9 +70,11 @@ export default function Landing() {
         <div className="absolute inset-0 particle-bg opacity-50"></div>
         <div className="relative max-w-6xl mx-auto text-center">
           <div className="mb-8">
-            <Badge className="bg-primary/20 text-primary border-primary/30 mb-4" data-testid="hero-badge">
-              🚀 Applications Open for 2025 Q1 Cohort
-            </Badge>
+            {nextCohort && (
+              <Badge className="bg-primary/20 text-primary border-primary/30 mb-4" data-testid="hero-badge">
+                🚀 Applications open: {nextCohort.name} (starts {formatCohortDate(nextCohort.startDate)})
+              </Badge>
+            )}
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gradient leading-tight">
               Launch Your AI Startup
               <br />

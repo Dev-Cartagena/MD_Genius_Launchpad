@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatCohortDate } from "@/lib/dates";
 import type { Module, Lesson, Quiz, Cohort } from "@shared/schema";
 
 // UI Components
@@ -17,9 +17,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 // Form handling
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -44,16 +46,21 @@ const lessonFormSchema = z.object({
   content: z.string().min(1, "Content is required"),
   moduleId: z.string().min(1, "Module is required"),
   orderIndex: z.coerce.number().min(0, "Order index must be 0 or greater"),
-  duration: z.coerce.number().min(1, "Duration must be at least 1 minute").optional(),
   media: z.array(z.string()).default([]),
+  quizId: z.string().nullable().default(null),
 });
 
 const quizFormSchema = z.object({
   title: z.string().min(1, "Quiz title is required"),
   questions: z.array(z.object({
-    question: z.string().min(1, "Question is required"),
-    options: z.array(z.string()).min(2, "At least 2 options required"),
-    correctAnswer: z.number().min(0, "Correct answer index required"),
+    question: z.string().trim().min(1, "Question text is required"),
+    options: z.array(z.string().trim().min(1, "Option text is required"))
+      .min(2, "At least 2 options required")
+      .max(6, "At most 6 options allowed"),
+    correctAnswer: z.number().int().min(0, "Pick the correct option"),
+  }).refine((q) => q.correctAnswer < q.options.length, {
+    message: "Pick the correct option",
+    path: ["correctAnswer"],
   })).min(1, "At least one question required"),
   passThreshold: z.coerce.number().min(1).max(100, "Pass threshold must be between 1-100"),
   maxAttempts: z.coerce.number().min(1, "Max attempts must be at least 1").optional(),
@@ -62,6 +69,247 @@ const quizFormSchema = z.object({
 type ModuleFormData = z.infer<typeof moduleFormSchema>;
 type LessonFormData = z.infer<typeof lessonFormSchema>;
 type QuizFormData = z.infer<typeof quizFormSchema>;
+
+const NO_QUIZ = "__none__";
+const MIN_OPTIONS = 2;
+const MAX_OPTIONS = 6;
+
+function cohortLabel(cohort: Cohort) {
+  const dates = cohort.startDate ? ` (starts ${formatCohortDate(cohort.startDate)})` : "";
+  return `${cohort.name}${dates}${cohort.isActive === false ? " (Inactive)" : ""}`;
+}
+
+type QuizQuestion = QuizFormData["questions"][number];
+
+const emptyQuestion = (): QuizQuestion => ({ question: "", options: ["", ""], correctAnswer: 0 });
+
+// Normalise stored quiz questions (jsonb) into the editor's shape
+function toEditableQuestions(raw: unknown): QuizQuestion[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [emptyQuestion()];
+  return raw.map((q: any) => {
+    const options = Array.isArray(q?.options) ? q.options.map((o: unknown) => String(o ?? "")) : ["", ""];
+    while (options.length < MIN_OPTIONS) options.push("");
+    const correct = typeof q?.correctAnswer === "number" && q.correctAnswer < options.length ? q.correctAnswer : 0;
+    return { question: String(q?.question ?? ""), options, correctAnswer: correct };
+  });
+}
+
+function QuizFormFields({ form, idPrefix }: { form: UseFormReturn<QuizFormData>; idPrefix: string }) {
+  const questions = form.watch("questions") || [];
+  const questionErrors = form.formState.errors.questions;
+
+  const setQuestions = (next: QuizQuestion[]) => {
+    form.setValue("questions", next, { shouldDirty: true, shouldValidate: form.formState.isSubmitted });
+  };
+
+  const updateQuestion = (index: number, patch: Partial<QuizQuestion>) => {
+    setQuestions(questions.map((q, i) => (i === index ? { ...q, ...patch } : q)));
+  };
+
+  return (
+    <>
+      <FormField
+        control={form.control}
+        name="title"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Quiz Title</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="e.g., Week 1 Assessment: AI Fundamentals"
+                {...field}
+                data-testid={`input-${idPrefix}-title`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <div className="grid grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="passThreshold"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Pass Threshold (%)</FormLabel>
+              <FormControl>
+                <Input type="number" min={1} max={100} {...field} data-testid={`input-${idPrefix}-threshold`} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="maxAttempts"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Max Attempts</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={1}
+                  {...field}
+                  value={field.value ?? ""}
+                  data-testid={`input-${idPrefix}-attempts`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="font-medium">Questions ({questions.length})</h4>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setQuestions([...questions, emptyQuestion()])}
+            data-testid={`button-${idPrefix}-add-question`}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Question
+          </Button>
+        </div>
+        {typeof questionErrors?.message === "string" && (
+          <p className="text-sm font-medium text-destructive">{questionErrors.message}</p>
+        )}
+        {questions.map((q, qIndex) => {
+          const errors = Array.isArray(questionErrors) ? questionErrors[qIndex] : undefined;
+          return (
+            <div key={qIndex} className="p-4 border border-white/10 rounded-lg bg-white/5 space-y-3">
+              <div className="flex items-start gap-2">
+                <Badge variant="outline" className="mt-2">{qIndex + 1}</Badge>
+                <div className="flex-1 space-y-1">
+                  <Input
+                    placeholder="Question text"
+                    value={q.question}
+                    onChange={(e) => updateQuestion(qIndex, { question: e.target.value })}
+                    data-testid={`input-${idPrefix}-question-${qIndex}`}
+                  />
+                  {errors?.question?.message && (
+                    <p className="text-sm font-medium text-destructive">{errors.question.message}</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={questions.length <= 1}
+                  onClick={() => setQuestions(questions.filter((_, i) => i !== qIndex))}
+                  aria-label="Remove question"
+                  data-testid={`button-${idPrefix}-remove-question-${qIndex}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Select the correct answer.</p>
+              <RadioGroup
+                value={String(q.correctAnswer)}
+                onValueChange={(value) => updateQuestion(qIndex, { correctAnswer: Number(value) })}
+                className="space-y-1"
+              >
+                {q.options.map((option, oIndex) => {
+                  const optionId = `${idPrefix}-q${qIndex}-o${oIndex}`;
+                  const optionError = Array.isArray(errors?.options) ? errors?.options[oIndex]?.message : undefined;
+                  return (
+                    <div key={oIndex} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value={String(oIndex)} id={optionId} aria-label={`Option ${oIndex + 1} is correct`} />
+                        <Input
+                          placeholder={`Option ${oIndex + 1}`}
+                          value={option}
+                          onChange={(e) => {
+                            const options = [...q.options];
+                            options[oIndex] = e.target.value;
+                            updateQuestion(qIndex, { options });
+                          }}
+                          data-testid={`input-${idPrefix}-option-${qIndex}-${oIndex}`}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={q.options.length <= MIN_OPTIONS}
+                          onClick={() => {
+                            const options = q.options.filter((_, i) => i !== oIndex);
+                            let correctAnswer = q.correctAnswer;
+                            if (correctAnswer === oIndex) correctAnswer = 0;
+                            else if (correctAnswer > oIndex) correctAnswer -= 1;
+                            updateQuestion(qIndex, { options, correctAnswer });
+                          }}
+                          aria-label="Remove option"
+                          data-testid={`button-${idPrefix}-remove-option-${qIndex}-${oIndex}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {optionError && <p className="text-sm font-medium text-destructive ml-6">{optionError}</p>}
+                    </div>
+                  );
+                })}
+              </RadioGroup>
+              {typeof errors?.options?.message === "string" && (
+                <p className="text-sm font-medium text-destructive">{errors.options.message}</p>
+              )}
+              {errors?.correctAnswer?.message && (
+                <p className="text-sm font-medium text-destructive">{errors.correctAnswer.message}</p>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={q.options.length >= MAX_OPTIONS}
+                onClick={() => updateQuestion(qIndex, { options: [...q.options, ""] })}
+                data-testid={`button-${idPrefix}-add-option-${qIndex}`}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Option
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function LessonQuizField({ form, quizzes }: { form: UseFormReturn<LessonFormData>; quizzes: Quiz[] }) {
+  return (
+    <FormField
+      control={form.control}
+      name="quizId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Quiz</FormLabel>
+          <Select
+            onValueChange={(value) => field.onChange(value === NO_QUIZ ? null : value)}
+            value={field.value ?? NO_QUIZ}
+          >
+            <FormControl>
+              <SelectTrigger data-testid="select-lesson-quiz">
+                <SelectValue placeholder="No quiz" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value={NO_QUIZ}>No quiz</SelectItem>
+              {quizzes.map((quiz) => (
+                <SelectItem key={quiz.id} value={quiz.id}>
+                  {quiz.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Participants complete this lesson by passing the quiz.
+          </p>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
 
 interface ModuleWithLessons extends Module {
   lessons?: Lesson[];
@@ -85,6 +333,8 @@ export default function AdminCurriculumManager() {
   const [editingModule, setEditingModule] = useState<Module | null>(null);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
+  const [duplicatingModule, setDuplicatingModule] = useState<Module | null>(null);
+  const [duplicateTargetCohort, setDuplicateTargetCohort] = useState<string>("");
 
   // Forms
   const moduleForm = useForm<ModuleFormData>({
@@ -106,6 +356,7 @@ export default function AdminCurriculumManager() {
       moduleId: "",
       orderIndex: 0,
       media: [],
+      quizId: null,
     },
   });
 
@@ -151,6 +402,7 @@ export default function AdminCurriculumManager() {
         moduleId: editingLesson.moduleId,
         orderIndex: editingLesson.orderIndex,
         media: editingLesson.media || [],
+        quizId: editingLesson.quizId ?? null,
       });
     } else {
       // Reset to defaults when not editing
@@ -160,6 +412,7 @@ export default function AdminCurriculumManager() {
         moduleId: "",
         orderIndex: 0,
         media: [],
+        quizId: null,
       });
     }
   }, [editingLesson, lessonForm]);
@@ -169,7 +422,7 @@ export default function AdminCurriculumManager() {
       // Populate form with existing data
       quizForm.reset({
         title: editingQuiz.title,
-        questions: editingQuiz.questions as { question: string; options: string[]; correctAnswer: number; }[],
+        questions: toEditableQuestions(editingQuiz.questions),
         passThreshold: editingQuiz.passThreshold ?? 70,
         maxAttempts: editingQuiz.maxAttempts ?? 3,
       });
@@ -177,7 +430,7 @@ export default function AdminCurriculumManager() {
       // Reset to defaults when not editing
       quizForm.reset({
         title: "",
-        questions: [{ question: "", options: ["", ""], correctAnswer: 0 }],
+        questions: [emptyQuestion()],
         passThreshold: 70,
         maxAttempts: 3,
       });
@@ -185,8 +438,9 @@ export default function AdminCurriculumManager() {
   }, [editingQuiz, quizForm]);
 
   // Queries
-  const { data: cohorts = [], isLoading: isLoadingCohorts } = useQuery({
-    queryKey: ['/api/cohorts'],
+  // Admin endpoint returns every cohort, including inactive ones
+  const { data: cohorts = [], isLoading: isLoadingCohorts } = useQuery<Cohort[]>({
+    queryKey: ['/api/admin/cohorts'],
   });
 
   const { data: modules = [], isLoading: isLoadingModules } = useQuery({
@@ -199,7 +453,7 @@ export default function AdminCurriculumManager() {
     enabled: !!selectedCohort,
   });
 
-  const { data: allQuizzes = [], isLoading: isLoadingQuizzes } = useQuery({
+  const { data: allQuizzes = [], isLoading: isLoadingQuizzes } = useQuery<Quiz[]>({
     queryKey: ['/api/admin/quizzes'],
   });
 
@@ -313,8 +567,8 @@ export default function AdminCurriculumManager() {
 
   const deleteModuleMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/modules/${id}`);
-      return response.json();
+      // DELETE returns 204 with no body
+      await apiRequest("DELETE", `/api/admin/modules/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -358,6 +612,8 @@ export default function AdminCurriculumManager() {
           exact: true 
         });
       }
+      setDuplicatingModule(null);
+      setDuplicateTargetCohort("");
       toast({ title: "Module duplicated successfully" });
     },
     onError: (error: any) => {
@@ -453,8 +709,8 @@ export default function AdminCurriculumManager() {
 
   const deleteLessonMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/lessons/${id}`);
-      return response.json();
+      // DELETE returns 204 with no body
+      await apiRequest("DELETE", `/api/admin/lessons/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -527,8 +783,8 @@ export default function AdminCurriculumManager() {
 
   const deleteQuizMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/quizzes/${id}`);
-      return response.json();
+      // DELETE returns 204 with no body
+      await apiRequest("DELETE", `/api/admin/quizzes/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/quizzes'] });
@@ -568,7 +824,7 @@ export default function AdminCurriculumManager() {
     createQuizMutation.mutate(data);
   };
 
-  const handleUpdateQuiz = (data: Partial<Quiz>) => {
+  const handleUpdateQuiz = (data: QuizFormData) => {
     if (editingQuiz) {
       updateQuizMutation.mutate({ id: editingQuiz.id, data });
     }
@@ -642,7 +898,7 @@ export default function AdminCurriculumManager() {
             <SelectContent>
               {(cohorts as Cohort[]).map((cohort: Cohort) => (
                 <SelectItem key={cohort.id} value={cohort.id}>
-                  {cohort.name}
+                  {cohortLabel(cohort)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -775,7 +1031,7 @@ export default function AdminCurriculumManager() {
                               <SelectContent>
                                 {(cohorts as Cohort[]).map((cohort: Cohort) => (
                                   <SelectItem key={cohort.id} value={cohort.id}>
-                                    {cohort.name}
+                                    {cohortLabel(cohort)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -858,14 +1114,10 @@ export default function AdminCurriculumManager() {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              const targetCohort = (cohorts as Cohort[]).find((c: Cohort) => c.id !== module.cohortId);
-                              if (targetCohort) {
-                                duplicateModuleMutation.mutate({
-                                  id: module.id,
-                                  newCohortId: targetCohort.id,
-                                });
-                              }
+                              setDuplicateTargetCohort("");
+                              setDuplicatingModule(module);
                             }}
+                            title="Duplicate to another cohort"
                             data-testid={`button-duplicate-module-${module.id}`}
                           >
                             <Copy className="h-4 w-4" />
@@ -1131,24 +1383,7 @@ export default function AdminCurriculumManager() {
                       />
                       
                       <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={lessonForm.control}
-                          name="duration"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Duration (minutes)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  {...field} 
-                                  data-testid="input-lesson-duration"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <LessonQuizField form={lessonForm} quizzes={allQuizzes} />
                         <FormField
                           control={lessonForm.control}
                           name="orderIndex"
@@ -1228,6 +1463,7 @@ export default function AdminCurriculumManager() {
                                 moduleId: module.id,
                                 orderIndex: moduleLessons.length,
                                 media: [],
+                                quizId: null,
                               });
                               setIsCreateLessonOpen(true);
                             }}
@@ -1310,7 +1546,16 @@ export default function AdminCurriculumManager() {
           <TabsContent value="quizzes" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Assessment Quizzes</h3>
-              <Dialog open={isCreateQuizOpen} onOpenChange={setIsCreateQuizOpen}>
+              <Dialog
+                open={isCreateQuizOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    setEditingQuiz(null);
+                    quizForm.reset({ title: "", questions: [emptyQuestion()], passThreshold: 70, maxAttempts: 3 });
+                  }
+                  setIsCreateQuizOpen(open);
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button data-testid="button-create-quiz">
                     <Plus className="h-4 w-4 mr-2" />
@@ -1323,88 +1568,7 @@ export default function AdminCurriculumManager() {
                   </DialogHeader>
                   <Form {...quizForm}>
                     <form onSubmit={quizForm.handleSubmit(handleCreateQuiz)} className="space-y-4">
-                      <FormField
-                        control={quizForm.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Quiz Title</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="e.g., Week 1 Assessment: AI Fundamentals" 
-                                {...field} 
-                                data-testid="input-quiz-title"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                          control={quizForm.control}
-                          name="passThreshold"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Pass Threshold (%)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  max={100} 
-                                  {...field} 
-                                  data-testid="input-quiz-threshold"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={quizForm.control}
-                          name="maxAttempts"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Max Attempts</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  min={1} 
-                                  {...field} 
-                                  data-testid="input-quiz-attempts"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Questions</h4>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              const currentQuestions = quizForm.getValues("questions");
-                              quizForm.setValue("questions", [
-                                ...currentQuestions,
-                                { question: "", options: ["", ""], correctAnswer: 0 }
-                              ]);
-                            }}
-                            data-testid="button-add-question"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Question
-                          </Button>
-                        </div>
-                        {/* Quiz questions would be rendered here with a more complex form */}
-                        <div className="p-4 border border-white/10 rounded-lg bg-white/5">
-                          <p className="text-sm text-muted-foreground">
-                            Quiz builder interface would be implemented here with dynamic question management
-                          </p>
-                        </div>
-                      </div>
+                      <QuizFormFields form={quizForm} idPrefix="quiz" />
                       <div className="flex justify-end gap-2">
                         <Button 
                           type="button" 
@@ -1490,6 +1654,73 @@ export default function AdminCurriculumManager() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Duplicate Module Dialog */}
+      <Dialog
+        open={!!duplicatingModule}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDuplicatingModule(null);
+            setDuplicateTargetCohort("");
+          }
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Duplicate Module</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Copy "{duplicatingModule?.title}" and its lessons into another cohort.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="select-duplicate-cohort">Target cohort</Label>
+              <Select value={duplicateTargetCohort} onValueChange={setDuplicateTargetCohort}>
+                <SelectTrigger id="select-duplicate-cohort" data-testid="select-duplicate-cohort">
+                  <SelectValue placeholder="Select target cohort" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cohorts
+                    .filter((cohort) => cohort.id !== duplicatingModule?.cohortId)
+                    .map((cohort) => (
+                      <SelectItem key={cohort.id} value={cohort.id}>
+                        {cohortLabel(cohort)}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {cohorts.filter((cohort) => cohort.id !== duplicatingModule?.cohortId).length === 0 && (
+                <p className="text-xs text-muted-foreground">Create another cohort first to duplicate this module.</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDuplicatingModule(null);
+                  setDuplicateTargetCohort("");
+                }}
+                data-testid="button-cancel-duplicate-module"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!duplicateTargetCohort || duplicateModuleMutation.isPending}
+                onClick={() => {
+                  if (duplicatingModule && duplicateTargetCohort) {
+                    duplicateModuleMutation.mutate({ id: duplicatingModule.id, newCohortId: duplicateTargetCohort });
+                  }
+                }}
+                data-testid="button-confirm-duplicate-module"
+              >
+                {duplicateModuleMutation.isPending ? "Duplicating..." : "Duplicate"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Module Dialog */}
       {editingModule && (
@@ -1591,7 +1822,7 @@ export default function AdminCurriculumManager() {
                         <SelectContent>
                           {(cohorts as Cohort[]).map((cohort: Cohort) => (
                             <SelectItem key={cohort.id} value={cohort.id}>
-                              {cohort.name}
+                              {cohortLabel(cohort)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1783,24 +2014,7 @@ export default function AdminCurriculumManager() {
                 />
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={lessonForm.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duration (minutes)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min={1} 
-                            {...field} 
-                            data-testid="input-edit-lesson-duration"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <LessonQuizField form={lessonForm} quizzes={allQuizzes} />
                   <FormField
                     control={lessonForm.control}
                     name="orderIndex"
@@ -1852,7 +2066,7 @@ export default function AdminCurriculumManager() {
             </DialogHeader>
             <Form {...quizForm}>
               <form onSubmit={quizForm.handleSubmit(handleUpdateQuiz)} className="space-y-4">
-                {/* Similar form fields as create quiz */}
+                <QuizFormFields form={quizForm} idPrefix="edit-quiz" />
                 <div className="flex justify-end gap-2">
                   <Button 
                     type="button" 

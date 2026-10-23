@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "./Sidebar";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -12,8 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { Bell, ChevronDown, User, LogOut } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronDown, User, LogOut } from "lucide-react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -23,7 +20,6 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title, subtitle }: AppLayoutProps) {
   const { user } = useAuth();
-  const [notifications] = useState(3); // Mock notification count
 
   const handleLogout = async () => {
     try {
@@ -51,36 +47,6 @@ export default function AppLayout({ children, title, subtitle }: AppLayoutProps)
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Language Selector */}
-              <Select defaultValue="en" data-testid="language-selector">
-                <SelectTrigger className="w-32 bg-secondary border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">🇺🇸 English</SelectItem>
-                  <SelectItem value="es">🇪🇸 Español</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Notifications */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative hover:bg-secondary"
-                data-testid="button-notifications"
-              >
-                <Bell className="h-5 w-5" />
-                {notifications > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                    data-testid="notification-count"
-                  >
-                    {notifications}
-                  </Badge>
-                )}
-              </Button>
-
               {/* Profile Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

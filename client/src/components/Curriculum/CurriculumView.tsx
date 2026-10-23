@@ -8,6 +8,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Link } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -28,16 +31,16 @@ import {
   CheckCircle,
   Clock,
   FileText,
-  Video,
-  Download,
   Award,
   Target,
   Users,
-  Lightbulb,
   AlertCircle,
   Info,
   ListTodo,
-  Play
+  Play,
+  ExternalLink,
+  HelpCircle,
+  XCircle
 } from "lucide-react";
 
 // Only allow http(s) and mailto links from curriculum markdown
@@ -48,6 +51,205 @@ function isSafeLinkUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+// apiRequest errors look like "409: {\"message\":\"...\"}" - pull out the server message
+function getErrorMessage(error: unknown, fallback: string): string {
+  const raw = error instanceof Error ? error.message : "";
+  const body = raw.replace(/^\d{3}:\s*/, "");
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed.message === "string") return parsed.message;
+  } catch {
+    // not JSON
+  }
+  return body || fallback;
+}
+
+function getErrorStatus(error: unknown): number | null {
+  const match = error instanceof Error ? error.message.match(/^(\d{3}):/) : null;
+  return match ? Number(match[1]) : null;
+}
+
+function getMediaLabel(url: string): { label: string; icon: "video" | "pdf" | "link" } {
+  const lower = url.toLowerCase();
+  if (lower.includes("youtube.com") || lower.includes("youtu.be") || lower.includes("vimeo.com") || lower.endsWith(".mp4")) {
+    return { label: "Video", icon: "video" };
+  }
+  if (lower.includes(".pdf")) return { label: "PDF", icon: "pdf" };
+  return { label: "Resource", icon: "link" };
+}
+
+type ParticipantQuiz = {
+  id: string;
+  title: string;
+  passThreshold: number;
+  maxAttempts: number | null;
+  questions: { question: string; options: string[] }[];
+};
+
+type QuizResult = {
+  score: number;
+  passed: boolean;
+  correct: number;
+  total: number;
+  attempts: number;
+  maxAttempts: number | null;
+};
+
+function LessonQuiz({
+  lessonId,
+  quizId,
+  canSubmit,
+  lessonCompleted,
+  onPassed,
+}: {
+  lessonId: string;
+  quizId: string;
+  canSubmit: boolean;
+  lessonCompleted: boolean;
+  onPassed: () => void;
+}) {
+  const { toast } = useToast();
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [result, setResult] = useState<QuizResult | null>(null);
+  const [attemptsExhausted, setAttemptsExhausted] = useState<string | null>(null);
+
+  const { data: quiz, isLoading, error } = useQuery<ParticipantQuiz>({
+    queryKey: [`/api/quizzes/${quizId}`],
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: async (submitted: number[]) => {
+      const response = await apiRequest("POST", `/api/lessons/${lessonId}/quiz/submit`, { answers: submitted });
+      return (await response.json()) as QuizResult;
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      if (data.passed) {
+        toast({ title: "Quiz passed", description: `You scored ${data.score}%. Lesson marked complete.` });
+        onPassed();
+      } else {
+        toast({
+          title: "Quiz not passed",
+          description: `You scored ${data.score}%. ${quiz ? `You need ${quiz.passThreshold}% to pass.` : ""}`,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (err) => {
+      const message = getErrorMessage(err, "Failed to submit quiz. Please try again.");
+      if (getErrorStatus(err) === 409) {
+        setAttemptsExhausted(message);
+        return;
+      }
+      toast({ title: "Quiz submission failed", description: message, variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return <div className="h-24 bg-secondary/30 rounded-lg animate-pulse" />;
+  }
+
+  if (error || !quiz) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        The quiz for this lesson could not be loaded.
+      </p>
+    );
+  }
+
+  const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+  const allAnswered = questions.length > 0 && questions.every((_, i) => answers[i] !== undefined);
+  const attemptsUsed = result?.attempts;
+  const maxAttempts = result?.maxAttempts ?? quiz.maxAttempts;
+  const noAttemptsLeft =
+    !!attemptsExhausted ||
+    (result !== null && !result.passed && maxAttempts != null && result.attempts >= maxAttempts);
+
+  const handleSubmit = () => {
+    if (!allAnswered) return;
+    submitMutation.mutate(questions.map((_, i) => answers[i]));
+  };
+
+  return (
+    <div className="border border-border/50 rounded-lg p-4 space-y-4 bg-background/50" data-testid={`lesson-quiz-${lessonId}`}>
+      <div className="flex items-center justify-between">
+        <h5 className="font-semibold text-sm flex items-center space-x-2">
+          <HelpCircle className="w-4 h-4 text-primary" />
+          <span>{quiz.title}</span>
+        </h5>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs">Pass: {quiz.passThreshold}%</Badge>
+          {maxAttempts != null && (
+            <Badge variant="outline" className="text-xs">
+              {attemptsUsed !== undefined ? `Attempt ${attemptsUsed} of ${maxAttempts}` : `Max attempts: ${maxAttempts}`}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {lessonCompleted && !result && (
+        <p className="text-sm text-green-500">You have already completed this lesson.</p>
+      )}
+
+      {questions.map((q, qIndex) => (
+        <div key={qIndex} className="space-y-2">
+          <p className="text-sm font-medium">
+            {qIndex + 1}. {q.question}
+          </p>
+          <RadioGroup
+            value={answers[qIndex] !== undefined ? String(answers[qIndex]) : ""}
+            onValueChange={(value) => setAnswers((prev) => ({ ...prev, [qIndex]: Number(value) }))}
+            disabled={!canSubmit || submitMutation.isPending || noAttemptsLeft}
+          >
+            {q.options.map((option, oIndex) => {
+              const id = `quiz-${lessonId}-q${qIndex}-o${oIndex}`;
+              return (
+                <div key={oIndex} className="flex items-center space-x-2">
+                  <RadioGroupItem value={String(oIndex)} id={id} data-testid={`radio-${id}`} />
+                  <Label htmlFor={id} className="text-sm font-normal">{option}</Label>
+                </div>
+              );
+            })}
+          </RadioGroup>
+        </div>
+      ))}
+
+      {result && (
+        <div
+          className={`flex items-center space-x-2 text-sm rounded-md p-3 ${result.passed ? "bg-green-500/10 text-green-500" : "bg-destructive/10 text-destructive"}`}
+          data-testid={`quiz-result-${lessonId}`}
+        >
+          {result.passed ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          <span>
+            {result.passed ? "Passed" : "Not passed"}: {result.correct} of {result.total} correct ({result.score}%).
+          </span>
+        </div>
+      )}
+
+      {noAttemptsLeft && !result?.passed && (
+        <p className="text-sm text-destructive" data-testid={`quiz-no-attempts-${lessonId}`}>
+          {attemptsExhausted || "You have no attempts left for this quiz."}
+        </p>
+      )}
+
+      {canSubmit ? (
+        !result?.passed && !noAttemptsLeft && (
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={!allAnswered || submitMutation.isPending}
+            data-testid={`button-submit-quiz-${lessonId}`}
+          >
+            {submitMutation.isPending ? "Submitting..." : result ? "Try again" : "Submit answers"}
+          </Button>
+        )
+      ) : (
+        <p className="text-xs text-muted-foreground">Quizzes are taken by program participants.</p>
+      )}
+    </div>
+  );
 }
 
 export default function CurriculumView() {
@@ -64,9 +266,12 @@ export default function CurriculumView() {
   });
 
   // Fetch cohort data
+  // Administrators see every cohort (including inactive); everyone else sees active cohorts
   const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<any[]>({
-    queryKey: ["/api/cohorts"],
+    queryKey: [user?.role === 'administrator' ? "/api/admin/cohorts" : "/api/cohorts"],
   });
+
+  const canCompleteLessons = user?.role === 'participant' || user?.role === 'administrator';
 
   // Get current cohort based on user role and selected cohort
   const currentCohort = (() => {
@@ -136,6 +341,20 @@ export default function CurriculumView() {
     enabled: !!currentProject?.id && user?.role !== 'administrator',
   });
 
+  // Refresh lesson progress, cohort progress and roadmap (lesson completion can auto-complete roadmap items)
+  const invalidateProgress = () => {
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey[0];
+        return typeof key === 'string' && (
+          key.startsWith('/api/progress') ||
+          key.startsWith('/api/roadmap') ||
+          (key === '/api/projects' && query.queryKey[2] === 'roadmap')
+        );
+      },
+    });
+  };
+
   // Create progress map for easy lookup
   const progressMap = new Map(userProgress.map(p => [p.lessonId, p]));
 
@@ -145,16 +364,14 @@ export default function CurriculumView() {
       return apiRequest('POST', `/api/progress/lesson/${lessonId}/complete`, { score, timeSpent: 0 });
     },
     onSuccess: () => {
-      // Invalidate progress queries for real-time updates
-      queryClient.invalidateQueries({ queryKey: ['/api/progress/module', selectedModule] });
-      // Invalidate cohort progress for dashboard updates
-      if (currentCohort?.id) {
-        queryClient.invalidateQueries({ queryKey: [`/api/progress/cohort/${currentCohort.id}`] });
-      }
+      invalidateProgress();
     },
     onError: (error) => {
-      console.error('Failed to mark lesson complete:', error);
-      // Could show toast notification here
+      toast({
+        title: "Could not mark lesson complete",
+        description: getErrorMessage(error, "Please try again."),
+        variant: "destructive",
+      });
     }
   });
 
@@ -181,8 +398,7 @@ export default function CurriculumView() {
   });
 
   const toggleLessonComplete = async (lessonId: string) => {
-    // Prevent administrators from marking lessons complete (read-only mode)
-    if (user?.role === 'administrator') {
+    if (!canCompleteLessons) {
       return;
     }
     
@@ -329,8 +545,10 @@ export default function CurriculumView() {
                     >
                       <div className="flex items-center space-x-2">
                         <span>{cohort.name}</span>
-                        {cohort.isActive && (
+                        {cohort.isActive ? (
                           <Badge variant="secondary" className="text-xs">Active</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">Inactive</Badge>
                         )}
                       </div>
                     </SelectItem>
@@ -338,7 +556,7 @@ export default function CurriculumView() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                📖 You are viewing in read-only mode - lesson completion is disabled for administrators.
+                You are viewing the curriculum as an administrator.
               </p>
             </div>
           </CardContent>
@@ -480,7 +698,6 @@ export default function CurriculumView() {
                               </div>
                             ) : selectedModule === module.id && lessons.map((lesson) => {
                               const progress = progressMap.get(lesson.id);
-                              const isAdmin = user?.role === 'administrator';
                               return (
                                 <Card key={lesson.id} className="bg-secondary/20 border-border/50">
                                   <CardContent className="p-4">
@@ -841,57 +1058,74 @@ export default function CurriculumView() {
                                           </div>
                                         </div>
                                       
-                                      {/* Media Actions */}
-                                      <div className="flex items-center space-x-2">
-                                        {lesson.media?.some(m => m.includes('.mp4')) && (
-                                          <Button size="sm" variant="outline" data-testid={`button-play-${lesson.id}`}>
-                                            <PlayCircle className="w-3 h-3 mr-1" />
-                                            Play
-                                          </Button>
-                                        )}
-                                        {lesson.media?.some(m => m.includes('.pdf')) && (
-                                          <Button size="sm" variant="outline" data-testid={`button-download-${lesson.id}`}>
-                                            <Download className="w-3 h-3 mr-1" />
-                                            PDF
-                                          </Button>
-                                        )}
-                                      </div>
+                                      {/* Media Resources */}
+                                      {lesson.media && lesson.media.filter(m => m && isSafeLinkUrl(m)).length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          {lesson.media.filter(m => m && isSafeLinkUrl(m)).map((media, mediaIndex) => {
+                                            const { label, icon } = getMediaLabel(media);
+                                            return (
+                                              <Button key={mediaIndex} size="sm" variant="outline" asChild>
+                                                <a
+                                                  href={media}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  data-testid={`link-media-${lesson.id}-${mediaIndex}`}
+                                                >
+                                                  {icon === 'video' ? (
+                                                    <PlayCircle className="w-3 h-3 mr-1" />
+                                                  ) : icon === 'pdf' ? (
+                                                    <FileText className="w-3 h-3 mr-1" />
+                                                  ) : (
+                                                    <ExternalLink className="w-3 h-3 mr-1" />
+                                                  )}
+                                                  {label}
+                                                </a>
+                                              </Button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+
+                                      {/* Lesson Quiz */}
+                                      {lesson.quizId && (
+                                        <LessonQuiz
+                                          lessonId={lesson.id}
+                                          quizId={lesson.quizId}
+                                          canSubmit={canCompleteLessons}
+                                          lessonCompleted={Boolean(progress?.isCompleted)}
+                                          onPassed={invalidateProgress}
+                                        />
+                                      )}
 
                                       {/* Lesson Completion */}
                                       <div className="border-t border-border/50 pt-4">
-                                        <div className="flex items-center justify-between">
-                                          <div className="text-sm text-muted-foreground">
-                                            {progress?.isCompleted 
-                                              ? "✅ Lesson completed" 
-                                              : "Mark this lesson as completed when you're done"}
-                                          </div>
-                                          <Button
-                                            onClick={() => toggleLessonComplete(lesson.id)}
-                                            disabled={markCompleteMutation.isPending || isAdmin || Boolean(progress?.isCompleted)}
-                                            size="sm"
-                                            className={progress?.isCompleted 
-                                              ? 'bg-green-500 hover:bg-green-600 text-white' 
-                                              : isAdmin
-                                              ? 'opacity-50 cursor-not-allowed'
-                                              : ''}
-                                            data-testid={`button-complete-lesson-${lesson.id}`}
-                                          >
-                                            {progress?.isCompleted ? (
-                                              <>
+                                        {canCompleteLessons ? (
+                                          <div className="flex items-center justify-between">
+                                            <div className="text-sm text-muted-foreground">
+                                              {progress?.isCompleted
+                                                ? "✅ Lesson completed"
+                                                : lesson.quizId
+                                                ? "Pass the quiz above to complete this lesson"
+                                                : "Mark this lesson as completed when you're done"}
+                                            </div>
+                                            {(progress?.isCompleted || !lesson.quizId) && (
+                                              <Button
+                                                onClick={() => toggleLessonComplete(lesson.id)}
+                                                disabled={markCompleteMutation.isPending || Boolean(progress?.isCompleted)}
+                                                size="sm"
+                                                className={progress?.isCompleted ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+                                                data-testid={`button-complete-lesson-${lesson.id}`}
+                                              >
                                                 <CheckCircle className="w-4 h-4 mr-2" />
-                                                Completed
-                                              </>
-                                            ) : (
-                                              <>
-                                                <CheckCircle className="w-4 h-4 mr-2" />
-                                                {markCompleteMutation.isPending ? 'Marking...' : 'Mark as Complete'}
-                                              </>
+                                                {progress?.isCompleted
+                                                  ? 'Completed'
+                                                  : markCompleteMutation.isPending ? 'Marking...' : 'Mark as Complete'}
+                                              </Button>
                                             )}
-                                          </Button>
-                                        </div>
-                                        {isAdmin && (
-                                          <p className="text-xs text-muted-foreground mt-2">
-                                            📖 Read-only mode: Completion disabled for administrators
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground">
+                                            Lesson completion is tracked for program participants.
                                           </p>
                                         )}
                                       </div>
@@ -973,7 +1207,7 @@ export default function CurriculumView() {
           </Card>
 
           {/* Week Roadmap - For Participants Only */}
-          {user?.role !== 'administrator' && (
+          {user?.role === 'participant' && (
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2 text-lg">
@@ -1071,49 +1305,28 @@ export default function CurriculumView() {
             </Card>
           )}
 
-          {/* Quick Actions */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-download-materials"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download Week Materials
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-schedule-session"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Schedule Mentor Session
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-ai-coach"
-              >
-                <Lightbulb className="w-4 h-4 mr-2" />
-                Ask AI Coach
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                data-testid="button-view-assignments"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                View Assignments
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Quick Actions - participants only */}
+          {user?.role === 'participant' && (
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button className="w-full justify-start" variant="outline" asChild>
+                  <Link href="/mentors" data-testid="button-schedule-session">
+                    <Users className="w-4 h-4 mr-2" />
+                    Schedule Mentor Session
+                  </Link>
+                </Button>
+                <Button className="w-full justify-start" variant="outline" asChild>
+                  <Link href="/roadmap" data-testid="button-view-assignments">
+                    <ListTodo className="w-4 h-4 mr-2" />
+                    View Roadmap
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Learning Path */}
           <Card className="glass-card">

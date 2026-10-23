@@ -24,8 +24,9 @@ export default function Dashboard() {
     enabled: user?.role === 'administrator'
   });
 
+  // Admin endpoint includes inactive cohorts
   const { data: cohorts = [], isLoading: cohortsLoading } = useQuery<Cohort[]>({
-    queryKey: ["/api/cohorts"],
+    queryKey: ["/api/admin/cohorts"],
     enabled: user?.role === 'administrator'
   });
 
@@ -259,9 +260,8 @@ export default function Dashboard() {
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertTitle className="text-green-800">Application Successfully Submitted!</AlertTitle>
           <AlertDescription className="text-green-700">
-            Thank you for applying to MD Genius AI Launchpad 2025 Q1 cohort. 
-            We've received your application and you'll receive a confirmation email shortly. 
-            Our team will review your application and get back to you within 5-7 business days.
+            Thank you for applying to MD Genius AI Launchpad. We've received your application.
+            Our team will review it and get back to you within 5-7 business days. You can follow its status here.
           </AlertDescription>
         </Alert>
       )}
