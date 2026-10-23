@@ -81,6 +81,12 @@ const {
   ...safeUserColumns
 } = getTableColumns(users);
 
+export class InactiveTemplateError extends Error {
+  constructor() {
+    super("This roadmap template is archived. Restore it before assigning it.");
+  }
+}
+
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -110,7 +116,7 @@ export interface IStorage {
   getApplication(id: string): Promise<Application | undefined>;
   getApplicationsByUser(userId: string): Promise<Application[]>;
   getAllApplications(): Promise<Application[]>;
-  updateApplicationStatus(id: string, status: any, reviewerNotes?: string): Promise<Application>;
+  updateApplicationStatus(id: string, status: any, reviewerNotes?: string, scores?: Record<string, number>): Promise<Application>;
   
   // Project operations
   createProject(project: InsertProject): Promise<Project>;
@@ -175,12 +181,12 @@ export interface IStorage {
   getMentorSession(sessionId: string): Promise<MentorSession | undefined>;
   
   // Investor operations
-  getInvestors(): Promise<Investor[]>;
+  getInvestors(includeInactive?: boolean): Promise<Investor[]>;
   getInvestor(id: string): Promise<Investor | undefined>;
   createInvestor(investor: InsertInvestor): Promise<Investor>;
   updateInvestor(id: string, data: Partial<Investor>): Promise<Investor>;
   deactivateInvestor(id: string): Promise<Investor>;
-  getInvestorsByUser(userId: string): Promise<Investor[]>;
+  getInvestorsByUser(userId: string, includeInactive?: boolean): Promise<Investor[]>;
   
   // Investor interest management
   getInvestorInterests(projectId: string): Promise<InvestorInterest[]>;
@@ -193,7 +199,7 @@ export interface IStorage {
   createInvestorSession(session: InsertInvestorSession): Promise<InvestorSession>;
   updateInvestorSession(sessionId: string, data: Partial<InvestorSession>): Promise<InvestorSession>;
   getInvestorSession(sessionId: string): Promise<InvestorSession | undefined>;
-  cancelInvestorSession(sessionId: string): Promise<void>;
+  cancelInvestorSession(sessionId: string): Promise<boolean>;
   
   // Investor-cohort participation management
   getInvestorCohortParticipation(investorId: string): Promise<InvestorCohortParticipation[]>;
@@ -201,7 +207,7 @@ export interface IStorage {
   getAllCohortAssignments(): Promise<InvestorCohortParticipation[]>;
   assignInvestorToCohort(participation: InsertInvestorCohortParticipation): Promise<InvestorCohortParticipation>;
   updateInvestorCohortRole(participationId: string, role: string): Promise<InvestorCohortParticipation>;
-  removeInvestorFromCohort(participationId: string): Promise<void>;
+  removeInvestorFromCohort(participationId: string): Promise<boolean>;
   
   // AI Coach operations
   createAiConversation(conversation: InsertAiConversation): Promise<AiConversation>;
@@ -227,9 +233,9 @@ export interface IStorage {
   // Template management
   createRoadmapTemplate(template: InsertRoadmapTemplate): Promise<RoadmapTemplate>;
   getRoadmapTemplate(id: string): Promise<RoadmapTemplate | undefined>;
-  getRoadmapTemplates(cohortId?: string): Promise<RoadmapTemplate[]>;
+  getRoadmapTemplates(cohortId?: string, includeInactive?: boolean): Promise<RoadmapTemplate[]>;
   updateRoadmapTemplate(id: string, data: Partial<RoadmapTemplate>): Promise<RoadmapTemplate>;
-  deleteRoadmapTemplate(id: string): Promise<void>;
+  deleteRoadmapTemplate(id: string): Promise<boolean>;
   
   // Roadmap item management
   createRoadmapItem(item: InsertRoadmapItem): Promise<RoadmapItem>;
@@ -237,7 +243,7 @@ export interface IStorage {
   getRoadmapItemsByTemplate(templateId: string): Promise<RoadmapItem[]>;
   getRoadmapItemsByWeek(templateId: string, week: number): Promise<RoadmapItem[]>;
   updateRoadmapItem(id: string, data: Partial<RoadmapItem>): Promise<RoadmapItem>;
-  deleteRoadmapItem(id: string): Promise<void>;
+  deleteRoadmapItem(id: string): Promise<boolean>;
   
   // Participant roadmap assignments
   getParticipantRoadmap(projectId: string): Promise<{
@@ -394,8 +400,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(applications.createdAt));
   }
 
-  async updateApplicationStatus(id: string, status: any, reviewerNotes?: string): Promise<Application> {
+  async updateApplicationStatus(id: string, status: any, reviewerNotes?: string, scores?: Record<string, number>): Promise<Application> {
     const updateData: any = { status, updatedAt: new Date() };
+    if (scores) updateData.scores = scores;
     
     if (reviewerNotes) {
       // First fetch current application to get existing reviewer notes
@@ -571,6 +578,21 @@ export class DatabaseStorage implements IStorage {
       .then((rows: any[]) => rows.map((row: any) => row.user_progress));
   }
 
+  /** Lesson completion for a module, counting every lesson in the module. */
+  async getModuleCompletion(userId: string, moduleId: string): Promise<{
+    totalLessons: number; completedLessons: number; completionRate: number;
+  }> {
+    const moduleLessons = await this.getLessonsByModule(moduleId);
+    const progress = await this.getUserProgressForModule(userId, moduleId);
+    const completedLessons = progress.filter((p) => p.isCompleted).length;
+    const totalLessons = moduleLessons.length;
+    return {
+      totalLessons,
+      completedLessons,
+      completionRate: totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0,
+    };
+  }
+
   async getUserProgressForCohort(userId: string, cohortId: string): Promise<{
     totalLessons: number;
     completedLessons: number;
@@ -656,16 +678,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markLessonComplete(userId: string, lessonId: string, score?: number, timeSpent?: number): Promise<UserProgress> {
+    const existing = await this.getUserProgress(userId, lessonId);
     const progressData: InsertUserProgress = {
       userId,
       lessonId,
       isCompleted: true,
-      completedAt: new Date(),
-      score,
-      timeSpent,
-      attempts: 1, // TODO: Increment existing attempts
+      completedAt: existing?.completedAt ?? new Date(),
+      score: score ?? existing?.score ?? undefined,
+      timeSpent: (existing?.timeSpent ?? 0) + (timeSpent ?? 0) || undefined,
+      attempts: existing?.attempts ?? 1,
     };
     return this.createOrUpdateUserProgress(progressData);
+  }
+
+  /** Records a scored quiz attempt; completes the lesson when passed. */
+  async recordQuizAttempt(userId: string, lessonId: string, score: number, passed: boolean): Promise<UserProgress> {
+    const existing = await this.getUserProgress(userId, lessonId);
+    const attempts = (existing?.attempts ?? 0) + 1;
+    const bestScore = Math.max(score, existing?.score ?? 0);
+    const completed = passed || existing?.isCompleted === true;
+    return this.createOrUpdateUserProgress({
+      userId,
+      lessonId,
+      isCompleted: completed,
+      completedAt: completed ? existing?.completedAt ?? new Date() : null,
+      score: bestScore,
+      timeSpent: existing?.timeSpent ?? undefined,
+      attempts,
+    });
   }
 
   // Curriculum Management Operations (Admin)
@@ -679,6 +719,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateModule(id: string, data: Partial<Module>): Promise<Module> {
     const allowedFields = {
+      cohortId: data.cohortId,
       title: data.title,
       description: data.description,
       week: data.week,
@@ -690,6 +731,7 @@ export class DatabaseStorage implements IStorage {
     const updateData = Object.fromEntries(
       Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
     );
+    if (Object.keys(updateData).length === 0) return this.getModule(id) as Promise<Module>;
     
     const [updated] = await db
       .update(modules)
@@ -699,8 +741,26 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteModule(id: string): Promise<void> {
-    await db.delete(modules).where(eq(modules.id, id));
+  /** Deletes a module with its lessons and their progress; unlinks roadmap items. */
+  async deleteModule(id: string): Promise<boolean> {
+    return await db.transaction(async (trx) => {
+      const moduleLessons = await trx.select({ id: lessons.id }).from(lessons).where(eq(lessons.moduleId, id));
+      const lessonIds = moduleLessons.map((l) => l.id);
+      if (lessonIds.length > 0) {
+        await trx.delete(userProgress).where(inArray(userProgress.lessonId, lessonIds));
+        await trx
+          .update(roadmapItems)
+          .set({ lessonId: null, autoCompletionType: sql`CASE WHEN ${roadmapItems.autoCompletionType} = 'lesson' THEN 'none'::auto_completion_type ELSE ${roadmapItems.autoCompletionType} END` })
+          .where(inArray(roadmapItems.lessonId, lessonIds));
+        await trx.delete(lessons).where(inArray(lessons.id, lessonIds));
+      }
+      await trx
+        .update(roadmapItems)
+        .set({ moduleId: null, autoCompletionType: sql`CASE WHEN ${roadmapItems.autoCompletionType} = 'module' THEN 'none'::auto_completion_type ELSE ${roadmapItems.autoCompletionType} END` })
+        .where(eq(roadmapItems.moduleId, id));
+      const deleted = await trx.delete(modules).where(eq(modules.id, id)).returning({ id: modules.id });
+      return deleted.length > 0;
+    });
   }
 
   async createLesson(lesson: InsertLesson): Promise<Lesson> {
@@ -713,6 +773,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateLesson(id: string, data: Partial<Lesson>): Promise<Lesson> {
     const allowedFields = {
+      moduleId: data.moduleId,
       title: data.title,
       content: data.content,
       media: data.media,
@@ -724,6 +785,7 @@ export class DatabaseStorage implements IStorage {
     const updateData = Object.fromEntries(
       Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
     );
+    if (Object.keys(updateData).length === 0) return this.getLesson(id) as Promise<Lesson>;
     
     const [updated] = await db
       .update(lessons)
@@ -733,8 +795,17 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteLesson(id: string): Promise<void> {
-    await db.delete(lessons).where(eq(lessons.id, id));
+  /** Deletes a lesson and its progress; unlinks roadmap items. */
+  async deleteLesson(id: string): Promise<boolean> {
+    return await db.transaction(async (trx) => {
+      await trx.delete(userProgress).where(eq(userProgress.lessonId, id));
+      await trx
+        .update(roadmapItems)
+        .set({ lessonId: null, autoCompletionType: sql`CASE WHEN ${roadmapItems.autoCompletionType} = 'lesson' THEN 'none'::auto_completion_type ELSE ${roadmapItems.autoCompletionType} END` })
+        .where(eq(roadmapItems.lessonId, id));
+      const deleted = await trx.delete(lessons).where(eq(lessons.id, id)).returning({ id: lessons.id });
+      return deleted.length > 0;
+    });
   }
 
   async duplicateModule(moduleId: string, newCohortId: string): Promise<Module> {
@@ -810,6 +881,7 @@ export class DatabaseStorage implements IStorage {
     const updateData = Object.fromEntries(
       Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
     );
+    if (Object.keys(updateData).length === 0) return this.getQuiz(id) as Promise<Quiz>;
     
     const [updated] = await db
       .update(quizzes)
@@ -819,8 +891,13 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteQuiz(id: string): Promise<void> {
-    await db.delete(quizzes).where(eq(quizzes.id, id));
+  /** Deletes a quiz and unlinks it from lessons. */
+  async deleteQuiz(id: string): Promise<boolean> {
+    return await db.transaction(async (trx) => {
+      await trx.update(lessons).set({ quizId: null }).where(eq(lessons.quizId, id));
+      const deleted = await trx.delete(quizzes).where(eq(quizzes.id, id)).returning({ id: quizzes.id });
+      return deleted.length > 0;
+    });
   }
 
   // Deliverable operations
@@ -1087,11 +1164,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Investor operations
-  async getInvestors(): Promise<Investor[]> {
+  async getInvestors(includeInactive = false): Promise<Investor[]> {
     return await db
       .select()
       .from(investors)
-      .where(eq(investors.isActive, true))
+      .where(includeInactive ? undefined : eq(investors.isActive, true))
       .orderBy(asc(investors.organization));
   }
 
@@ -1121,11 +1198,14 @@ export class DatabaseStorage implements IStorage {
       checkSize: data.checkSize,
       preferences: data.preferences,
       ndaStatus: data.ndaStatus,
+      isActive: data.isActive,
+      userId: data.userId,
     };
     
     const updateData = Object.fromEntries(
       Object.entries(allowedFields).filter(([_, value]) => value !== undefined)
     );
+    if (Object.keys(updateData).length === 0) return this.getInvestor(id) as Promise<Investor>;
     
     const [updated] = await db
       .update(investors)
@@ -1144,11 +1224,11 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getInvestorsByUser(userId: string): Promise<Investor[]> {
+  async getInvestorsByUser(userId: string, includeInactive = false): Promise<Investor[]> {
     return await db
       .select()
       .from(investors)
-      .where(and(eq(investors.userId, userId), eq(investors.isActive, true)))
+      .where(includeInactive ? eq(investors.userId, userId) : and(eq(investors.userId, userId), eq(investors.isActive, true)))
       .orderBy(asc(investors.organization));
   }
 
@@ -1288,10 +1368,12 @@ export class DatabaseStorage implements IStorage {
     return session;
   }
 
-  async cancelInvestorSession(sessionId: string): Promise<void> {
-    await db
+  async cancelInvestorSession(sessionId: string): Promise<boolean> {
+    const deleted = await db
       .delete(investorSessions)
-      .where(eq(investorSessions.id, sessionId));
+      .where(eq(investorSessions.id, sessionId))
+      .returning({ id: investorSessions.id });
+    return deleted.length > 0;
   }
 
   // Investor-cohort participation management
@@ -1315,6 +1397,18 @@ export class DatabaseStorage implements IStorage {
       ...result.investor_cohort_participation,
       investor: result.investors
     }));
+  }
+
+  async findInvestorCohortParticipation(investorId: string, cohortId: string): Promise<InvestorCohortParticipation | undefined> {
+    const [row] = await db
+      .select()
+      .from(investorCohortParticipation)
+      .where(and(
+        eq(investorCohortParticipation.investorId, investorId),
+        eq(investorCohortParticipation.cohortId, cohortId),
+      ))
+      .limit(1);
+    return row;
   }
 
   async assignInvestorToCohort(participation: InsertInvestorCohortParticipation): Promise<InvestorCohortParticipation> {
@@ -1342,11 +1436,22 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(investorCohortParticipation.assignedAt));
   }
 
-  async removeInvestorFromCohort(participationId: string): Promise<void> {
-    await db
+  async removeInvestorFromCohort(participationId: string): Promise<boolean> {
+    const updated = await db
       .update(investorCohortParticipation)
       .set({ status: "inactive" })
-      .where(eq(investorCohortParticipation.id, participationId));
+      .where(eq(investorCohortParticipation.id, participationId))
+      .returning({ id: investorCohortParticipation.id });
+    return updated.length > 0;
+  }
+
+  async reactivateInvestorCohortParticipation(participationId: string, role: string): Promise<InvestorCohortParticipation> {
+    const [updated] = await db
+      .update(investorCohortParticipation)
+      .set({ status: "active", role })
+      .where(eq(investorCohortParticipation.id, participationId))
+      .returning();
+    return updated;
   }
 
   // AI Coach operations
@@ -1475,7 +1580,13 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
 
-  async getRoadmapTemplates(cohortId?: string): Promise<RoadmapTemplate[]> {
+  async getRoadmapTemplates(cohortId?: string, includeInactive = false): Promise<RoadmapTemplate[]> {
+    if (includeInactive) {
+      return await db
+        .select()
+        .from(roadmapTemplates)
+        .orderBy(desc(roadmapTemplates.isActive), desc(roadmapTemplates.isDefault), desc(roadmapTemplates.createdAt));
+    }
     let whereClause;
     if (cohortId) {
       // Get templates for specific cohort OR global templates
@@ -1507,12 +1618,14 @@ export class DatabaseStorage implements IStorage {
     return updatedTemplate;
   }
 
-  async deleteRoadmapTemplate(id: string): Promise<void> {
-    // Soft delete by setting isActive to false
-    await db
+  /** Soft delete: the template stays for existing assignments but can't be assigned again. */
+  async deleteRoadmapTemplate(id: string): Promise<boolean> {
+    const updated = await db
       .update(roadmapTemplates)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(roadmapTemplates.id, id));
+      .where(eq(roadmapTemplates.id, id))
+      .returning({ id: roadmapTemplates.id });
+    return updated.length > 0;
   }
 
   // Roadmap Item Management
@@ -1560,10 +1673,12 @@ export class DatabaseStorage implements IStorage {
     return updatedItem;
   }
 
-  async deleteRoadmapItem(id: string): Promise<void> {
-    await db
+  async deleteRoadmapItem(id: string): Promise<boolean> {
+    const deleted = await db
       .delete(roadmapItems)
-      .where(eq(roadmapItems.id, id));
+      .where(eq(roadmapItems.id, id))
+      .returning({ id: roadmapItems.id });
+    return deleted.length > 0;
   }
 
   // Participant Roadmap Assignments
@@ -1660,65 +1775,25 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // Auto-compute status for learning items based on userProgress
-      if (item.autoCompletionType === 'lesson' || item.autoCompletionType === 'module') {
-        let computedStatus = 'not_started';
-        let progressData = null;
-
-        if (item.autoCompletionType === 'lesson' && item.lessonId) {
-          const progress = await this.getUserProgress(project.ownerId, item.lessonId);
-          progressData = {
-            type: 'lesson',
-            isCompleted: progress?.isCompleted || false,
-            completedAt: progress?.completedAt,
-            score: progress?.score,
-            timeSpent: progress?.timeSpent,
-          };
-          
-          if (progress?.isCompleted) {
-            computedStatus = 'completed';
-          } else if (progress?.attempts && progress.attempts > 0) {
-            computedStatus = 'in_progress';
-          }
-        } else if (item.autoCompletionType === 'module' && item.moduleId) {
-          const moduleProgress = await this.getUserProgressForModule(project.ownerId, item.moduleId);
-          const totalLessons = moduleProgress.length;
-          const completedLessons = moduleProgress.filter(p => p.isCompleted).length;
-          const completionRate = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
-          
-          progressData = {
-            type: 'module',
-            totalLessons,
-            completedLessons,
-            completionRate,
-            isCompleted: completionRate >= (item.autoThreshold || 100),
-          };
-          
-          if (completionRate >= (item.autoThreshold || 100)) {
-            computedStatus = 'completed';
-          } else if (completedLessons > 0) {
-            computedStatus = 'in_progress';
-          }
-        }
-
-        // Update assignment status if it differs from computed status
-        if (item.assignment && item.assignment.status !== computedStatus) {
-          await this.updateRoadmapAssignment(item.assignment.id, {
-            status: computedStatus as any,
-            autoCompleted: true,
-            ...(computedStatus === 'completed' ? { completedAt: new Date() } : {})
-          });
-          
-          // Update the local assignment object to reflect the change
-          item.assignment = {
-            ...item.assignment,
-            status: computedStatus as any,
-            autoCompleted: true,
-            ...(computedStatus === 'completed' ? { completedAt: new Date() } : {})
-          };
-        }
-
-        item.progressData = progressData;
+      // Progress for learning items, for display only. Statuses are persisted
+      // by processAutoCompletions (forward-only) and by manual updates, so a
+      // read never overwrites what a participant or admin set.
+      if (item.autoCompletionType === 'lesson' && item.lessonId) {
+        const progress = await this.getUserProgress(project.ownerId, item.lessonId);
+        item.progressData = {
+          type: 'lesson',
+          isCompleted: progress?.isCompleted || false,
+          completedAt: progress?.completedAt,
+          score: progress?.score,
+          timeSpent: progress?.timeSpent,
+        };
+      } else if (item.autoCompletionType === 'module' && item.moduleId) {
+        const completion = await this.getModuleCompletion(project.ownerId, item.moduleId);
+        item.progressData = {
+          type: 'module',
+          ...completion,
+          isCompleted: completion.totalLessons > 0 && completion.completionRate >= (item.autoThreshold || 100),
+        };
       }
 
       return item;
@@ -1748,6 +1823,9 @@ export class DatabaseStorage implements IStorage {
       let template: RoadmapTemplate | undefined;
       if (templateId) {
         template = await this.getRoadmapTemplate(templateId);
+        if (template && template.isActive === false) {
+          throw new InactiveTemplateError();
+        }
       } else {
         // Get default template for project's cohort
         const templates = await this.getRoadmapTemplates(project.cohortId || undefined);
@@ -1815,7 +1893,9 @@ export class DatabaseStorage implements IStorage {
     const autoCompletedAssignments: AssignedRoadmap[] = [];
 
     for (const item of roadmap.items) {
-      if (item.assignment?.status === "completed" || item.autoCompletionType === "none") {
+      // Forward-only: never touch completed or waived items.
+      if (!item.assignment || item.assignment.status === "completed" || item.assignment.status === "waived" ||
+          item.autoCompletionType === "none") {
         continue;
       }
 
@@ -1831,11 +1911,8 @@ export class DatabaseStorage implements IStorage {
 
         case "module":
           if (item.moduleId) {
-            const moduleProgress = await this.getUserProgressForModule(project.ownerId, item.moduleId);
-            const totalLessons = moduleProgress.length;
-            const completedLessons = moduleProgress.filter(p => p.isCompleted).length;
-            const completionRate = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
-            shouldAutoComplete = completionRate >= (item.autoThreshold || 100);
+            const completion = await this.getModuleCompletion(project.ownerId, item.moduleId);
+            shouldAutoComplete = completion.totalLessons > 0 && completion.completionRate >= (item.autoThreshold || 100);
           }
           break;
 
@@ -1870,13 +1947,17 @@ export class DatabaseStorage implements IStorage {
               .from(mentorSessions)
               .where(eq(mentorSessions.id, item.assignment.mentorSessionId));
             shouldAutoComplete = session.length > 0 && session[0].notes !== null;
-          } else if (item.autoThreshold) {
-            // Alternative: check if user has attended enough sessions this week
-            const sessions = await db
-              .select()
+          } else {
+            // Sessions the owner took part in that have already ended.
+            // autoThreshold is the number of sessions required.
+            const [row] = await db
+              .select({ count: sql<number>`count(*)::int` })
               .from(mentorSessions)
-              .where(eq(mentorSessions.participantIds, [project.ownerId]));
-            shouldAutoComplete = sessions.length >= item.autoThreshold;
+              .where(and(
+                sql`${project.ownerId} = ANY(${mentorSessions.participantIds})`,
+                sql`${mentorSessions.endTime} < now()`,
+              ));
+            shouldAutoComplete = (row?.count ?? 0) >= Math.max(1, item.autoThreshold ?? 1);
           }
           break;
       }
@@ -1968,6 +2049,8 @@ export class DatabaseStorage implements IStorage {
       .update(assignedRoadmap)
       .set({ 
         status,
+        completedAt: status === "completed" ? new Date() : null,
+        autoCompleted: false,
         updatedAt: new Date()
       })
       .where(eq(assignedRoadmap.id, assignmentId))
@@ -1978,6 +2061,44 @@ export class DatabaseStorage implements IStorage {
 
   async assignRoadmapTemplate(templateId: string, projectId: string): Promise<AssignedRoadmap[]> {
     return this.assignRoadmapToProject(projectId, templateId);
+  }
+
+  /**
+   * When a project has a cohort but no roadmap yet, assign the cohort's
+   * default template (or the global default). Returns false if none applies.
+   */
+  async autoAssignDefaultRoadmap(projectId: string): Promise<boolean> {
+    const project = await this.getProject(projectId);
+    if (!project?.cohortId) return false;
+    const [existing] = await db
+      .select({ id: assignedRoadmap.id })
+      .from(assignedRoadmap)
+      .where(eq(assignedRoadmap.projectId, projectId))
+      .limit(1);
+    if (existing) return false;
+    const templates = await this.getRoadmapTemplates(project.cohortId);
+    const template =
+      templates.find((t) => t.isDefault && t.cohortId === project.cohortId) ??
+      templates.find((t) => t.isDefault && !t.cohortId);
+    if (!template) return false;
+    await this.assignRoadmapToProject(projectId, template.id);
+    return true;
+  }
+
+  /** The project a participant's roadmap belongs to: one with a roadmap, else one with a cohort, else the newest. */
+  async getRoadmapProjectForUser(userId: string): Promise<Project | undefined> {
+    const userProjects = await this.getProjectsByUser(userId);
+    if (userProjects.length === 0) return undefined;
+    const withAssignments = await db
+      .selectDistinct({ projectId: assignedRoadmap.projectId })
+      .from(assignedRoadmap)
+      .where(inArray(assignedRoadmap.projectId, userProjects.map((p) => p.id)));
+    const assigned = new Set(withAssignments.map((r) => r.projectId));
+    return (
+      userProjects.find((p) => assigned.has(p.id)) ??
+      userProjects.find((p) => p.cohortId) ??
+      userProjects[0]
+    );
   }
 }
 

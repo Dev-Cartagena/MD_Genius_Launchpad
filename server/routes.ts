@@ -1,5 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage, normalizeEmail } from "./storage.js";
+import { storage, normalizeEmail, InactiveTemplateError } from "./storage.js";
 import { isAuthenticated, createLocalUserSession } from "./auth.js";
 import { aiCoachService, isAiConfigured } from "./aiCoach.js";
 import {
@@ -76,6 +76,8 @@ const updateMentorSessionSchema = insertMentorSessionSchema.partial().omit({ men
 
 // Validation schemas for investor operations
 const updateInvestorSchema = insertInvestorSchema.partial().omit({ userId: true });
+// Admins may also link a user account and (re)activate investors.
+const adminUpdateInvestorSchema = insertInvestorSchema.partial();
 const updateInvestorSessionSchema = insertInvestorSessionSchema.partial().omit({ investorId: true });
 
 // Fields that only the server or reviewers may set.
@@ -90,7 +92,11 @@ const projectInputSchema = insertProjectSchema.omit({ ownerId: true, readinessSc
 
 const aiChatSchema = z.object({
   messages: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .array(z.discriminatedUnion("role", [
+      z.object({ role: z.literal("user"), content: z.string().min(1).max(4000) }),
+      // Coach replies can be long; they come back from the server, so allow more.
+      z.object({ role: z.literal("assistant"), content: z.string().min(1).max(20000) }),
+    ]))
     .min(1)
     .max(40),
   mode: z.enum(["process_guide", "ideation", "technical", "gtm", "pitch"]).default("process_guide"),
@@ -102,6 +108,28 @@ const uploadRequestSchema = z.object({
   contentType: z.string().min(1).max(200),
   size: z.number().int().positive(),
 });
+
+/**
+ * Maps expected Postgres errors to client errors instead of 500s:
+ * unknown referenced ids (FK), duplicates (unique), and malformed values.
+ * Returns true when it sent a response.
+ */
+function respondDbError(res: Response, error: unknown): boolean {
+  const code = (error as any)?.code ?? (error as any)?.cause?.code;
+  if (code === "23503") {
+    res.status(400).json({ message: "A referenced record does not exist" });
+    return true;
+  }
+  if (code === "23505") {
+    res.status(409).json({ message: "This record already exists" });
+    return true;
+  }
+  if (code === "22P02" || code === "22007" || code === "22008") {
+    res.status(400).json({ message: "Invalid value" });
+    return true;
+  }
+  return false;
+}
 
 /** The active user loaded by isAuthenticated. */
 function currentUser(req: Request): User {
@@ -178,6 +206,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: error.errors[0].message });
       }
       console.error("Registration error:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Registration failed" });
     }
   });
@@ -218,6 +247,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: error.errors[0].message });
       }
       console.error("Login error:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Login failed" });
     }
   });
@@ -252,6 +282,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: error.errors[0].message });
       }
       console.error("Forgot password error:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Password reset request failed" });
     }
   });
@@ -274,6 +305,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: error.errors[0].message });
       }
       console.error("Reset password error:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Password reset failed" });
     }
   });
@@ -298,6 +330,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error creating application:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create application" });
     }
   });
@@ -309,6 +342,7 @@ export function registerRoutes(app: Express): void {
       res.json(applications);
     } catch (error) {
       console.error("Error fetching applications:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch applications" });
     }
   });
@@ -317,6 +351,10 @@ export function registerRoutes(app: Express): void {
     try {
       const user = currentUser(req);
       const applicationData = applicationInputSchema.parse(req.body);
+      const previous = await storage.getApplicationsByUser(user.id);
+      if (previous.some((a) => a.cohortId === applicationData.cohortId && a.status !== 'draft' && a.status !== 'rejected')) {
+        return res.status(409).json({ message: "You have already applied to this cohort" });
+      }
       
       const application = await storage.createApplication({
         ...applicationData,
@@ -340,6 +378,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error submitting application:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to submit application" });
     }
   });
@@ -347,19 +386,21 @@ export function registerRoutes(app: Express): void {
   const applicationStatusSchema = z.object({
     status: z.enum(applicationStatusEnum.enumValues),
     reviewerNotes: z.string().max(5000).optional(),
+    // Rubric scores, e.g. { total: 82, team: 4 }.
+    scores: z.record(z.number()).optional(),
   });
 
   app.put('/api/applications/:id/status', isAuthenticated, requireRole('administrator', 'mentor'), async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { status, reviewerNotes } = applicationStatusSchema.parse(req.body);
+      const { status, reviewerNotes, scores } = applicationStatusSchema.parse(req.body);
       
       const existing = await storage.getApplication(id);
       if (!existing) {
         return res.status(404).json({ message: "Application not found" });
       }
       
-      const application = await storage.updateApplicationStatus(id, status, reviewerNotes);
+      const application = await storage.updateApplicationStatus(id, status, reviewerNotes, scores);
       
       // Accepted applicants become participants.
       if (status === 'accepted') {
@@ -379,6 +420,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating application status:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update application status" });
     }
   });
@@ -391,14 +433,21 @@ export function registerRoutes(app: Express): void {
       if (!(await canUseCohort(user, projectData.cohortId))) {
         return res.status(403).json({ message: "You can only add a project to a cohort you were accepted into" });
       }
+      // A participant accepted into exactly one cohort gets that cohort by default.
+      if (!projectData.cohortId && user.role === 'participant') {
+        const accepted = await storage.getAcceptedCohortIds(user.id);
+        if (accepted.length === 1) projectData.cohortId = accepted[0];
+      }
       
       const project = await storage.createProject({ ...projectData, ownerId: user.id });
+      await storage.autoAssignDefaultRoadmap(project.id);
       res.status(201).json(project);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error creating project:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create project" });
     }
   });
@@ -414,6 +463,7 @@ export function registerRoutes(app: Express): void {
       res.json(projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch projects" });
     }
   });
@@ -425,6 +475,7 @@ export function registerRoutes(app: Express): void {
       res.json(projects);
     } catch (error) {
       console.error("Error fetching projects:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch projects" });
     }
   });
@@ -455,12 +506,16 @@ export function registerRoutes(app: Express): void {
       }
       
       const updatedProject = await storage.updateProject(id, validatedData);
+      if (validatedData.cohortId) {
+        await storage.autoAssignDefaultRoadmap(id);
+      }
       res.json(updatedProject);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating project:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update project" });
     }
   });
@@ -480,6 +535,7 @@ export function registerRoutes(app: Express): void {
       res.json(projects);
     } catch (error) {
       console.error("Error fetching cohort projects:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch cohort projects" });
     }
   });
@@ -501,11 +557,14 @@ export function registerRoutes(app: Express): void {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
+      // Completions that became due (e.g. a mentor session ended) are applied before reading.
+      await storage.processAutoCompletions(projectId);
       const roadmap = await storage.getProjectRoadmap(projectId);
       // null (not an empty body) when no roadmap is assigned yet
       res.json(roadmap ?? null);
     } catch (error) {
       console.error("Error fetching project roadmap:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch project roadmap" });
     }
   });
@@ -543,6 +602,7 @@ export function registerRoutes(app: Express): void {
       res.json(updatedAssignment);
     } catch (error) {
       console.error("Error updating assignment status:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update assignment status" });
     }
   });
@@ -550,29 +610,30 @@ export function registerRoutes(app: Express): void {
   // Participant roadmap convenience routes
   app.get('/api/roadmap', isAuthenticated, async (req: any, res) => {
     try {
-      const projects = await storage.getProjectsByUser(currentUser(req).id);
-      const activeProject = projects[0];
+      const activeProject = await storage.getRoadmapProjectForUser(currentUser(req).id);
       
       if (!activeProject) {
         return res.json(null);
       }
       
+      await storage.processAutoCompletions(activeProject.id);
       const roadmap = await storage.getProjectRoadmap(activeProject.id);
       res.json(roadmap ?? null);
     } catch (error) {
       console.error("Error fetching user roadmap:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch roadmap" });
     }
   });
 
   app.get('/api/roadmap/current-week', isAuthenticated, async (req: any, res) => {
     try {
-      const projects = await storage.getProjectsByUser(currentUser(req).id);
-      const activeProject = projects[0];
+      const activeProject = await storage.getRoadmapProjectForUser(currentUser(req).id);
       
       if (!activeProject) {
         return res.json([]);
       }
+      await storage.processAutoCompletions(activeProject.id);
       
       // Program week from the project's cohort start date (week 1..8).
       let currentWeek = 1;
@@ -587,25 +648,48 @@ export function registerRoutes(app: Express): void {
       res.json(currentWeekItems);
     } catch (error) {
       console.error("Error fetching current week roadmap:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch current week roadmap" });
     }
   });
   
   // Admin roadmap template management routes
-  app.get('/api/admin/roadmap/templates', isAuthenticated, async (req: any, res) => {
+  // Admins see archived templates too, so they can restore them.
+  app.get('/api/admin/roadmap/templates', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-      
-      const templates = await storage.getRoadmapTemplates();
-      res.json(templates);
+      res.json(await storage.getRoadmapTemplates(undefined, true));
     } catch (error) {
       console.error("Error fetching roadmap templates:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch roadmap templates" });
+    }
+  });
+
+  const templateUpdateSchema = z.object({
+    name: z.string().trim().min(1).max(255).optional(),
+    description: z.string().max(5000).nullable().optional(),
+    cohortId: z.string().min(1).nullable().optional(),
+    isDefault: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+  }).strict();
+
+  app.put('/api/admin/roadmap/templates/:templateId', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
+    try {
+      const updateData = templateUpdateSchema.parse(req.body);
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      if (!(await storage.getRoadmapTemplate(req.params.templateId))) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json(await storage.updateRoadmapTemplate(req.params.templateId, updateData));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error updating roadmap template:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to update roadmap template" });
     }
   });
   
@@ -626,6 +710,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create roadmap template" });
     }
   });
@@ -648,6 +733,7 @@ export function registerRoutes(app: Express): void {
       res.json(template);
     } catch (error) {
       console.error("Error fetching roadmap template:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch roadmap template" });
     }
   });
@@ -666,9 +752,27 @@ export function registerRoutes(app: Express): void {
       res.json(items);
     } catch (error) {
       console.error("Error getting roadmap items for template:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to get roadmap items" });
     }
   });
+
+
+  /** Checks linked lesson/module ids and fills a sensible threshold. Returns an error message or null. */
+  async function prepareRoadmapItem(data: Record<string, any>): Promise<string | null> {
+    if (data.lessonId && !(await storage.getLesson(data.lessonId))) return "Linked lesson not found";
+    if (data.moduleId && !(await storage.getModule(data.moduleId))) return "Linked module not found";
+    if (data.autoCompletionType === "lesson" && !data.lessonId) return "Lesson auto-completion needs a linked lesson";
+    if (data.autoCompletionType === "module" && !data.moduleId) return "Module auto-completion needs a linked module";
+    if (data.autoCompletionType === "deliverable" || data.autoCompletionType === "milestone") {
+      return "Deliverable and milestone auto-completion are not supported yet";
+    }
+    // For mentor sessions the threshold is a session count, not a percentage.
+    if (data.autoCompletionType === "mentor_session" && (data.autoThreshold === undefined || data.autoThreshold === 100)) {
+      data.autoThreshold = 1;
+    }
+    return null;
+  }
 
   app.post('/api/admin/roadmap/templates/:templateId/items', isAuthenticated, async (req: any, res) => {
     try {
@@ -683,6 +787,10 @@ export function registerRoutes(app: Express): void {
       // Merge templateId from params with request body
       const itemData = { ...req.body, templateId };
       const validatedData = insertRoadmapItemSchema.parse(itemData);
+      const itemError = await prepareRoadmapItem(validatedData);
+      if (itemError) {
+        return res.status(400).json({ message: itemError });
+      }
       const item = await storage.createRoadmapItem(validatedData);
       res.status(201).json(item);
     } catch (error) {
@@ -690,48 +798,47 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create roadmap item" });
     }
   });
   
-  app.post('/api/admin/roadmap/templates/:templateId/assign', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/roadmap/templates/:templateId/assign', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
       const { templateId } = req.params;
-      const { projectId } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const { projectId } = z.object({ projectId: z.string().min(1) }).parse(req.body);
+      if (!(await storage.getRoadmapTemplate(templateId))) {
+        return res.status(404).json({ message: "Template not found" });
       }
-      
-      if (!projectId) {
-        return res.status(400).json({ message: "Project ID is required" });
+      if (!(await storage.getProject(projectId))) {
+        return res.status(404).json({ message: "Project not found" });
       }
-      
       const result = await storage.assignRoadmapTemplate(templateId, projectId);
       res.status(201).json(result);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      if (error instanceof InactiveTemplateError) {
+        return res.status(409).json({ message: error.message });
+      }
       console.error("Error assigning roadmap template:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to assign roadmap template" });
     }
   });
   
-  app.delete('/api/admin/roadmap/templates/:templateId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/roadmap/templates/:templateId', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const { templateId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const found = await storage.deleteRoadmapTemplate(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Roadmap template not found" });
       }
-      
-      await storage.deleteRoadmapTemplate(templateId);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting roadmap template:", error);
-      res.status(500).json({ message: "Failed to delete roadmap template" });
+      console.error("Error archiving roadmap template:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to archiving roadmap template" });
     }
   });
   
@@ -745,6 +852,10 @@ export function registerRoutes(app: Express): void {
       }
       
       const validatedData = insertRoadmapItemSchema.parse(req.body);
+      const itemError = await prepareRoadmapItem(validatedData);
+      if (itemError) {
+        return res.status(400).json({ message: itemError });
+      }
       const item = await storage.createRoadmapItem(validatedData);
       res.status(201).json(item);
     } catch (error) {
@@ -752,6 +863,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create roadmap item" });
     }
   });
@@ -768,6 +880,17 @@ export function registerRoutes(app: Express): void {
       
       const updateSchema = insertRoadmapItemSchema.partial();
       const validatedData = updateSchema.parse(req.body);
+      if (Object.keys(validatedData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      const current = await storage.getRoadmapItem(itemId);
+      if (!current) {
+        return res.status(404).json({ message: "Roadmap item not found" });
+      }
+      const itemError = await prepareRoadmapItem({ ...current, ...validatedData });
+      if (itemError) {
+        return res.status(400).json({ message: itemError });
+      }
       const updatedItem = await storage.updateRoadmapItem(itemId, validatedData);
       
       if (!updatedItem) {
@@ -780,24 +903,21 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update roadmap item" });
     }
   });
   
-  app.delete('/api/admin/roadmap/items/:itemId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/roadmap/items/:itemId', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const { itemId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const found = await storage.deleteRoadmapItem(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Roadmap item not found" });
       }
-      
-      await storage.deleteRoadmapItem(itemId);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting roadmap item:", error);
+      console.error("Error delete roadmap item:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to delete roadmap item" });
     }
   });
@@ -809,6 +929,7 @@ export function registerRoutes(app: Express): void {
       res.json(cohorts);
     } catch (error) {
       console.error("Error fetching cohorts:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch cohorts" });
     }
   });
@@ -825,6 +946,7 @@ export function registerRoutes(app: Express): void {
       res.json(cohort);
     } catch (error) {
       console.error("Error fetching cohort:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch cohort" });
     }
   });
@@ -837,6 +959,7 @@ export function registerRoutes(app: Express): void {
       res.json(modules);
     } catch (error) {
       console.error("Error fetching modules:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch modules" });
     }
   });
@@ -848,6 +971,7 @@ export function registerRoutes(app: Express): void {
       res.json(lessons);
     } catch (error) {
       console.error("Error fetching lessons:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch lessons" });
     }
   });
@@ -859,6 +983,7 @@ export function registerRoutes(app: Express): void {
       res.json(milestones);
     } catch (error) {
       console.error("Error fetching milestones:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch milestones" });
     }
   });
@@ -877,6 +1002,7 @@ export function registerRoutes(app: Express): void {
       res.json(lesson);
     } catch (error) {
       console.error("Error fetching lesson:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch lesson" });
     }
   });
@@ -915,6 +1041,7 @@ export function registerRoutes(app: Express): void {
       res.json(modules);
     } catch (error) {
       console.error("Error fetching modules:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch modules" });
     }
   });
@@ -936,6 +1063,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create module" });
     }
   });
@@ -957,24 +1085,21 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating module:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update module" });
     }
   });
 
-  app.delete('/api/admin/modules/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/modules/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const found = await storage.deleteModule(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Module not found" });
       }
-      
-      await storage.deleteModule(id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting module:", error);
+      console.error("Error delete module:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to delete module" });
     }
   });
@@ -993,6 +1118,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error duplicating module:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to duplicate module" });
     }
   });
@@ -1016,6 +1142,7 @@ export function registerRoutes(app: Express): void {
       res.json(lessons);
     } catch (error) {
       console.error("Error fetching lessons:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch lessons" });
     }
   });
@@ -1037,6 +1164,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create lesson" });
     }
   });
@@ -1058,24 +1186,21 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating lesson:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update lesson" });
     }
   });
 
-  app.delete('/api/admin/lessons/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/lessons/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const found = await storage.deleteLesson(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Lesson not found" });
       }
-      
-      await storage.deleteLesson(id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting lesson:", error);
+      console.error("Error delete lesson:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to delete lesson" });
     }
   });
@@ -1094,6 +1219,7 @@ export function registerRoutes(app: Express): void {
       res.json(quizzes);
     } catch (error) {
       console.error("Error fetching quizzes:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch quizzes" });
     }
   });
@@ -1115,6 +1241,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create quiz" });
     }
   });
@@ -1136,25 +1263,84 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating quiz:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update quiz" });
     }
   });
 
-  app.delete('/api/admin/quizzes/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/quizzes/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (user?.role !== 'administrator') {
-        return res.status(403).json({ message: "Admin access required" });
+      const found = await storage.deleteQuiz(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Quiz not found" });
       }
-      
-      await storage.deleteQuiz(id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting quiz:", error);
+      console.error("Error delete quiz:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to delete quiz" });
+    }
+  });
+
+  // Quiz for a lesson, without the answers.
+  app.get('/api/quizzes/:id', isAuthenticated, requireRole('participant', 'mentor', 'administrator'), async (req: any, res) => {
+    try {
+      const quiz = await storage.getQuiz(req.params.id);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+      const questions = (Array.isArray(quiz.questions) ? quiz.questions : []) as Array<{ question: string; options: string[] }>;
+      res.json({
+        id: quiz.id,
+        title: quiz.title,
+        passThreshold: quiz.passThreshold,
+        maxAttempts: quiz.maxAttempts,
+        questions: questions.map((q) => ({ question: q.question, options: q.options })),
+      });
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to fetch quiz" });
+    }
+  });
+
+  // Scores a quiz attempt on the server; passing completes the lesson.
+  app.post('/api/lessons/:lessonId/quiz/submit', isAuthenticated, requireRole('participant', 'administrator'), async (req: any, res) => {
+    try {
+      const user = currentUser(req);
+      const { answers } = z.object({ answers: z.array(z.number().int().min(0)).max(200) }).parse(req.body);
+      const lesson = await storage.getLesson(req.params.lessonId);
+      if (!lesson) {
+        return res.status(404).json({ message: "Lesson not found" });
+      }
+      const quiz = lesson.quizId ? await storage.getQuiz(lesson.quizId) : undefined;
+      if (!quiz) {
+        return res.status(404).json({ message: "This lesson has no quiz" });
+      }
+      const progress = await storage.getUserProgress(user.id, lesson.id);
+      const maxAttempts = quiz.maxAttempts ?? 3;
+      if (!progress?.isCompleted && (progress?.attempts ?? 0) >= maxAttempts) {
+        return res.status(409).json({ message: "No attempts left for this quiz. Please contact your mentor." });
+      }
+      const questions = (Array.isArray(quiz.questions) ? quiz.questions : []) as Array<{ correctAnswer: number }>;
+      const correct = questions.filter((q, i) => answers[i] === q.correctAnswer).length;
+      const total = questions.length;
+      const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+      const passed = score >= quiz.passThreshold;
+      const updated = await storage.recordQuizAttempt(user.id, lesson.id, score, passed);
+      if (passed) {
+        for (const project of await storage.getProjectsByUser(user.id)) {
+          await storage.processAutoCompletions(project.id);
+        }
+      }
+      res.json({ score, passed, correct, total, attempts: updated.attempts, maxAttempts });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error submitting quiz:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to submit quiz" });
     }
   });
 
@@ -1167,6 +1353,7 @@ export function registerRoutes(app: Express): void {
       res.json(progress || { isCompleted: false, score: null });
     } catch (error) {
       console.error("Error fetching lesson progress:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch lesson progress" });
     }
   });
@@ -1179,6 +1366,7 @@ export function registerRoutes(app: Express): void {
       res.json(progress);
     } catch (error) {
       console.error("Error fetching module progress:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch module progress" });
     }
   });
@@ -1195,13 +1383,18 @@ export function registerRoutes(app: Express): void {
       if (!(await storage.getLesson(lessonId))) {
         return res.status(404).json({ message: "Lesson not found" });
       }
-      const progress = await storage.markLessonComplete(currentUser(req).id, lessonId, score, timeSpent);
+      const user = currentUser(req);
+      const progress = await storage.markLessonComplete(user.id, lessonId, score, timeSpent);
+      for (const project of await storage.getProjectsByUser(user.id)) {
+        await storage.processAutoCompletions(project.id);
+      }
       res.json(progress);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error marking lesson complete:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to mark lesson complete" });
     }
   });
@@ -1214,6 +1407,7 @@ export function registerRoutes(app: Express): void {
       res.json(progress);
     } catch (error) {
       console.error("Error fetching cohort progress:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch cohort progress" });
     }
   });
@@ -1234,6 +1428,7 @@ export function registerRoutes(app: Express): void {
       res.json(deliverables);
     } catch (error) {
       console.error("Error fetching deliverables:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch deliverables" });
     }
   });
@@ -1252,6 +1447,7 @@ export function registerRoutes(app: Express): void {
       res.json(await storage.getArtifactsByProject(projectId));
     } catch (error) {
       console.error("Error fetching artifacts:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch artifacts" });
     }
   });
@@ -1292,6 +1488,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error creating artifact:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create artifact" });
     }
   });
@@ -1323,6 +1520,7 @@ export function registerRoutes(app: Express): void {
       res.json(updatedProject);
     } catch (error) {
       console.error("Error updating project stage:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update project stage" });
     }
   });
@@ -1340,6 +1538,7 @@ export function registerRoutes(app: Express): void {
       res.json(applications);
     } catch (error) {
       console.error("Error fetching admin applications:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch applications" });
     }
   });
@@ -1356,6 +1555,7 @@ export function registerRoutes(app: Express): void {
       res.json(users);
     } catch (error) {
       console.error("Error fetching admin users:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
@@ -1390,6 +1590,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating user:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update user" });
     }
   });
@@ -1419,19 +1620,20 @@ export function registerRoutes(app: Express): void {
       
       const admin = currentUser(req);
       const inviterName = [admin.firstName, admin.lastName].filter(Boolean).join(" ");
+      let inviteEmailSent = false;
       try {
-        await sendEmail(inviteEmail(newUser.email!, `${appBaseUrl()}/reset-password?token=${inviteToken}`, inviterName));
+        inviteEmailSent = await sendEmail(inviteEmail(newUser.email!, `${appBaseUrl()}/reset-password?token=${inviteToken}`, inviterName));
       } catch (emailError) {
         console.error("Invite email failed:", emailError);
-        return res.status(201).json({ ...newUser, inviteEmailSent: false });
       }
       
-      res.status(201).json({ ...newUser, inviteEmailSent: true });
+      res.status(201).json({ ...newUser, inviteEmailSent });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error inviting user:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to invite user" });
     }
   });
@@ -1448,52 +1650,91 @@ export function registerRoutes(app: Express): void {
       res.json(projects);
     } catch (error) {
       console.error("Error fetching admin projects:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch projects" });
     }
   });
 
-  app.post('/api/admin/cohorts', isAuthenticated, async (req: any, res) => {
+  // All cohorts, including inactive ones (the public list is active-only).
+  app.get('/api/admin/cohorts', isAuthenticated, requireRole('administrator'), async (_req: any, res) => {
     try {
-      // Check admin permissions
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
-      const cohortData = insertCohortSchema.parse(req.body);
-      const cohort = await storage.createCohort(cohortData);
-      res.json(cohort);
+      res.json(await storage.getCohorts());
     } catch (error) {
-      console.error("Error creating cohort:", error);
-      res.status(400).json({ message: "Failed to create cohort" });
+      console.error("Error fetching cohorts:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to fetch cohorts" });
     }
   });
 
-  app.patch('/api/admin/cohorts/:id', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/cohorts', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      // Check admin permissions
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
-      const { id } = req.params;
-      
-      // Validate update data using restricted schema
-      const updateData = adminUpdateCohortSchema.partial().parse(req.body);
-      
-      // Update cohort (throws error if cohort doesn't exist)
-      const updatedCohort = await storage.updateCohort(id, updateData);
-      res.json(updatedCohort);
+      const cohortData = insertCohortSchema
+        .extend({ capacity: z.number().int().min(1, "Capacity must be at least 1") })
+        .refine((c) => c.endDate > c.startDate, { message: "End date must be after start date", path: ["endDate"] })
+        .parse(req.body);
+      const cohort = await storage.createCohort(cohortData);
+      res.status(201).json(cohort);
     } catch (error) {
-      console.error("Error updating cohort:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+        return res.status(400).json({ message: zodMessage(error) });
       }
-      if (error instanceof Error && error.message.includes('not found')) {
+      console.error("Error creating cohort:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to create cohort" });
+    }
+  });
+
+  app.patch('/api/admin/cohorts/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = adminUpdateCohortSchema.partial().parse(req.body);
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "At least one field must be provided for update" });
+      }
+      const existing = await storage.getCohort(id);
+      if (!existing) {
         return res.status(404).json({ message: "Cohort not found" });
       }
+      const start = updateData.startDate ?? existing.startDate;
+      const end = updateData.endDate ?? existing.endDate;
+      if (end <= start) {
+        return res.status(400).json({ message: "End date must be after start date" });
+      }
+      res.json(await storage.updateCohort(id, updateData));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error updating cohort:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update cohort" });
+    }
+  });
+
+  // Creates a profile for a mentor who doesn't have one yet.
+  app.post('/api/admin/mentors', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
+    try {
+      const { userId, ...profile } = z.object({ userId: z.string().min(1) })
+        .merge(adminUpdateMentorProfileSchema)
+        .parse(req.body);
+      const mentor = await storage.getUser(userId);
+      if (!mentor) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      if (mentor.role !== "mentor") {
+        return res.status(400).json({ message: "The user must have the mentor role" });
+      }
+      if (await storage.getMentorProfile(userId)) {
+        return res.status(409).json({ message: "This mentor already has a profile" });
+      }
+      res.status(201).json(await storage.createMentorProfile({ ...profile, userId }));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error creating mentor profile:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to create mentor profile" });
     }
   });
 
@@ -1529,6 +1770,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update mentor profile" });
     }
   });
@@ -1541,6 +1783,7 @@ export function registerRoutes(app: Express): void {
       res.json(isAdmin ? mentors : mentors.map(({ email: _email, ...mentor }) => mentor));
     } catch (error) {
       console.error("Error fetching mentors:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch mentors" });
     }
   });
@@ -1552,6 +1795,7 @@ export function registerRoutes(app: Express): void {
       res.json(await storage.getMenteesForMentor(currentUser(req).id));
     } catch (error) {
       console.error("Error fetching mentees:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch mentees" });
     }
   });
@@ -1575,6 +1819,7 @@ export function registerRoutes(app: Express): void {
       res.json(profile);
     } catch (error) {
       console.error("Error fetching mentor profile:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch mentor profile" });
     }
   });
@@ -1603,6 +1848,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create mentor profile" });
     }
   });
@@ -1636,6 +1882,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update mentor profile" });
     }
   });
@@ -1648,6 +1895,7 @@ export function registerRoutes(app: Express): void {
       res.json(sessions);
     } catch (error) {
       console.error("Error fetching mentor sessions:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch mentor sessions" });
     }
   });
@@ -1656,6 +1904,9 @@ export function registerRoutes(app: Express): void {
     try {
       const userId = req.user.claims.sub;
       const sessionData = insertMentorSessionSchema.omit({ participantIds: true }).parse({ ...req.body, mentorId: userId });
+      if (sessionData.endTime <= sessionData.startTime) {
+        return res.status(400).json({ message: "End time must be after start time" });
+      }
       
       // Verify user is a mentor
       const user = await storage.getUser(userId);
@@ -1670,6 +1921,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create mentor session" });
     }
   });
@@ -1694,6 +1946,9 @@ export function registerRoutes(app: Express): void {
       if (session.mentorId !== userId) {
         return res.status(403).json({ message: "Access denied. You can only update your own sessions." });
       }
+      if ((updateData.endTime ?? session.endTime) <= (updateData.startTime ?? session.startTime)) {
+        return res.status(400).json({ message: "End time must be after start time" });
+      }
       
       const updatedSession = await storage.updateMentorSession(sessionId, updateData);
       res.json(updatedSession);
@@ -1702,6 +1957,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update mentor session" });
     }
   });
@@ -1728,6 +1984,7 @@ export function registerRoutes(app: Express): void {
       res.json(session);
     } catch (error) {
       console.error("Error fetching mentor session:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch mentor session" });
     }
   });
@@ -1740,6 +1997,7 @@ export function registerRoutes(app: Express): void {
       res.json(sessions);
     } catch (error) {
       console.error("Error fetching participant sessions:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch participant sessions" });
     }
   });
@@ -1789,6 +2047,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error booking session:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to book session" });
     }
   });
@@ -1825,6 +2084,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error booking investor session:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to book investor session" });
     }
   });
@@ -1842,6 +2102,7 @@ export function registerRoutes(app: Express): void {
       res.json(sessions);
     } catch (error) {
       console.error("Error fetching admin sessions:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch sessions" });
     }
   });
@@ -1867,6 +2128,7 @@ export function registerRoutes(app: Express): void {
       res.json(sessions);
     } catch (error) {
       console.error("Error fetching investor sessions:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investor sessions" });
     }
   });
@@ -1898,6 +2160,7 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create investor session" });
     }
   });
@@ -1926,6 +2189,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error requesting meeting:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to request meeting" });
     }
   });
@@ -1939,6 +2203,7 @@ export function registerRoutes(app: Express): void {
       res.json(await storage.getInvestorInterestsForInvestor(investor.id));
     } catch (error) {
       console.error("Error fetching investor interests:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investor interests" });
     }
   });
@@ -1955,22 +2220,31 @@ export function registerRoutes(app: Express): void {
       res.json(investors);
     } catch (error) {
       console.error("Error fetching investors:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investors" });
     }
   });
 
   // Admin Investor Management Routes
-  app.get('/api/admin/investors', isAuthenticated, async (req: any, res) => {
+
+  /** Validates an investor's linked user: must be an investor and not linked to another record. */
+  async function checkInvestorUser(userId: string | null | undefined, investorId?: string): Promise<string | null> {
+    if (!userId) return null;
+    const linked = await storage.getUser(userId);
+    if (!linked) return "User not found";
+    if (linked.role !== "investor") return "The linked user must have the investor role";
+    const existing = await storage.getInvestorsByUser(userId, true);
+    if (existing.some((i) => i.id !== investorId)) return "This user is already linked to another investor";
+    return null;
+  }
+
+  // Admins see inactive investors too, so they can reactivate them.
+  app.get('/api/admin/investors', isAuthenticated, requireRole('administrator'), async (_req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
-      const investors = await storage.getInvestors();
-      res.json(investors);
+      res.json(await storage.getInvestors(true));
     } catch (error) {
       console.error("Error fetching admin investors:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investors" });
     }
   });
@@ -1992,66 +2266,67 @@ export function registerRoutes(app: Express): void {
       res.json(investor);
     } catch (error) {
       console.error("Error fetching investor:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investor" });
     }
   });
 
-  app.post('/api/admin/investors', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/investors', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
       const validatedData = insertInvestorSchema.parse(req.body);
-      const investor = await storage.createInvestor(validatedData);
-      res.status(201).json(investor);
-    } catch (error) {
-      console.error("Error creating investor:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+      const linkError = await checkInvestorUser(validatedData.userId);
+      if (linkError) {
+        return res.status(linkError.startsWith("This user") ? 409 : 400).json({ message: linkError });
       }
+      res.status(201).json(await storage.createInvestor(validatedData));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error creating investor:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create investor" });
     }
   });
 
-  app.put('/api/admin/investors/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/investors/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
       const { id } = req.params;
-      const updateData = updateInvestorSchema.parse(req.body);
-      
+      const updateData = adminUpdateInvestorSchema.parse(req.body);
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ message: "At least one field must be provided for update" });
       }
-      
-      const investor = await storage.updateInvestor(id, updateData);
-      res.json(investor);
-    } catch (error) {
-      console.error("Error updating investor:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+      if (!(await storage.getInvestor(id))) {
+        return res.status(404).json({ message: "Investor not found" });
       }
+      if (updateData.userId !== undefined) {
+        const linkError = await checkInvestorUser(updateData.userId, id);
+        if (linkError) {
+          return res.status(linkError.startsWith("This user") ? 409 : 400).json({ message: linkError });
+        }
+      }
+      res.json(await storage.updateInvestor(id, updateData));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error updating investor:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update investor" });
     }
   });
 
-  app.delete('/api/admin/investors/:id', isAuthenticated, async (req: any, res) => {
+  // Deactivates (does not delete) so history stays intact.
+  app.delete('/api/admin/investors/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
+      const investor = await storage.deactivateInvestor(req.params.id);
+      if (!investor) {
+        return res.status(404).json({ message: "Investor not found" });
       }
-      
-      const { id } = req.params;
-      const investor = await storage.deactivateInvestor(id);
       res.json(investor);
     } catch (error) {
       console.error("Error deactivating investor:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to deactivate investor" });
     }
   });
@@ -2076,6 +2351,7 @@ export function registerRoutes(app: Express): void {
       res.json(allSessions);
     } catch (error) {
       console.error("Error fetching admin investor sessions:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investor sessions" });
     }
   });
@@ -2095,48 +2371,48 @@ export function registerRoutes(app: Express): void {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create investor session" });
     }
   });
 
-  app.put('/api/admin/investor-sessions/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/investor-sessions/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
-      const { id } = req.params;
       const updateData = updateInvestorSessionSchema.parse(req.body);
-      
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ message: "At least one field must be provided for update" });
       }
-      
-      const session = await storage.updateInvestorSession(id, updateData);
-      res.json(session);
-    } catch (error) {
-      console.error("Error updating investor session:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+      const existing = await storage.getInvestorSession(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Investor session not found" });
       }
+      const start = updateData.startTime ?? existing.startTime;
+      const end = updateData.endTime ?? existing.endTime;
+      if (end <= start) {
+        return res.status(400).json({ message: "End time must be after start time" });
+      }
+      res.json(await storage.updateInvestorSession(req.params.id, updateData));
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
+      console.error("Error updating investor session:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update investor session" });
     }
   });
 
-  app.delete('/api/admin/investor-sessions/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/investor-sessions/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
+      const found = await storage.cancelInvestorSession(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Investor session not found" });
       }
-      
-      const { id } = req.params;
-      await storage.cancelInvestorSession(id);
       res.status(204).send();
     } catch (error) {
       console.error("Error canceling investor session:", error);
-      res.status(500).json({ message: "Failed to cancel investor session" });
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to canceling investor session" });
     }
   });
 
@@ -2153,72 +2429,71 @@ export function registerRoutes(app: Express): void {
       res.json(cohortInvestors);
     } catch (error) {
       console.error("Error fetching cohort investors:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch cohort investors" });
     }
   });
 
-  app.post('/api/admin/investors/:investorId/cohorts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/investors/:investorId/cohorts', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
-      }
-      
       const { investorId } = req.params;
-      const { cohortId, role } = req.body;
-      
-      const validatedData = insertInvestorCohortParticipationSchema.parse({
-        investorId,
-        cohortId,
-        role: role || "advisor"
-      });
-      
-      const participation = await storage.assignInvestorToCohort(validatedData);
+      const { cohortId, role } = z.object({
+        cohortId: z.string().min(1),
+        role: z.string().trim().min(1).max(50).default("advisor"),
+      }).parse(req.body);
+      if (!(await storage.getInvestor(investorId))) {
+        return res.status(404).json({ message: "Investor not found" });
+      }
+      if (!(await storage.getCohort(cohortId))) {
+        return res.status(404).json({ message: "Cohort not found" });
+      }
+      const existing = await storage.findInvestorCohortParticipation(investorId, cohortId);
+      if (existing && existing.status !== "inactive") {
+        return res.status(409).json({ message: "This investor is already assigned to that cohort" });
+      }
+      const participation = existing
+        ? await storage.reactivateInvestorCohortParticipation(existing.id, role)
+        : await storage.assignInvestorToCohort(insertInvestorCohortParticipationSchema.parse({ investorId, cohortId, role }));
       res.status(201).json(participation);
     } catch (error) {
-      console.error("Error assigning investor to cohort:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: error.errors[0].message });
+        return res.status(400).json({ message: zodMessage(error) });
       }
+      console.error("Error assigning investor to cohort:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to assign investor to cohort" });
     }
   });
 
-  app.put('/api/admin/investor-cohort-participation/:id/role', isAuthenticated, async (req: any, res) => {
+  app.put('/api/admin/investor-cohort-participation/:id/role', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
+      const { role } = z.object({ role: z.string().trim().min(1).max(50) }).parse(req.body);
+      const participation = await storage.updateInvestorCohortRole(req.params.id, role);
+      if (!participation) {
+        return res.status(404).json({ message: "Cohort assignment not found" });
       }
-      
-      const { id } = req.params;
-      const { role } = req.body;
-      
-      if (!role) {
-        return res.status(400).json({ message: "Role is required" });
-      }
-      
-      const participation = await storage.updateInvestorCohortRole(id, role);
       res.json(participation);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error updating investor cohort role:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update investor cohort role" });
     }
   });
 
-  app.delete('/api/admin/investor-cohort-participation/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/admin/investor-cohort-participation/:id', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
+      const found = await storage.removeInvestorFromCohort(req.params[Object.keys(req.params)[0]]);
+      if (!found) {
+        return res.status(404).json({ message: "Cohort assignment not found" });
       }
-      
-      const { id } = req.params;
-      await storage.removeInvestorFromCohort(id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error removing investor from cohort:", error);
-      res.status(500).json({ message: "Failed to remove investor from cohort" });
+      console.error("Error removing cohort assignment:", error);
+      if (respondDbError(res, error)) return;
+      res.status(500).json({ message: "Failed to removing cohort assignment" });
     }
   });
 
@@ -2233,6 +2508,7 @@ export function registerRoutes(app: Express): void {
       res.json(assignments);
     } catch (error) {
       console.error("Error fetching cohort assignments:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch cohort assignments" });
     }
   });
@@ -2257,34 +2533,34 @@ export function registerRoutes(app: Express): void {
       res.json(allInterests);
     } catch (error) {
       console.error("Error fetching admin investor interests:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch investor interests" });
     }
   });
 
-  app.post('/api/admin/investor-interests', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/investor-interests', isAuthenticated, requireRole('administrator'), async (req: any, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (!user || user.role !== 'administrator') {
-        return res.status(403).json({ message: "Administrator access required" });
+      const { investorId, projectId, level, notes } = z.object({
+        investorId: z.string().min(1),
+        projectId: z.string().min(1),
+        level: z.enum(investorInterestLevelEnum.enumValues).default("viewed"),
+        notes: z.string().max(10000).optional(),
+      }).parse(req.body);
+      if (!(await storage.getInvestor(investorId))) {
+        return res.status(404).json({ message: "Investor not found" });
       }
-      
-      const { investorId, projectId, level, questions, notes } = req.body;
-      
-      if (!investorId || !projectId) {
-        return res.status(400).json({ message: "Investor ID and Project ID are required" });
+      if (!(await storage.getProject(projectId))) {
+        return res.status(404).json({ message: "Project not found" });
       }
-      
-      const interest = await storage.createInvestorInterest({
-        investorId,
-        projectId,
-        level,
-        questions,
-        notes
-      });
-      
+      // One record per investor and project; a repeat updates it.
+      const interest = await storage.upsertInvestorInterest(investorId, projectId, level, notes);
       res.status(201).json(interest);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: zodMessage(error) });
+      }
       console.error("Error creating investor interest:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create investor interest" });
     }
   });
@@ -2315,6 +2591,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error updating investor interest:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to update investor interest" });
     }
   });
@@ -2354,6 +2631,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error in AI Coach chat:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to process AI Coach request" });
     }
   });
@@ -2365,6 +2643,7 @@ export function registerRoutes(app: Express): void {
       res.json(conversations);
     } catch (error) {
       console.error("Error fetching AI conversations:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch conversations" });
     }
   });
@@ -2394,6 +2673,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error analyzing project:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to analyze project" });
     }
   });
@@ -2420,6 +2700,7 @@ export function registerRoutes(app: Express): void {
         return res.status(503).json({ message: error.message });
       }
       console.error("Error creating upload URL:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create upload URL" });
     }
   });
@@ -2476,6 +2757,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error searching users:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to search users" });
     }
   });
@@ -2493,6 +2775,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error searching projects:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to search projects" });
     }
   });
@@ -2522,6 +2805,7 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: zodMessage(error) });
       }
       console.error("Error creating message:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to create message" });
     }
   });
@@ -2536,6 +2820,7 @@ export function registerRoutes(app: Express): void {
       res.json(messages);
     } catch (error) {
       console.error("Error fetching messages:", error);
+      if (respondDbError(res, error)) return;
       res.status(500).json({ message: "Failed to fetch messages" });
     }
   });
