@@ -70,6 +70,15 @@ import {
   type InsertInvestorCohortParticipation,
 } from "../shared/schema.js";
 import { db } from "./db.js";
+import { sanitizeTranslations, type TranslatableKind } from "./translations.js";
+
+/** Replace `translations` with its sanitized form, or drop it when it isn't a valid object. */
+function withCleanTranslations<T extends { translations?: unknown }>(kind: TranslatableKind, data: T): T {
+  if (!("translations" in data)) return data;
+  const clean = sanitizeTranslations(kind, data.translations);
+  const { translations: _ignored, ...rest } = data;
+  return (clean === undefined ? rest : { ...rest, translations: clean }) as T;
+}
 import { eq, and, desc, asc, ilike, or, gt, isNull, sql, getTableColumns, inArray } from "drizzle-orm";
 
 // User columns that are safe to return from the API: everything except the
@@ -106,7 +115,7 @@ export interface IStorage {
   // Email/Password authentication operations (emails are case-insensitive)
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserCredentialsByEmail(email: string): Promise<UserWithCredentials | undefined>;
-  createLocalUser(userData: { email: string; firstName?: string | null; lastName?: string | null; role?: string; passwordHash?: string }): Promise<User>;
+  createLocalUser(userData: { email: string; firstName?: string | null; lastName?: string | null; role?: string; passwordHash?: string; locale?: string }): Promise<User>;
   setPasswordHash(userId: string, passwordHash: string): Promise<void>;
   setResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
   updatePasswordByResetToken(tokenHash: string, newPasswordHash: string): Promise<boolean>;
@@ -308,7 +317,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createLocalUser(userData: { email: string; firstName?: string | null; lastName?: string | null; role?: string; passwordHash?: string }): Promise<User> {
+  async createLocalUser(userData: { email: string; firstName?: string | null; lastName?: string | null; role?: string; passwordHash?: string; locale?: string }): Promise<User> {
     const [user] = await db
       .insert(users)
       .values({
@@ -317,6 +326,7 @@ export class DatabaseStorage implements IStorage {
         lastName: userData.lastName,
         role: (userData.role as any) || "public_visitor",
         passwordHash: userData.passwordHash,
+        locale: userData.locale ?? "en",
         emailVerified: false,
       })
       .returning(safeUserColumns);
@@ -500,7 +510,7 @@ export class DatabaseStorage implements IStorage {
   async createCohort(cohort: InsertCohort): Promise<Cohort> {
     const [newCohort] = await db
       .insert(cohorts)
-      .values(cohort)
+      .values(withCleanTranslations("cohort", cohort))
       .returning();
     return newCohort;
   }
@@ -508,7 +518,7 @@ export class DatabaseStorage implements IStorage {
   async updateCohort(id: string, data: Partial<Cohort>): Promise<Cohort> {
     const [updatedCohort] = await db
       .update(cohorts)
-      .set(data)
+      .set(withCleanTranslations("cohort", data))
       .where(eq(cohorts.id, id))
       .returning();
     
@@ -712,7 +722,7 @@ export class DatabaseStorage implements IStorage {
   async createModule(module: InsertModule): Promise<Module> {
     const [newModule] = await db
       .insert(modules)
-      .values(module)
+      .values(withCleanTranslations("module", module))
       .returning();
     return newModule;
   }
@@ -726,6 +736,7 @@ export class DatabaseStorage implements IStorage {
       objectives: data.objectives,
       resources: data.resources,
       orderIndex: data.orderIndex,
+      translations: sanitizeTranslations("module", data.translations),
     };
     
     const updateData = Object.fromEntries(
@@ -766,7 +777,7 @@ export class DatabaseStorage implements IStorage {
   async createLesson(lesson: InsertLesson): Promise<Lesson> {
     const [newLesson] = await db
       .insert(lessons)
-      .values(lesson)
+      .values(withCleanTranslations("lesson", lesson))
       .returning();
     return newLesson;
   }
@@ -780,6 +791,7 @@ export class DatabaseStorage implements IStorage {
       quizId: data.quizId,
       prerequisites: data.prerequisites,
       orderIndex: data.orderIndex,
+      translations: sanitizeTranslations("lesson", data.translations),
     };
     
     const updateData = Object.fromEntries(
@@ -850,7 +862,7 @@ export class DatabaseStorage implements IStorage {
   async createQuiz(quiz: InsertQuiz): Promise<Quiz> {
     const [newQuiz] = await db
       .insert(quizzes)
-      .values(quiz)
+      .values(withCleanTranslations("quiz", quiz))
       .returning();
     return newQuiz;
   }
@@ -876,6 +888,7 @@ export class DatabaseStorage implements IStorage {
       questions: data.questions,
       passThreshold: data.passThreshold,
       maxAttempts: data.maxAttempts,
+      translations: sanitizeTranslations("quiz", data.translations),
     };
     
     const updateData = Object.fromEntries(
@@ -1567,7 +1580,7 @@ export class DatabaseStorage implements IStorage {
   async createRoadmapTemplate(template: InsertRoadmapTemplate): Promise<RoadmapTemplate> {
     const [newTemplate] = await db
       .insert(roadmapTemplates)
-      .values(template)
+      .values(withCleanTranslations("roadmapTemplate", template))
       .returning();
     return newTemplate;
   }
@@ -1612,7 +1625,7 @@ export class DatabaseStorage implements IStorage {
   async updateRoadmapTemplate(id: string, data: Partial<RoadmapTemplate>): Promise<RoadmapTemplate> {
     const [updatedTemplate] = await db
       .update(roadmapTemplates)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...withCleanTranslations("roadmapTemplate", data), updatedAt: new Date() })
       .where(eq(roadmapTemplates.id, id))
       .returning();
     return updatedTemplate;
@@ -1632,7 +1645,7 @@ export class DatabaseStorage implements IStorage {
   async createRoadmapItem(item: InsertRoadmapItem): Promise<RoadmapItem> {
     const [newItem] = await db
       .insert(roadmapItems)
-      .values(item)
+      .values(withCleanTranslations("roadmapItem", item))
       .returning();
     return newItem;
   }
@@ -1667,7 +1680,7 @@ export class DatabaseStorage implements IStorage {
   async updateRoadmapItem(id: string, data: Partial<RoadmapItem>): Promise<RoadmapItem> {
     const [updatedItem] = await db
       .update(roadmapItems)
-      .set(data)
+      .set(withCleanTranslations("roadmapItem", data))
       .where(eq(roadmapItems.id, id))
       .returning();
     return updatedItem;

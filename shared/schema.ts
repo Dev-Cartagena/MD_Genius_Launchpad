@@ -14,6 +14,14 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+/** Supported interface languages. English is the base language of stored content. */
+export const LOCALES = ["en", "es"] as const;
+export type Locale = (typeof LOCALES)[number];
+
+/** Per-language overrides for an entity's text fields. Missing fields fall back to the base (English) value. */
+// Kept loose so drizzle-zod's inferred JSON type stays assignable; the server sanitizes the shape.
+export type ContentTranslations = { [locale: string]: any };
+
 // Session storage table (express-session via connect-pg-simple)
 export const sessions = pgTable(
   "sessions",
@@ -139,6 +147,7 @@ export const users = pgTable("users", {
   interests: text("interests").array(),
   industryFocus: text("industry_focus"),
   timezone: varchar("timezone"),
+  /** Interface and email language ("en" | "es"); null means English. */
   locale: varchar("locale").default("en"),
   profileVisibility: varchar("profile_visibility").default("private"),
   isActive: boolean("is_active").default(true),
@@ -172,6 +181,8 @@ export const signatures = pgTable("signatures", {
 // Cohorts
 export const cohorts = pgTable("cohorts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   name: varchar("name").notNull(),
   description: text("description"),
   startDate: timestamp("start_date").notNull(),
@@ -201,6 +212,8 @@ export const applications = pgTable("applications", {
 // Curriculum
 export const modules = pgTable("modules", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   cohortId: varchar("cohort_id").notNull().references(() => cohorts.id),
   title: varchar("title").notNull(),
   description: text("description"),
@@ -213,6 +226,8 @@ export const modules = pgTable("modules", {
 
 export const lessons = pgTable("lessons", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   moduleId: varchar("module_id").notNull().references(() => modules.id),
   title: varchar("title").notNull(),
   content: text("content"),
@@ -225,6 +240,8 @@ export const lessons = pgTable("lessons", {
 
 export const quizzes = pgTable("quizzes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   title: varchar("title").notNull(),
   questions: jsonb("questions").notNull(),
   passThreshold: integer("pass_threshold").notNull(),
@@ -251,6 +268,8 @@ export const userProgress = pgTable("user_progress", {
 // Milestones and deliverables
 export const milestones = pgTable("milestones", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   cohortId: varchar("cohort_id").notNull().references(() => cohorts.id),
   title: varchar("title").notNull(),
   description: text("description"),
@@ -501,6 +520,8 @@ export const aiConversations = pgTable("ai_conversations", {
 // Program Roadmap System
 export const roadmapTemplates = pgTable("roadmap_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   name: varchar("name").notNull(),
   description: text("description"),
   cohortId: varchar("cohort_id").references(() => cohorts.id), // null = global template
@@ -512,6 +533,8 @@ export const roadmapTemplates = pgTable("roadmap_templates", {
 
 export const roadmapItems = pgTable("roadmap_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Translated copies of the text fields, e.g. { es: { title, description } }. English lives in the base columns. */
+  translations: jsonb("translations").$type<ContentTranslations>().notNull().default({}),
   templateId: varchar("template_id").notNull().references(() => roadmapTemplates.id, { onDelete: "cascade" }),
   type: roadmapItemTypeEnum("type").notNull(),
   title: varchar("title").notNull(),
@@ -731,6 +754,7 @@ export const insertCohortSchema = createInsertSchema(cohorts).omit({
 export const adminUpdateCohortSchema = createInsertSchema(cohorts).pick({
   name: true,
   description: true,
+  translations: true,
   startDate: true,
   endDate: true,
   capacity: true,
