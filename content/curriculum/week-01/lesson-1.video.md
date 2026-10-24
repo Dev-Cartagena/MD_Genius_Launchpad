@@ -5,7 +5,7 @@ Duration: ~3:45 · Format: 16:9 1920×1080 · Presenter: Maya Ortiz — calm, mi
 - Type: presenter
 - On screen: Maya centered, medium shot. Lower third in Space Grotesk, White Smoke on Navy #082B42: "Week 1 · How great startups begin". A thin Mist #97B7C1 line draws under the title from left to right.
 - Narration EN: Today you can build an impressive AI demo in a weekend. That is exactly why so many AI startups fail. Building is no longer the hard part. The hard part is building something people actually want. In the next four minutes, we will look at how great startups really begin.
-- Narración ES: Hoy puedes construir una demo de IA impresionante en un fin de semana. Por eso mismo fracasan tantas startups de IA. Construir ya no es lo difícil. Lo difícil es construir algo que la gente realmente quiera. En los próximos cuatro minutos veremos cómo empiezan de verdad las grandes startups.
+- Narración ES: Hoy puedes construir una demo de IA impresionante en un fin de semana. Por eso mismo fracasan tantas startups de IA. Construir ya no es lo difícil. Lo difícil es construir algo que la gente realmente quiera. En los próximos minutos veremos cómo empiezan de verdad las grandes startups.
 
 ## Scene 2 — Make something people want (0:20–0:50)
 - Type: motion
