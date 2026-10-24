@@ -21,7 +21,10 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /** Lesson videos that exist; every other lesson gets the "video coming soon" placeholder. */
 const VIDEOS: Record<string, string[]> = {
-  "1.1": ["https://klpwffswfhfwvsuqosct.supabase.co/storage/v1/object/public/lesson-media/week-01/w01-l1-en.mp4"],
+  "1.1": [
+    "https://klpwffswfhfwvsuqosct.supabase.co/storage/v1/object/public/lesson-media/week-01/w01-l1-en.mp4",
+    "https://klpwffswfhfwvsuqosct.supabase.co/storage/v1/object/public/lesson-media/week-01/w01-l1-es.mp4",
+  ],
 };
 const VIDEO_PENDING = "video:pending";
 

@@ -25,5 +25,7 @@ copy modules with Admin → Curriculum → duplicate.
   (`-es.mp4`) and falls back to English.
 - `video:pending` in `media` shows a "Video coming soon" placeholder. Replace it with the URL
   when the video is produced.
-- Produced so far: lesson 1.1 (English). The HyperFrames project and the fal.ai helper scripts
-  are in `~/Documents/MD_Genius_Launchpad_Videos/w01-l1` (kept outside the repo; media is large).
+- Produced so far: lesson 1.1 in English and Spanish. The HyperFrames projects and the fal.ai
+  helper scripts are in `~/Documents/MD_Genius_Launchpad_Videos/w01-l1` and `w01-l1-es` (kept
+  outside the repo; media is large). The Spanish film is generated from the English one by
+  `w01-l1-es/scripts/make-es.py` (translated on-screen text and Spanish cue words).
