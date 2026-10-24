@@ -1,0 +1,182 @@
+{
+  "title": "Week 1 quiz: Founders and the AI opportunity",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "A founder shows you three signals for her idea. Which one is the strongest evidence that people want it?",
+      "options": [
+        "Forty friends and former colleagues liked her launch post, and many said they would definitely use it",
+        "Several operations managers already pay someone to do it by hand and asked when they can try hers",
+        "A respected market report values the industry at billions of dollars and forecasts fast growth",
+        "A well-known investor told her AI is transforming the space and asked to see the deck when it is ready"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Demand shows up as behavior: people already paying for a workaround and following up with urgency. Compliments, market size and general trends are not evidence of want."
+    },
+    {
+      "question": "A team pitches \"an AI app that helps groups of friends agree on weekend plans.\" What is the most useful first response from a mentor?",
+      "options": [
+        "Encourage them to build a prototype quickly, since AI now makes this kind of app cheap to test",
+        "Suggest they widen the target to all social planning, so the market is big enough for investors",
+        "Tell them friend-planning apps always fail, so they should drop it and pick a new idea today",
+        "Point out it is a classic tarpit idea and ask what specific change makes it work now"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Friend-coordination apps are a well-known tarpit: a mild problem, mass habit change and no buyer. A tarpit can become viable after a real change, so the right move is to ask what that change is."
+    },
+    {
+      "question": "Which statement is the strongest \"why now\" for Fieldnote?",
+      "options": [
+        "Speech models now handle noisy job sites and every technician carries a smartphone, so hands-free help finally works",
+        "AI models keep getting better and cheaper every year, so any field service product will improve on its own",
+        "Investors are funding AI startups at record levels right now, so a field service AI company can raise easily",
+        "The HVAC industry is large and growing, and contractors spend billions of dollars on service visits every year"
+      ],
+      "correctAnswer": 0,
+      "explanation": "A strong why now names a specific change and links it to a specific user and product. The other options would have been equally true years ago or say nothing about the product."
+    },
+    {
+      "question": "Which of these is the weakest source of defensibility for an early AI startup?",
+      "options": [
+        "Integrations that put the product inside the customer's daily workflow",
+        "Usage data showing which answers actually solved customers' problems",
+        "A carefully written prompt on top of a widely available foundation model",
+        "A founder's personal network that reaches the first buyers quickly and cheaply"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Prompts and model access can be copied quickly by anyone. Workflow embedding, proprietary usage data and distribution are harder to replicate."
+    },
+    {
+      "question": "Tomás wants Fieldnote to order parts automatically from day one. Based on this week's lessons, what is the best approach?",
+      "options": [
+        "Ship full automation first, because agents capture more value than copilots and early users will expect it",
+        "Start as a copilot that suggests parts, track how often they are accepted unchanged, then automate those",
+        "Keep a human approving every order permanently, because AI should never take actions on its own",
+        "Let each technician choose whether the system orders parts without review, so trust can build naturally"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Copilot to agent is a dial. Earning trust with accurate suggestions and automating only steps users already approve protects customers from costly errors such as a wrong part order."
+    },
+    {
+      "question": "A startup claims a data moat because it has collected thousands of public equipment manuals. What is the best critique?",
+      "options": [
+        "Any competitor can get public manuals; a real moat is data from use, like which diagnosis fixed which unit",
+        "The moat is real but thin, so the startup should collect ten times more manuals before competitors catch up",
+        "Data can never be a moat for AI startups, because foundation models already know what public manuals say",
+        "The moat holds as long as the manuals are stored in a private, access-controlled database competitors cannot reach"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Data that others can buy or scrape is not defensible, and more of the same data adds less value. Proprietary outcome data from real use is far harder to copy."
+    },
+    {
+      "question": "Two co-founders start full time on the same day. One wrote the first prototype, the other brought the first three customer conversations. How should they approach equity?",
+      "options": [
+        "Give most of the equity to the founder who wrote the prototype, since the code already exists",
+        "Postpone the equity conversation until after the first fundraise, when each person's role is clearer",
+        "Split equally but skip vesting, since they trust each other and both are committed full time",
+        "Split equally or nearly equally, with vesting, since the company will take many years to build"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Michael Seibel argues early differences in contribution should not decide ownership for a decade. Vesting protects both founders and the company if someone leaves."
+    },
+    {
+      "question": "Fieldnote's founders keep arguing about shared decisions and lose days each time. Which change would help most?",
+      "options": [
+        "Make every decision together by unanimous agreement, so both founders stay fully committed to each one",
+        "Hire an experienced outside manager to make the contested decisions for them, so neither founder loses face",
+        "Give each area one owner who decides, with the CEO making the final call on shared issues after discussion",
+        "Avoid raising disagreements in the moment and save them for a monthly review, to keep the peace day to day"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Clear ownership and an agreed tie-breaker prevent deadlock while keeping discussion open. Unanimity and avoidance both make stalls more likely."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la semana 1: Los fundadores y la oportunidad de la IA",
+      "questions": [
+        {
+          "question": "Una fundadora te muestra tres señales sobre su idea. ¿Cuál es la evidencia más fuerte de que la gente la quiere?",
+          "options": [
+            "Cuarenta amigos y excolegas le dieron like a su publicación y muchos dijeron que sin duda la usarían",
+            "Varios gerentes de operaciones ya le pagan a alguien por hacerlo a mano y preguntaron cuándo pueden probar la suya",
+            "Un informe de mercado reconocido dice que la industria vale miles de millones de dólares y prevé un crecimiento rápido",
+            "Un inversionista conocido le dijo que la IA está transformando el sector y le pidió ver el pitch deck cuando esté listo"
+          ],
+          "explanation": "La demanda se nota en el comportamiento: personas que ya pagan por una solución alternativa y dan seguimiento con urgencia. Los elogios, el tamaño del mercado y las tendencias generales no prueban que la quieran."
+        },
+        {
+          "question": "Un equipo presenta \"una app de IA que ayuda a grupos de amigos a ponerse de acuerdo en los planes del fin de semana\". ¿Cuál es la respuesta inicial más útil de un mentor?",
+          "options": [
+            "Animarlos a construir un prototipo rápido, porque la IA ahora hace barato probar este tipo de app",
+            "Sugerirles ampliar el objetivo a toda la planificación social, para que el mercado atraiga a inversionistas",
+            "Decirles que las apps para coordinar planes siempre fracasan, así que deberían dejarla y buscar otra idea",
+            "Señalar que es una idea trampa clásica y preguntar qué cambio concreto hace que funcione ahora"
+          ],
+          "explanation": "Las apps para coordinar planes con amigos son una idea trampa conocida: un problema leve, cambio masivo de hábitos y ningún comprador. Una idea trampa puede volverse viable tras un cambio real, así que lo correcto es preguntar cuál es ese cambio."
+        },
+        {
+          "question": "¿Cuál es el \"por qué ahora\" más fuerte para Fieldnote?",
+          "options": [
+            "Los modelos de voz ya funcionan en obras ruidosas y cada técnico lleva un smartphone, así que por fin sirve un asistente sin manos",
+            "Los modelos de IA mejoran y se abaratan cada año, así que cualquier producto para técnicos de campo mejorará por sí solo",
+            "Los inversionistas financian startups de IA a niveles récord, así que una empresa de IA para servicio técnico levanta capital fácil",
+            "La industria de HVAC es grande y está creciendo, y los contratistas gastan miles de millones en visitas de servicio cada año"
+          ],
+          "explanation": "Un buen por qué ahora nombra un cambio concreto y lo conecta con un usuario y un producto específicos. Las otras opciones habrían sido igual de ciertas hace años o no dicen nada del producto."
+        },
+        {
+          "question": "¿Cuál de estas es la fuente de defensa más débil para una startup de IA temprana?",
+          "options": [
+            "Integraciones que ponen el producto dentro del flujo de trabajo diario del cliente",
+            "Datos de uso que muestran qué respuestas resolvieron de verdad los problemas de los clientes",
+            "Un prompt cuidadosamente escrito sobre un modelo fundacional ampliamente disponible",
+            "La red personal de un fundador que llega a los primeros compradores rápido y a bajo costo"
+          ],
+          "explanation": "Cualquiera puede copiar rápido los prompts y el acceso al modelo. La integración en el flujo de trabajo, los datos de uso propios y la distribución son más difíciles de replicar."
+        },
+        {
+          "question": "Tomás quiere que Fieldnote pida repuestos automáticamente desde el primer día. Según las lecciones de esta semana, ¿cuál es el mejor enfoque?",
+          "options": [
+            "Lanzar primero la automatización completa, porque los agentes capturan más valor que los copilotos y los usuarios la esperan",
+            "Empezar como copiloto que sugiere repuestos, medir con qué frecuencia se aceptan sin cambios y luego automatizar esos pasos",
+            "Mantener para siempre a una persona aprobando cada pedido, porque la IA nunca debería actuar por su cuenta",
+            "Dejar que cada técnico elija si el sistema pide repuestos sin revisión, para que la confianza crezca de forma natural"
+          ],
+          "explanation": "Pasar de copiloto a agente es un dial. Ganar confianza con sugerencias precisas y automatizar solo los pasos que los usuarios ya aprueban protege a los clientes de errores costosos, como un pedido equivocado."
+        },
+        {
+          "question": "Una startup dice tener una ventaja de datos porque reunió miles de manuales públicos de equipos. ¿Cuál es la mejor crítica?",
+          "options": [
+            "Cualquier competidor puede conseguir manuales públicos; la ventaja real son datos de uso, como qué diagnóstico resolvió qué unidad",
+            "La ventaja es real pero débil, así que la startup debería reunir diez veces más manuales antes de que la competencia la alcance",
+            "Los datos nunca pueden ser una ventaja para las startups de IA, porque los modelos fundacionales ya conocen bien los manuales públicos",
+            "La ventaja se mantiene siempre que los manuales se guarden en una base de datos privada a la que la competencia no pueda acceder"
+          ],
+          "explanation": "Los datos que otros pueden comprar o extraer no son defendibles, y más datos del mismo tipo aportan menos valor. Los datos propios de resultados de uso real son mucho más difíciles de copiar."
+        },
+        {
+          "question": "Dos cofundadores empiezan a tiempo completo el mismo día. Uno escribió el primer prototipo y la otra consiguió las primeras tres conversaciones con clientes. ¿Cómo deberían abordar la participación?",
+          "options": [
+            "Darle la mayor parte de la participación al fundador que escribió el prototipo, porque el código ya existe",
+            "Postergar la conversación sobre participación hasta después de la primera ronda, cuando los roles estén más claros",
+            "Repartir en partes iguales pero sin vesting, porque confían el uno en el otro y ambos están a tiempo completo",
+            "Repartir en partes iguales o casi iguales, con vesting, porque la empresa tomará muchos años en construirse"
+          ],
+          "explanation": "Michael Seibel sostiene que las diferencias iniciales de aporte no deberían definir la propiedad durante una década. El vesting protege a ambos fundadores y a la empresa si alguien se va."
+        },
+        {
+          "question": "Los fundadores de Fieldnote discuten una y otra vez las decisiones compartidas y pierden días cada vez. ¿Qué cambio ayudaría más?",
+          "options": [
+            "Tomar todas las decisiones juntos por unanimidad, para que ambos fundadores se comprometan por completo con cada una",
+            "Contratar a un gerente externo con experiencia para que decida los temas en disputa, así ningún fundador queda mal",
+            "Acordar un responsable que decida en cada área y que la CEO tenga la última palabra en lo compartido tras debatirlo",
+            "Evitar plantear los desacuerdos en el momento y guardarlos para una revisión mensual, para mantener la paz día a día"
+          ],
+          "explanation": "Una responsabilidad clara y un mecanismo de desempate acordado evitan los bloqueos sin cerrar la discusión. La unanimidad y la evasión hacen más probables los estancamientos."
+        }
+      ]
+    }
+  }
+}

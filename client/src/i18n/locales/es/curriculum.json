@@ -148,5 +148,11 @@
     "title": "Acciones rápidas",
     "scheduleSession": "Agendar una sesión de mentoría",
     "viewRoadmap": "Ver hoja de ruta"
+  },
+  "lessonVideo": {
+    "label": "Video de la lección",
+    "comingSoonTitle": "Video próximamente",
+    "comingSoonBody": "El video de esta lección está en producción. La lectura de abajo cubre todo su contenido.",
+    "unsupported": "Tu navegador no puede reproducir este video."
   }
 }

@@ -1,0 +1,50 @@
+{
+  "week": 8,
+  "stage": "launch",
+  "orderIndex": 8,
+  "title": "Fundraising and Demo Day",
+  "description": "Understand how early-stage rounds and the post-money SAFE work, build a seed deck and a two-minute pitch grounded in your traction, and run a focused process from Demo Day to a closed round and regular investor updates.",
+  "objectives": [
+    "Explain how pre-seed and seed rounds work and calculate founder dilution from post-money SAFEs and a priced round",
+    "Decide when to raise and how much, based on the milestone the money must reach and your runway",
+    "Build a seed deck with a clear narrative arc, honest traction framing and a specific ask",
+    "Deliver a two-minute pitch that states what you do, why it matters and why your team will win",
+    "Run an investor process: build a target list, sequence meetings, follow up and close committed money",
+    "Write a monthly investor update with metrics, highlights, lowlights and specific asks"
+  ],
+  "resources": [
+    "Y Combinator, The SAFE: documents and user guide — https://www.ycombinator.com/documents",
+    "Y Combinator, A guide to seed fundraising — https://www.ycombinator.com/library/4A-a-guide-to-seed-fundraising",
+    "Y Combinator, How to build your seed round pitch deck — https://www.ycombinator.com/library/2u-how-to-build-your-seed-round-pitch-deck",
+    "Paul Graham, How to Raise Money — https://paulgraham.com/fr.html",
+    "Paul Graham, How to Convince Investors — https://paulgraham.com/convince.html",
+    "Y Combinator, Demo Day — https://www.ycombinator.com/demoday"
+  ],
+  "translations": {
+    "es": {
+      "title": "Levantamiento de capital y Demo Day",
+      "description": "Entiende cómo funcionan las rondas tempranas y el SAFE post-money, construye un pitch deck semilla y un pitch de dos minutos basados en tu tracción, y conduce un proceso enfocado desde el Demo Day hasta una ronda cerrada y actualizaciones regulares a inversionistas.",
+      "objectives": [
+        "Explicar cómo funcionan las rondas pre-seed y semilla, y calcular la dilución de los fundadores con SAFEs post-money y una ronda con precio",
+        "Decidir cuándo levantar capital y cuánto, según el hito que debe alcanzar el dinero y tu runway",
+        "Construir un pitch deck semilla con un arco narrativo claro, una presentación honesta de la tracción y una petición específica",
+        "Dar un pitch de dos minutos que diga qué haces, por qué importa y por qué tu equipo va a ganar",
+        "Conducir un proceso con inversionistas: armar una lista de objetivos, ordenar las reuniones, dar seguimiento y cerrar el dinero comprometido",
+        "Escribir una actualización mensual para inversionistas con métricas, logros, problemas y peticiones específicas"
+      ],
+      "resources": [
+        "Y Combinator, El SAFE: documentos y guía de uso — https://www.ycombinator.com/documents",
+        "Y Combinator, Guía para levantar una ronda semilla — https://www.ycombinator.com/library/4A-a-guide-to-seed-fundraising",
+        "Y Combinator, Cómo construir tu pitch deck para la ronda semilla — https://www.ycombinator.com/library/2u-how-to-build-your-seed-round-pitch-deck",
+        "Paul Graham, Cómo levantar capital — https://paulgraham.com/fr.html",
+        "Paul Graham, Cómo convencer a los inversionistas — https://paulgraham.com/convince.html",
+        "Y Combinator, Demo Day — https://www.ycombinator.com/demoday"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "How startup fundraising works", "es": "Cómo funciona el levantamiento de capital", "minutes": 18 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "The pitch and the deck", "es": "El pitch y el pitch deck", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Demo Day and beyond", "es": "Demo Day y lo que viene después", "minutes": 15 }
+  ]
+}

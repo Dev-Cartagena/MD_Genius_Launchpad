@@ -148,5 +148,11 @@
     "title": "Quick actions",
     "scheduleSession": "Schedule a mentor session",
     "viewRoadmap": "View roadmap"
+  },
+  "lessonVideo": {
+    "label": "Lesson video",
+    "comingSoonTitle": "Video coming soon",
+    "comingSoonBody": "The video for this lesson is in production. The reading below covers everything in it.",
+    "unsupported": "Your browser cannot play this video."
   }
 }

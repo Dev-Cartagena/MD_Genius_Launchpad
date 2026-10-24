@@ -1,0 +1,182 @@
+{
+  "title": "Week 6 quiz: Product-market fit and metrics",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "Fieldnote's survey shows 46% of technicians would be very disappointed without the product, from 52 qualified responses across 3 pilots. What is the best interpretation?",
+      "options": [
+        "Fieldnote has proven product-market fit and should scale sales to new regions now",
+        "It is meaningless under 100 responses",
+        "Encouraging, above 40%; segment it and confirm with retention",
+        "The team should resurvey every week until the score reaches 58%, as Superhuman did"
+      ],
+      "correctAnswer": 2,
+      "explanation": "The Ellis score is a leading indicator, not proof. About 40 responses give a directional read, and segmenting plus a flattening retention curve make the case stronger."
+    },
+    {
+      "question": "Who should receive the Sean Ellis product-market fit survey?",
+      "options": [
+        "Users who used the product at least twice in the last two weeks",
+        "Everyone who ever signed up, so that the sample is as large as it can possibly be",
+        "Only customers who renewed",
+        "Prospects who watched a demo recently but have not yet used the product themselves"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The question only makes sense for people who have used the product enough to miss it. Surveying casual sign-ups dilutes the signal."
+    },
+    {
+      "question": "A startup's weekly cohort retention curves all slide steadily toward zero, while sign-ups keep growing thanks to paid ads. What should the founders conclude?",
+      "options": [
+        "They have product-market fit, because total sign-ups keep growing every single week",
+        "Double the ad budget to outrun churn",
+        "Retention curves only start to matter after a startup has raised its Series A",
+        "They are leaking users; fix retention before buying more growth"
+      ],
+      "correctAnswer": 3,
+      "explanation": "A curve that never flattens means no group is getting lasting value. More acquisition only refills a leaking bucket."
+    },
+    {
+      "question": "Following Superhuman's engine, which users should shape the half of the roadmap aimed at the persuadable?",
+      "options": [
+        "Users who would not be disappointed, because they have the most room to become fans",
+        "Somewhat disappointed users who value the same main benefit",
+        "All somewhat disappointed users equally",
+        "Only the users who answered the survey during its first week, as early adopters"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Vohra kept only the somewhat disappointed users who valued the same core benefit as the lovers and fixed what held them back; users who would not be disappointed were set aside."
+    },
+    {
+      "question": "Fieldnote estimates that, per technician per month, models and speech cost about 2 to 3 dollars and human review about 13 to 14 dollars, at a price of 40 dollars. What is the most useful next step for margin?",
+      "options": [
+        "Switch to the cheapest model",
+        "Remove human review from the cost model, because it is only a temporary expense",
+        "Lower the human review rate by improving evals and retrieval",
+        "Ignore gross margin entirely until the company reaches its first 100 customers"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Human review is the largest cost driver in this model and it belongs in COGS. Lowering the review rate as quality improves moves margin far more than cheaper inference."
+    },
+    {
+      "question": "Which formula best reflects lifetime value as taught in this week's lesson?",
+      "options": [
+        "Total revenue collected to date divided by the total number of customers so far",
+        "Monthly revenue ÷ CAC",
+        "Monthly revenue per customer multiplied by the number of months since launch",
+        "Monthly revenue × gross margin ÷ monthly churn"
+      ],
+      "correctAnswer": 3,
+      "explanation": "LTV measures the gross profit a customer generates over their expected lifetime, so it includes gross margin and churn, not revenue alone."
+    },
+    {
+      "question": "Two of Fieldnote's three pilot operations managers prefer a per-technician price, and one worries that per-job pricing would make technicians skip the assistant on simple calls. What does this suggest?",
+      "options": [
+        "Per-technician pricing with an allowance and a fair-use limit fits best",
+        "Per-job pricing is better, because it tracks Fieldnote's cost per answer most closely",
+        "Make it free to maximize adoption",
+        "Fieldnote should pick whichever model yields the higher price, regardless of behavior"
+      ],
+      "correctAnswer": 0,
+      "explanation": "A predictable per-seat model with an allowance matches how buyers budget, avoids rationing, and the fair-use limit protects margin on heavy users."
+    },
+    {
+      "question": "A startup has run four free pilots for five months with no decisions. Which change is most likely to get pilots to convert?",
+      "options": [
+        "Extend each pilot for another three months so the team can gather more usage data",
+        "Make pilots paid, with success criteria, a decision date and a set price",
+        "Add more features so that the product becomes much harder for customers to say no to",
+        "Offer a free year for a logo"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Pilot purgatory comes from pilots with no commitment and no decision point. Payment, written criteria and a pre-agreed conversion turn a trial into the first stage of a contract."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la Semana 6: Product-market fit y métricas",
+      "questions": [
+        {
+          "question": "La encuesta de Fieldnote muestra que el 46% de los técnicos respondió que le decepcionaría mucho quedarse sin el producto, con 52 respuestas calificadas entre 3 pilotos. ¿Cuál es la mejor interpretación?",
+          "options": [
+            "Fieldnote demostró product-market fit y debería escalar las ventas a nuevas regiones ya",
+            "No vale nada con menos de 100 respuestas",
+            "Alentador, sobre el 40%; hay que segmentarlo y confirmarlo con la retención",
+            "El equipo debería repetir la encuesta cada semana hasta llegar al 58%, como Superhuman"
+          ],
+          "explanation": "El puntaje de Ellis es un indicador adelantado, no una prueba. Unas 40 respuestas dan una lectura orientativa, y segmentar junto con una curva de retención que se aplana fortalece el caso."
+        },
+        {
+          "question": "¿Quién debería recibir la encuesta de product-market fit de Sean Ellis?",
+          "options": [
+            "Usuarios que usaron el producto al menos dos veces en las últimas dos semanas",
+            "Todas las personas que alguna vez se registraron, para que la muestra sea lo más grande posible",
+            "Solo clientes que renovaron",
+            "Prospectos que vieron una demo hace poco pero que todavía no han usado el producto"
+          ],
+          "explanation": "La pregunta solo tiene sentido para quienes usaron el producto lo suficiente como para extrañarlo. Encuestar registros casuales diluye la señal."
+        },
+        {
+          "question": "Las curvas de retención semanal por cohorte de una startup bajan todas de forma constante hacia cero, mientras los registros siguen creciendo gracias a los anuncios pagados. ¿Qué deberían concluir los fundadores?",
+          "options": [
+            "Tienen product-market fit, porque los registros totales siguen creciendo cada semana",
+            "Duplicar los anuncios para superar las bajas",
+            "Las curvas de retención solo empiezan a importar después de levantar la Serie A",
+            "Están perdiendo usuarios; primero hay que arreglar la retención"
+          ],
+          "explanation": "Una curva que nunca se aplana significa que ningún grupo obtiene valor duradero. Más adquisición solo vuelve a llenar un balde con fugas."
+        },
+        {
+          "question": "Siguiendo el motor de Superhuman, ¿qué usuarios deberían guiar la mitad de la hoja de ruta dirigida a los convencibles?",
+          "options": [
+            "Los usuarios que no se decepcionarían, porque tienen más margen para volverse entusiastas",
+            "Quienes respondieron \"me decepcionaría un poco\" y valoran el mismo beneficio principal",
+            "Todos los que respondieron \"me decepcionaría un poco\", por igual",
+            "Solo quienes respondieron la encuesta durante su primera semana, como usuarios pioneros"
+          ],
+          "explanation": "Vohra se quedó solo con quienes respondieron \"me decepcionaría un poco\" y valoraban el mismo beneficio central que los entusiastas, y arregló lo que los frenaba; quienes no se decepcionarían quedaron a un lado."
+        },
+        {
+          "question": "Fieldnote estima que, por técnico al mes, los modelos y la voz cuestan unos 2 a 3 dólares y la revisión humana unos 13 a 14 dólares, con un precio de 40 dólares. ¿Cuál es el siguiente paso más útil para el margen?",
+          "options": [
+            "Cambiar al modelo más barato",
+            "Quitar la revisión humana del modelo de costos, porque es solo un gasto temporal",
+            "Bajar la tasa de revisión humana mejorando evaluaciones y recuperación",
+            "Ignorar por completo el margen bruto hasta que la empresa llegue a sus primeros 100 clientes"
+          ],
+          "explanation": "La revisión humana es el mayor impulsor de costos en este modelo y pertenece al COGS. Bajar la tasa de revisión a medida que mejora la calidad mueve el margen mucho más que una inferencia más barata."
+        },
+        {
+          "question": "¿Qué fórmula refleja mejor el valor de vida del cliente según la lección de esta semana?",
+          "options": [
+            "El ingreso total cobrado a la fecha dividido entre el número total de clientes hasta ahora",
+            "Ingreso mensual ÷ CAC",
+            "El ingreso mensual por cliente multiplicado por los meses transcurridos desde el lanzamiento",
+            "Ingreso mensual × margen bruto ÷ tasa de bajas mensual"
+          ],
+          "explanation": "El LTV mide la ganancia bruta que genera un cliente durante su vida esperada, así que incluye el margen bruto y las bajas, no solo el ingreso."
+        },
+        {
+          "question": "Dos de los tres gerentes de operaciones de los pilotos de Fieldnote prefieren un precio por técnico, y uno teme que cobrar por servicio haga que los técnicos dejen de usar el asistente en llamadas simples. ¿Qué sugiere esto?",
+          "options": [
+            "Un precio por técnico con volumen incluido y un límite de uso razonable",
+            "Cobrar por servicio es mejor, porque es lo que más se acerca al costo de cada respuesta",
+            "Hacerlo gratis para maximizar la adopción",
+            "Fieldnote debería elegir el modelo que dé el precio más alto, sin importar el comportamiento"
+          ],
+          "explanation": "Un modelo por usuario predecible con volumen incluido coincide con la forma de presupuestar del comprador, evita el racionamiento, y el límite de uso protege el margen con los usuarios intensivos."
+        },
+        {
+          "question": "Una startup lleva cinco meses con cuatro pilotos gratis y ninguna decisión. ¿Qué cambio tiene más probabilidades de lograr que los pilotos se conviertan?",
+          "options": [
+            "Extender cada piloto otros tres meses para que el equipo reúna más datos de uso",
+            "Pilotos pagados, con criterios de éxito, fecha de decisión y precio fijado",
+            "Agregar más funciones para que a los clientes les cueste mucho más decir que no",
+            "Un año gratis a cambio del logo"
+          ],
+          "explanation": "El purgatorio de pilotos viene de pilotos sin compromiso ni punto de decisión. El pago, los criterios por escrito y una conversión acordada convierten una prueba en la primera etapa de un contrato."
+        }
+      ]
+    }
+  }
+}

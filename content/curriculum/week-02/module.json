@@ -1,0 +1,50 @@
+{
+  "week": 2,
+  "stage": "foundation",
+  "orderIndex": 2,
+  "title": "Defining the problem",
+  "description": "Move from an idea to a precise problem worth a company: who has it, how much it hurts and what job they need done. By the end of the week you have a sharp problem statement, a map of your riskiest assumptions and a plan for using AI responsibly from day one.",
+  "objectives": [
+    "Score candidate problems on severity, frequency and willingness to pay, with evidence for each score",
+    "Write a job statement for your user and, if different, for your buyer",
+    "Run at least three empathy sessions and turn them into a point-of-view problem statement",
+    "Build an assumption map across desirability, viability and feasibility and rank your three riskiest assumptions",
+    "List your data sources, rights and top failure modes, and choose an oversight level for each high-stakes decision",
+    "Identify which regulatory risk tier and sector rules likely apply to your product as of 2026"
+  ],
+  "resources": [
+    "Paul Graham, Schlep Blindness — https://paulgraham.com/schlep.html",
+    "Christensen Institute, Jobs to Be Done theory — https://www.christenseninstitute.org/theory/jobs-to-be-done/",
+    "Stanford d.school, Design Thinking Bootleg — https://dschool.stanford.edu/tools/design-thinking-bootleg",
+    "European Commission AI Act Service Desk, implementation timeline — https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act",
+    "NIST, AI Risk Management Framework — https://www.nist.gov/itl/ai-risk-management-framework",
+    "OECD, AI Principles — https://oecd.ai/en/ai-principles"
+  ],
+  "translations": {
+    "es": {
+      "title": "Definir el problema",
+      "description": "Pasa de una idea a un problema preciso que justifique una empresa: quién lo tiene, cuánto duele y qué trabajo necesita resolver. Al final de la semana tendrás un enunciado del problema claro, un mapa de tus supuestos más riesgosos y un plan para usar la IA de forma responsable desde el primer día.",
+      "objectives": [
+        "Calificar los problemas candidatos según gravedad, frecuencia y disposición a pagar, con evidencia para cada calificación",
+        "Escribir un enunciado del trabajo para tu usuario y, si es otra persona, para tu comprador",
+        "Hacer al menos tres sesiones de empatía y convertirlas en un enunciado del problema desde un punto de vista",
+        "Construir un mapa de supuestos de deseabilidad, viabilidad y factibilidad, y priorizar tus tres supuestos más riesgosos",
+        "Enumerar tus fuentes de datos, tus derechos sobre ellas y tus principales modos de falla, y elegir un nivel de supervisión para cada decisión de alto riesgo",
+        "Identificar qué nivel de riesgo regulatorio y qué reglas sectoriales probablemente aplican a tu producto a 2026"
+      ],
+      "resources": [
+        "Paul Graham, Schlep Blindness (en inglés) — https://paulgraham.com/schlep.html",
+        "Christensen Institute, teoría Jobs to Be Done (en inglés) — https://www.christenseninstitute.org/theory/jobs-to-be-done/",
+        "Stanford d.school, Design Thinking Bootleg (en inglés) — https://dschool.stanford.edu/tools/design-thinking-bootleg",
+        "AI Act Service Desk de la Comisión Europea, calendario de implementación (en inglés) — https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act",
+        "NIST, AI Risk Management Framework (en inglés) — https://www.nist.gov/itl/ai-risk-management-framework",
+        "OCDE, Principios de IA (en inglés) — https://oecd.ai/en/ai-principles"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "Finding a problem worth solving", "es": "Cómo encontrar un problema que valga la pena resolver", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Design thinking for founders", "es": "Design thinking para fundadores", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Responsible AI from day one", "es": "IA responsable desde el primer día", "minutes": 15 }
+  ]
+}

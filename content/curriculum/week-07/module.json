@@ -1,0 +1,50 @@
+{
+  "week": 7,
+  "stage": "launch",
+  "orderIndex": 7,
+  "title": "Go-to-market and growth",
+  "description": "Choose the go-to-market motion that fits your buyer, land your first ten paying customers through founder-led sales, and find the one or two channels and loops that can carry your growth.",
+  "objectives": [
+    "Choose a go-to-market motion (founder-led sales, product-led growth or enterprise) and justify it with your buyer, price point and sales cycle",
+    "Map your beachhead on the technology adoption life cycle and define the whole product your early majority customers need",
+    "Build a founder-led sales pipeline with clear stages, exit criteria and weekly numbers",
+    "Run a discovery call, design a paid pilot with success criteria, and close it into a contract",
+    "Use the Bullseye framework to test at least three channels with small, cheap experiments",
+    "Describe one growth loop for your product and the metric that shows whether it is working"
+  ],
+  "resources": [
+    "Enterprise Sales for Founders (Pete Koomen, YC Startup School) — https://www.ycombinator.com/library/LF-enterprise-sales-for-founders",
+    "How to Get Your First 10 Customers (Max Kolysh, YC Startup School) — https://www.ycombinator.com/library/SF-how-to-get-your-first-10-customers",
+    "The Sales Playbook for Founders (Tom Blomfield, YC Startup School) — https://www.ycombinator.com/library/Mo-the-sales-playbook-for-founders",
+    "Do Things That Don't Scale (Paul Graham) — https://paulgraham.com/ds.html",
+    "Startup = Growth (Paul Graham) — https://paulgraham.com/growth.html",
+    "Growth Loops are the New Funnels (Reforge) — https://www.reforge.com/blog/growth-loops"
+  ],
+  "translations": {
+    "es": {
+      "title": "Go-to-market y crecimiento",
+      "description": "Elige el modelo de go-to-market que se ajusta a tu comprador, consigue tus primeros diez clientes de pago con ventas lideradas por los fundadores y encuentra uno o dos canales y loops que puedan sostener tu crecimiento.",
+      "objectives": [
+        "Elegir un modelo de go-to-market (ventas lideradas por fundadores, crecimiento liderado por el producto o enterprise) y justificarlo con tu comprador, tu precio y tu ciclo de venta",
+        "Ubicar tu mercado inicial en el ciclo de adopción de tecnología y definir el producto completo que necesita la mayoría temprana",
+        "Construir un pipeline de ventas liderado por fundadores con etapas claras, criterios de salida y números semanales",
+        "Conducir una llamada de descubrimiento, diseñar un piloto pagado con criterios de éxito y cerrarlo en un contrato",
+        "Usar el marco Bullseye para probar al menos tres canales con experimentos pequeños y baratos",
+        "Describir un loop de crecimiento para tu producto y la métrica que muestra si funciona"
+      ],
+      "resources": [
+        "Enterprise Sales for Founders (Pete Koomen, YC Startup School) — https://www.ycombinator.com/library/LF-enterprise-sales-for-founders",
+        "Cómo conseguir tus primeros 10 clientes (Max Kolysh, YC Startup School) — https://www.ycombinator.com/library/SF-how-to-get-your-first-10-customers",
+        "El manual de ventas para fundadores (Tom Blomfield, YC Startup School) — https://www.ycombinator.com/library/Mo-the-sales-playbook-for-founders",
+        "Haz cosas que no escalan (Paul Graham) — https://paulgraham.com/ds.html",
+        "Startup = crecimiento (Paul Graham) — https://paulgraham.com/growth.html",
+        "Los loops de crecimiento son los nuevos embudos (Reforge) — https://www.reforge.com/blog/growth-loops"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "Choosing your go-to-market motion", "es": "Cómo elegir tu modelo de go-to-market", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Founder-led sales and your first ten customers", "es": "Ventas lideradas por fundadores y tus primeros diez clientes", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Distribution and growth loops", "es": "Distribución y loops de crecimiento", "minutes": 15 }
+  ]
+}

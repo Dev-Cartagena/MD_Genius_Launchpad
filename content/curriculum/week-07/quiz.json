@@ -1,0 +1,182 @@
+{
+  "title": "Week 7 quiz: Go-to-market and growth",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "Fieldnote's users are technicians, but the operations manager controls the budget and the owner signs large purchases. Technicians see value on day one; managers see it after weeks of data. Which go-to-market motion fits best right now?",
+      "options": [
+        "Product-led growth with a free tier for technicians, because users who love it will pull in their managers",
+        "Founder-led sales to operations managers, using technician enthusiasm as a channel into each account",
+        "A full enterprise sales team selling to national service chains, since large accounts bring the biggest contracts",
+        "Paid search ads aimed at technicians, with self-serve checkout and no sales contact"
+      ],
+      "correctAnswer": 1,
+      "explanation": "When the user and the buyer differ, match the motion to the buyer. A manager with a budget and a weeks-long buying process calls for founder-led sales; enthusiastic users are a channel, not a motion."
+    },
+    {
+      "question": "An AI writing startup is considering a generous free tier. Each active free user triggers meaningful model inference costs. What should the founders check first?",
+      "options": [
+        "Whether the main competitors offer a free tier and how generous their limits are",
+        "How many sign-ups a launch post and a free tier might generate in the first month",
+        "Gross margin per active free user and how many free users convert to paid",
+        "Whether investors at the next round prefer product-led growth companies"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Product-led growth with AI products can burn cash because every free user carries inference cost. The unit economics of free users decide whether PLG is viable."
+    },
+    {
+      "question": "According to Geoffrey Moore's Crossing the Chasm, why do early majority buyers often refuse to buy a product that early adopters love?",
+      "options": [
+        "They are pragmatists who want a proven whole product and references from companies like theirs",
+        "They only buy from large, well-known vendors, no matter how well the product works for early adopters",
+        "They are more price-sensitive and will wait until competition pushes prices down before buying",
+        "They do not have the problem yet, because it only becomes painful as companies grow"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Moore describes the early majority as pragmatists who buy proven solutions and rely on peer references. Winning a narrow beachhead completely gives them those references."
+    },
+    {
+      "question": "A startup wants 10 new customers this quarter. Its own data shows half of pilots convert, one in four discovery calls leads to a pilot, and one in five contacts accepts a call. Roughly how many contacts does it need?",
+      "options": [
+        "50",
+        "100",
+        "200",
+        "400"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Work backward: 10 customers ÷ 1/2 = 20 pilots; 20 ÷ 1/4 = 80 calls; 80 ÷ 1/5 = 400 contacts."
+    },
+    {
+      "question": "During a discovery call, an operations manager says Fieldnote 'looks amazing' and asks for a demo next week. What is the best next move?",
+      "options": [
+        "Ask about the last callback their team handled, what it cost, and who else must approve a purchase",
+        "Book the demo while interest is high, and send pricing right away so the deal keeps moving",
+        "Offer a free, open-ended trial so their technicians can explore the product at their own pace",
+        "Ask whether they would recommend Fieldnote to other contractors, to gauge how strong the interest is"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Discovery should uncover past behavior, impact in numbers and the decision process. Praise is not evidence, and the economic buyer has not yet been identified."
+    },
+    {
+      "question": "Fieldnote's third pilot met its usage goals but did not convert, because the owner never met the founders and did not trust the results. What should they change for future pilots?",
+      "options": [
+        "Make pilots longer, so the usage data becomes convincing enough for the owner to approve without meeting them",
+        "Stop offering pilots and sell annual contracts directly, with a refund if the goals are not met",
+        "Lower the price below the manager's approval limit, so the owner's sign-off is never needed",
+        "Meet the economic buyer and agree success criteria and conversion terms before the pilot starts"
+      ],
+      "correctAnswer": 3,
+      "explanation": "A champion without the economic buyer produces pilots that stall. Agreeing criteria and conversion terms with the person who signs, up front, turns a pilot into a decision."
+    },
+    {
+      "question": "Using the Bullseye framework from Traction, a team has brainstormed ideas for many channels. What is the next step?",
+      "options": [
+        "Pick the channel the founders know best, since founder skill matters more than the channel itself",
+        "Spend the same budget on every channel for a quarter, then compare which one brought the most users",
+        "Run small, cheap tests on the three most promising ideas, with success thresholds set in advance",
+        "Hire a growth agency to run all the channels at once and report back on which ones work"
+      ],
+      "correctAnswer": 2,
+      "explanation": "The middle ring of the Bullseye is about cheap tests of the most promising ideas. Only the channel that tests best moves to the inner ring for focus."
+    },
+    {
+      "question": "Which of these is a growth loop rather than a funnel?",
+      "options": [
+        "A launch post on a popular forum that brings a large spike of new sign-ups during its first week",
+        "Technicians share fixes with colleagues, whose managers request demos and add technicians who share again",
+        "A trade show booth the team attends once a year, where it collects several hundred leads for the sales team",
+        "A paid ad campaign with a fixed monthly budget that brings a steady number of new sign-ups each month"
+      ],
+      "correctAnswer": 1,
+      "explanation": "In a loop, the output of one cycle feeds the next. Each new technician becomes a source of further referrals, while the other options need fresh input every time."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la semana 7: Go-to-market y crecimiento",
+      "questions": [
+        {
+          "question": "Los usuarios de Fieldnote son técnicos, pero el gerente de operaciones controla el presupuesto y el dueño firma las compras grandes. Los técnicos ven valor el primer día; los gerentes, después de semanas de datos. ¿Qué modelo de go-to-market encaja mejor ahora?",
+          "options": [
+            "Crecimiento liderado por el producto con un plan gratuito para técnicos, porque los usuarios entusiastas atraerán a sus gerentes",
+            "Ventas lideradas por fundadores a gerentes de operaciones, usando el entusiasmo de los técnicos como canal hacia cada cuenta",
+            "Un equipo enterprise completo que le venda a cadenas nacionales de servicio, porque las cuentas grandes traen los contratos más grandes",
+            "Anuncios pagados en buscadores dirigidos a técnicos, con compra en línea y sin contacto de ventas"
+          ],
+          "explanation": "Cuando el usuario y el comprador son distintos, el modelo se ajusta al comprador. Un gerente con presupuesto y un proceso de compra de semanas requiere ventas lideradas por fundadores; los usuarios entusiastas son un canal, no un modelo."
+        },
+        {
+          "question": "Una startup de escritura con IA evalúa un plan gratuito generoso. Cada usuario gratuito activo genera costos de inferencia importantes. ¿Qué deberían revisar primero los fundadores?",
+          "options": [
+            "Si los principales competidores ofrecen un plan gratuito y qué tan generosos son sus límites",
+            "Cuántos registros podrían generar una publicación de lanzamiento y un plan gratuito en el primer mes",
+            "El margen bruto por usuario gratuito activo y cuántos usuarios gratuitos pasan a pagar",
+            "Si los inversionistas de la próxima ronda prefieren empresas que crecen con el producto"
+          ],
+          "explanation": "El crecimiento liderado por el producto puede quemar caja en IA porque cada usuario gratuito tiene un costo de inferencia. La economía unitaria de esos usuarios decide si el PLG es viable."
+        },
+        {
+          "question": "Según Crossing the Chasm de Geoffrey Moore, ¿por qué la mayoría temprana suele negarse a comprar un producto que los adoptantes tempranos aman?",
+          "options": [
+            "Son pragmáticos que quieren un producto completo probado y referencias de empresas parecidas",
+            "Solo compran a proveedores grandes y conocidos, sin importar qué tan bien funcione el producto para los adoptantes tempranos",
+            "Son más sensibles al precio y esperan a que la competencia haga bajar los precios antes de comprar",
+            "Todavía no tienen el problema, porque solo se vuelve doloroso cuando las empresas crecen"
+          ],
+          "explanation": "Moore describe a la mayoría temprana como pragmática: compra soluciones probadas y se apoya en referencias de sus pares. Ganar por completo una cabeza de playa estrecha les da esas referencias."
+        },
+        {
+          "question": "Una startup quiere 10 clientes nuevos este trimestre. Sus datos muestran que la mitad de los pilotos se convierte, una de cada cuatro llamadas de descubrimiento termina en piloto y uno de cada cinco contactos acepta una llamada. ¿Cuántos contactos necesita, aproximadamente?",
+          "options": [
+            "50",
+            "100",
+            "200",
+            "400"
+          ],
+          "explanation": "Calcula hacia atrás: 10 clientes ÷ 1/2 = 20 pilotos; 20 ÷ 1/4 = 80 llamadas; 80 ÷ 1/5 = 400 contactos."
+        },
+        {
+          "question": "En una llamada de descubrimiento, un gerente de operaciones dice que Fieldnote \"se ve increíble\" y pide una demo para la próxima semana. ¿Cuál es el mejor siguiente paso?",
+          "options": [
+            "Preguntar por la última visita repetida de su equipo, cuánto costó y quién más debe aprobar una compra",
+            "Agendar la demo mientras el interés está alto y enviar precios de inmediato para que el trato avance",
+            "Ofrecer una prueba gratuita y sin plazo para que sus técnicos exploren el producto a su propio ritmo",
+            "Preguntar si recomendaría Fieldnote a otros contratistas, para medir qué tan fuerte es de verdad su interés"
+          ],
+          "explanation": "El descubrimiento debe revelar el comportamiento pasado, el impacto en números y el proceso de decisión. Los elogios no son evidencia, y todavía no se identificó al comprador económico."
+        },
+        {
+          "question": "El tercer piloto de Fieldnote cumplió sus metas de uso pero no se convirtió, porque el dueño nunca conoció a los fundadores y no confió en los resultados. ¿Qué deberían cambiar en los próximos pilotos?",
+          "options": [
+            "Hacer pilotos más largos, para que los datos de uso convenzan al dueño sin necesidad de conocer al equipo",
+            "Dejar de ofrecer pilotos y vender contratos anuales directamente, con reembolso si no se cumplen las metas",
+            "Bajar el precio por debajo del límite que el gerente puede aprobar, para que nunca haga falta la firma del dueño",
+            "Reunirse con el comprador económico y acordar criterios de éxito y condiciones de conversión antes del piloto"
+          ],
+          "explanation": "Un campeón sin el comprador económico produce pilotos que se estancan. Acordar desde el inicio los criterios y las condiciones con quien firma convierte el piloto en una decisión."
+        },
+        {
+          "question": "Con el marco Bullseye de Traction, un equipo ya generó ideas para muchos canales. ¿Cuál es el siguiente paso?",
+          "options": [
+            "Elegir el canal que los fundadores conocen mejor, porque su habilidad importa más que el canal en sí",
+            "Invertir el mismo presupuesto en todos los canales durante un trimestre y luego comparar cuál trajo más usuarios",
+            "Hacer pruebas pequeñas y baratas de las tres ideas más prometedoras, con umbrales de éxito fijados de antemano",
+            "Contratar una agencia de crecimiento que pruebe todos los canales a la vez y reporte cuáles funcionan"
+          ],
+          "explanation": "El anillo medio del Bullseye consiste en pruebas baratas de las ideas más prometedoras. Solo el canal que mejor resulta pasa al anillo interior."
+        },
+        {
+          "question": "¿Cuál de estos es un loop de crecimiento y no un embudo?",
+          "options": [
+            "Una publicación de lanzamiento en un foro popular que trae un gran pico de registros durante su primera semana",
+            "Los técnicos comparten resúmenes con colegas, cuyos gerentes piden demos y suman técnicos que vuelven a compartir",
+            "Un stand en una feria a la que el equipo va una vez al año, donde reúne cientos de contactos para el equipo de ventas",
+            "Una campaña de anuncios con un presupuesto mensual fijo que trae una cantidad estable de registros nuevos cada mes"
+          ],
+          "explanation": "En un loop, el resultado de un ciclo alimenta al siguiente. Cada técnico nuevo se vuelve fuente de más referidos, mientras que las otras opciones necesitan una entrada nueva cada vez."
+        }
+      ]
+    }
+  }
+}

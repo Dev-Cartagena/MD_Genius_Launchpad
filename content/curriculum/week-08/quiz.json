@@ -1,0 +1,182 @@
+{
+  "title": "Week 8 quiz: Fundraising and Demo Day",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "An investor puts $400,000 into a post-money SAFE with an $8 million valuation cap. Before any priced round, what share of the company does this SAFE represent when it converts at the cap?",
+      "options": [
+        "4%",
+        "8%",
+        "5%",
+        "20%"
+      ],
+      "correctAnswer": 2,
+      "explanation": "For a post-money cap SAFE converting at its cap, ownership equals the investment divided by the post-money cap: 400,000 ÷ 8,000,000 = 5%."
+    },
+    {
+      "question": "A company with outstanding post-money SAFEs raises a priced seed round. The new investors require the option pool to be enlarged, with the increase created before their money comes in. Who is diluted by the pool increase?",
+      "options": [
+        "The founders and the SAFE holders, but not the new investors",
+        "Only the new seed investors",
+        "Only the founders, because SAFE holders are protected from all dilution",
+        "Nobody, because option pools do not count toward ownership"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The post-money cap does not include a new or larger pool created in the priced round, so that increase dilutes existing holders, including SAFE holders and founders, while the new investors' percentage is set after it."
+    },
+    {
+      "question": "Fieldnote's founders are deciding how much to raise. Which approach is strongest?",
+      "options": [
+        "Raise as much as investors will offer, since extra runway is always safer than running short",
+        "Start from the valuation they want and pick the round size that gets them there",
+        "Match the round size of well-known AI startups at the same stage, so investors see it as normal",
+        "Name the milestone for the next round, estimate what it costs, add a buffer and raise that"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Fundraising buys time to reach a milestone. Working back from the milestone and its cost, plus a buffer, avoids both running short and selling more of the company than needed."
+    },
+    {
+      "question": "A startup has two paying customers and four unpaid pilots. How should the traction slide present this?",
+      "options": [
+        "Six customers, since all four pilots are active and likely to convert within the quarter",
+        "Two paying customers and four pilots, shown separately with dates and a definition of each",
+        "Total sign-ups and active users, since the largest accurate number makes the strongest slide",
+        "Leave traction off the deck until there are ten paying customers, to avoid looking small"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Traction must be impressive and fully defensible. Separating paid customers from pilots, with dates and definitions, keeps trust when investors check the numbers in diligence."
+    },
+    {
+      "question": "An investor asks an AI founder: 'What stops the model provider from building this?' Which answer is weakest?",
+      "options": [
+        "Our product is embedded in the customer's daily workflow and integrated with their systems",
+        "We have proprietary data from real jobs that improves our answers with use",
+        "We measure quality on a growing evaluation set of real customer tasks",
+        "We use the best foundation model available and switch whenever a better one ships"
+      ],
+      "correctAnswer": 3,
+      "explanation": "Anyone can use the same foundation model, so it is not a moat. Proprietary data, workflow embedding, distribution and proven quality on real tasks are harder to copy."
+    },
+    {
+      "question": "A founder has two minutes at Demo Day. Which opening is best?",
+      "options": [
+        "One sentence on what the company does and for whom, followed by its strongest traction number",
+        "The founders' personal stories, to build an emotional connection before they show any of the numbers",
+        "A short walkthrough of the technical architecture, to prove the product is hard to copy",
+        "A fast summary of every slide in the full deck, so investors hear the whole story at once"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Two minutes is enough for one clear idea and strong evidence. Paul Graham's first goal for Demo Day is to explain what you are doing, and leading with traction earns attention."
+    },
+    {
+      "question": "After a strong meeting, a pre-seed fund tells Fieldnote 'we're in' for $500,000. What should the founders do next?",
+      "options": [
+        "Stop fundraising and announce the round, since a lead investor's commitment attracts the rest",
+        "Wait until the whole round is committed before sending any documents, so all investors sign together",
+        "Send the SAFE, reviewed by their lawyer, right away and ask for the funds to be wired promptly",
+        "Ask the fund to lead and set the terms for all other investors before anyone signs anything"
+      ],
+      "correctAnswer": 2,
+      "explanation": "A verbal yes is not money in the bank. Paul Graham's advice is to close committed money quickly, and SAFEs allow a rolling close with one investor at a time."
+    },
+    {
+      "question": "Fieldnote lost a pilot this month and missed its customer target. What should its monthly investor update do?",
+      "options": [
+        "Skip this month's update and send a longer one next month, once there is good news to share as well",
+        "Report the lost pilot and missed target as lowlights, with the response, and keep the usual metrics and asks",
+        "Lead with the highlights and leave the lost pilot out, to protect investor confidence until the issue is resolved",
+        "Switch to metrics that show growth this month, such as sign-ups, so the trend still looks positive"
+      ],
+      "correctAnswer": 1,
+      "explanation": "A consistent format with honest lowlights builds trust. Investors who hear bad news early, with a plan, are more likely to help and to back the next round."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la semana 8: Levantamiento de capital y Demo Day",
+      "questions": [
+        {
+          "question": "Un inversionista pone 400,000 dólares en un SAFE post-money con un tope de valoración de 8 millones. Antes de cualquier ronda con precio, ¿qué porcentaje de la empresa representa este SAFE cuando convierte al tope?",
+          "options": [
+            "4%",
+            "8%",
+            "5%",
+            "20%"
+          ],
+          "explanation": "En un SAFE post-money con tope que convierte a su tope, la propiedad es la inversión dividida por el tope post-money: 400,000 ÷ 8,000,000 = 5%."
+        },
+        {
+          "question": "Una empresa con SAFEs post-money vigentes levanta una ronda semilla con precio. Los nuevos inversionistas exigen ampliar el pool de opciones, con el aumento creado antes de que entre su dinero. ¿A quién diluye ese aumento del pool?",
+          "options": [
+            "A los fundadores y a los tenedores de SAFEs, pero no a los nuevos inversionistas",
+            "Solo a los nuevos inversionistas semilla",
+            "Solo a los fundadores, porque los tenedores de SAFEs están protegidos de toda dilución",
+            "A nadie, porque el pool de opciones no cuenta como propiedad"
+          ],
+          "explanation": "El tope post-money no incluye un pool nuevo o ampliado en la ronda con precio, así que ese aumento diluye a los accionistas existentes, incluidos tenedores de SAFEs y fundadores, mientras que el porcentaje de los nuevos inversionistas se fija después."
+        },
+        {
+          "question": "Los fundadores de Fieldnote están decidiendo cuánto levantar. ¿Cuál es el mejor enfoque?",
+          "options": [
+            "Levantar todo lo que ofrezcan los inversionistas, porque tener más pista siempre es más seguro que quedarse corto",
+            "Partir de la valoración que quieren y elegir el tamaño de ronda que les permita llegar a ella",
+            "Igualar el tamaño de ronda de startups de IA conocidas en la misma etapa, para que parezca normal",
+            "Nombrar el hito que justifica la siguiente ronda, estimar su costo, sumar un margen y levantar ese monto"
+          ],
+          "explanation": "Levantar capital compra tiempo para llegar a un hito. Calcular hacia atrás desde el hito y su costo, más un margen, evita quedarse corto y vender más de la empresa de lo necesario."
+        },
+        {
+          "question": "Una startup tiene dos clientes de pago y cuatro pilotos sin pago. ¿Cómo debería presentarlo en la diapositiva de tracción?",
+          "options": [
+            "Seis clientes, porque los cuatro pilotos están activos y es probable que se conviertan este trimestre",
+            "Dos clientes de pago y cuatro pilotos, presentados por separado, con fechas y la definición de cada uno",
+            "El total de registros y usuarios activos, porque el número correcto más grande hace la diapositiva más fuerte",
+            "No incluir tracción en el pitch deck hasta tener diez clientes de pago, para no parecer pequeños"
+          ],
+          "explanation": "La tracción debe impresionar y poder defenderse por completo. Separar clientes de pago y pilotos, con fechas y definiciones, protege la confianza cuando los inversionistas verifiquen los números en el due diligence."
+        },
+        {
+          "question": "Un inversionista le pregunta a un fundador de IA: \"¿Qué impide que el proveedor del modelo construya esto?\". ¿Cuál es la respuesta más débil?",
+          "options": [
+            "Nuestro producto está integrado en el flujo de trabajo diario del cliente y conectado con sus sistemas",
+            "Tenemos datos propios de trabajos reales que mejoran nuestras respuestas con el uso",
+            "Medimos la calidad con un set de evaluación creciente de tareas reales de clientes",
+            "Usamos el mejor modelo fundacional disponible y lo cambiamos en cuanto sale uno mejor"
+          ],
+          "explanation": "Cualquiera puede usar el mismo modelo fundacional, así que no es una ventaja defendible. Los datos propios, la integración en el flujo de trabajo, la distribución y la calidad probada en tareas reales son más difíciles de copiar."
+        },
+        {
+          "question": "Un fundador tiene dos minutos en el Demo Day. ¿Cuál es la mejor apertura?",
+          "options": [
+            "Una oración que diga qué hace la empresa y para quién, seguida de su número de tracción más fuerte",
+            "La historia personal de los fundadores, para crear una conexión emocional antes de mostrar cifras",
+            "Un recorrido breve por la arquitectura técnica, para demostrar que el producto es difícil de copiar",
+            "Un resumen rápido de cada diapositiva del pitch deck, para que los inversionistas escuchen toda la historia"
+          ],
+          "explanation": "Dos minutos alcanzan para una idea clara y evidencia fuerte. El primer objetivo de Paul Graham para el Demo Day es explicar qué estás haciendo, y abrir con la tracción capta la atención."
+        },
+        {
+          "question": "Tras una buena reunión, un fondo pre-seed le dice a Fieldnote \"contamos contigo\" por 500,000 dólares. ¿Qué deberían hacer los fundadores ahora?",
+          "options": [
+            "Dejar de levantar capital y anunciar la ronda, porque el compromiso de un fondo atrae a los demás",
+            "Esperar a que toda la ronda esté comprometida antes de enviar documentos, para que todos firmen juntos",
+            "Enviar de inmediato el SAFE, revisado por su abogado, y pedir que la transferencia se haga pronto",
+            "Pedirle al fondo que lidere y fije las condiciones para todos los demás antes de firmar nada"
+          ],
+          "explanation": "Un sí verbal no es dinero en el banco. El consejo de Paul Graham es cerrar rápido el dinero comprometido, y los SAFEs permiten un cierre continuo con un inversionista a la vez."
+        },
+        {
+          "question": "Este mes Fieldnote perdió un piloto y no alcanzó su meta de clientes. ¿Qué debería hacer su actualización mensual para inversionistas?",
+          "options": [
+            "Saltarse la actualización de este mes y enviar una más larga el próximo, cuando también haya buenas noticias",
+            "Informar el piloto perdido y la meta fallida en problemas, explicar la respuesta y mantener las métricas y peticiones habituales",
+            "Empezar con los logros y dejar fuera el piloto perdido, para proteger la confianza de los inversionistas hasta resolver el problema",
+            "Cambiar a métricas que muestren crecimiento este mes, como los registros, para que la tendencia se vea positiva"
+          ],
+          "explanation": "Un formato constante con problemas contados con honestidad genera confianza. Los inversionistas que reciben las malas noticias temprano, con un plan, tienen más probabilidad de ayudar y de apoyar la siguiente ronda."
+        }
+      ]
+    }
+  }
+}

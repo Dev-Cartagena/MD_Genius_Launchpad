@@ -1,0 +1,182 @@
+{
+  "title": "Week 3 quiz: Customer discovery",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "Steve Blank defines a startup as an organization formed to do what?",
+      "options": [
+        "Execute a detailed five-year business plan as fast as possible",
+        "Search for a repeatable and scalable business model",
+        "Build the most advanced product in its category",
+        "Raise venture capital before finding customers"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Blank's definition centers on search: a startup does not yet know its business model, so its job is to find one that is repeatable and scalable."
+    },
+    {
+      "question": "Which hypothesis is written so that a real result could prove it wrong?",
+      "options": [
+        "Technicians want AI help with diagnosis, parts and paperwork on most of their jobs",
+        "Field service is a large market where most contractors are ready to adopt AI tools soon",
+        "Contractors will love a voice-first assistant once they see how much time it saves",
+        "6 of 10 technicians will describe a job last month left unfixed because they could not identify a part"
+      ],
+      "correctAnswer": 3,
+      "explanation": "It names who, what and a threshold set in advance. The other options are too vague for any interview result to disprove."
+    },
+    {
+      "question": "Fieldnote's founders set a fail line of 'fewer than 4 of 10 technicians' for their paperwork hypothesis. When should they have set that line?",
+      "options": [
+        "Before the first interview, so results cannot move it",
+        "After the first five interviews, once they saw the trend",
+        "After all interviews, to match the data",
+        "Only if an investor asked for it"
+      ],
+      "correctAnswer": 0,
+      "explanation": "A line set after seeing the data tends to land wherever the data falls. Setting it in advance is what turns interviews into evidence."
+    },
+    {
+      "question": "Ana opens an interview by describing Fieldnote, and the technician says it sounds great and he would definitely use it. Under the Mom Test, what is the best next move?",
+      "options": [
+        "Record it as strong validation and move straight to building the product",
+        "Ask how much he would pay for it next year, so you can set a price",
+        "Thank him, then ask him to walk through the last job he could not close",
+        "Show him a longer demo so he can give you more detailed feedback"
+      ],
+      "correctAnswer": 2,
+      "explanation": "A compliment and a future promise are bad data. Steering back to a specific past event in his own work produces facts."
+    },
+    {
+      "question": "Which of these is the strongest sign of real interest at the end of a discovery call?",
+      "options": [
+        "The manager says \"this is great, keep me posted\" and promises to share it with her team",
+        "The manager agrees to a four-week trial with two technicians, starting on a named date",
+        "The manager asks for three new features and says she would pay more for them",
+        "The manager says most shops in the area would buy it at almost any reasonable price"
+      ],
+      "correctAnswer": 1,
+      "explanation": "A trial with named technicians and a start date is a commitment of time and reputation, and it advances the relationship. The others cost the manager nothing."
+    },
+    {
+      "question": "Which question best follows the Mom Test rule of asking about specifics in the past?",
+      "options": [
+        "Tell me about the last time you called a senior tech from a site. What happened?",
+        "How often do you usually have trouble identifying parts on a typical job?",
+        "Would you use an app that identified parts from a photo of the nameplate?",
+        "Do you think AI will change the way field service works in the next few years?"
+      ],
+      "correctAnswer": 0,
+      "explanation": "It anchors the answer in a real, recent event. 'How often do you usually' invites an invented average, and the others ask for opinions or predictions."
+    },
+    {
+      "question": "Fieldnote's synthesis shows 8 of 10 technicians struggling with parts, 6 of 8 managers naming repeat visits as a top cost, and only 3 of 10 technicians losing an hour a week to paperwork. The customer is the same in every case. What is the best decision?",
+      "options": [
+        "Persevere with paperwork as the lead problem, since some technicians still mentioned it",
+        "Pivot to a different industry, because one hypothesis failed",
+        "Run more interviews before deciding anything, because results are unclear",
+        "Adjust: keep the customer and make first-time fix and parts lookup the lead problem"
+      ],
+      "correctAnswer": 3,
+      "explanation": "The problem is real but the emphasis was wrong, and the evidence is clear. Changing the lead problem while keeping the customer is an adjustment backed by evidence."
+    },
+    {
+      "question": "According to Steve Blank's earlyvangelist traits, which interviewee is the best candidate for Fieldnote's first MVP test?",
+      "options": [
+        "An owner of a 6-person shop who has diagnosed every hard job himself for years",
+        "A large contractor's IT director who plans to evaluate several AI tools next year",
+        "A service manager who already runs a night-time photo chat with senior techs",
+        "A technician who finds AI interesting but has not had a repeat visit in months"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Earlyvangelists know they have the problem, are looking for a solution, have built their own workaround and can find budget. The photo chat is that workaround."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la semana 3: Descubrimiento de clientes",
+      "questions": [
+        {
+          "question": "Según Steve Blank, ¿para qué se crea una startup?",
+          "options": [
+            "Ejecutar lo más rápido posible un plan de negocios detallado a cinco años",
+            "Buscar un modelo de negocio que sea repetible y escalable",
+            "Construir el producto más avanzado de su categoría",
+            "Levantar capital de riesgo antes de encontrar clientes"
+          ],
+          "explanation": "La definición de Blank se centra en la búsqueda: una startup todavía no conoce su modelo de negocio, así que su trabajo es encontrar uno repetible y escalable."
+        },
+        {
+          "question": "¿Cuál de estas hipótesis está escrita de modo que un resultado real pueda refutarla?",
+          "options": [
+            "Los técnicos quieren ayuda de IA con diagnóstico, piezas y papeleo en la mayoría de sus trabajos",
+            "El servicio de campo es un mercado grande donde la mayoría de los contratistas pronto adoptará IA",
+            "A los contratistas les encantará un asistente por voz cuando vean cuánto tiempo les ahorra",
+            "6 de 10 técnicos describirán un trabajo del último mes sin reparar por no poder identificar una pieza"
+          ],
+          "explanation": "Nombra quién, qué y un umbral definido de antemano. Las otras opciones son tan vagas que ningún resultado de entrevista podría refutarlas."
+        },
+        {
+          "question": "El equipo fundador de Fieldnote definió un criterio de fracaso de \"menos de 4 de 10 técnicos\" para su hipótesis del papeleo. ¿Cuándo debieron definir ese criterio?",
+          "options": [
+            "Antes de la primera entrevista, para que los datos no la muevan",
+            "Después de las primeras cinco entrevistas, al ver la tendencia",
+            "Después de todas las entrevistas, para que coincida con los datos",
+            "Solo si un inversionista lo pedía"
+          ],
+          "explanation": "Un criterio definido después de ver los datos tiende a caer justo donde caen los datos. Definirlo de antemano es lo que convierte las entrevistas en evidencia."
+        },
+        {
+          "question": "Ana abre una entrevista describiendo Fieldnote y el técnico dice que suena genial y que seguro lo usaría. Según The Mom Test, ¿cuál es el mejor siguiente paso?",
+          "options": [
+            "Registrarlo como validación fuerte y pasar directo a construir el producto",
+            "Preguntarle cuánto pagaría el próximo año, para poder fijar un precio",
+            "Agradecerle y pedirle que cuente el último trabajo que no pudo cerrar",
+            "Mostrarle una demo más larga para que te dé feedback más detallado"
+          ],
+          "explanation": "Un cumplido y una promesa futura son datos malos. Volver a un hecho pasado específico de su propio trabajo produce hechos."
+        },
+        {
+          "question": "¿Cuál de estas es la señal más fuerte de interés real al final de una llamada de descubrimiento?",
+          "options": [
+            "La gerente dice \"esto es genial, mantenme al tanto\" y promete compartirlo con su equipo",
+            "La gerente acepta una prueba de cuatro semanas con dos técnicos y fecha de inicio definida",
+            "La gerente pide tres funciones nuevas y dice que pagaría más por ellas",
+            "La gerente dice que la mayoría de los talleres de la zona lo compraría a casi cualquier precio razonable"
+          ],
+          "explanation": "Una prueba con técnicos asignados y fecha de inicio es un compromiso de tiempo y reputación, y hace avanzar la relación. Lo demás no le cuesta nada a la gerente."
+        },
+        {
+          "question": "¿Qué pregunta sigue mejor la regla de The Mom Test de preguntar por hechos específicos del pasado?",
+          "options": [
+            "Cuéntame de la última vez que llamaste a un técnico senior desde un sitio. ¿Qué pasó?",
+            "¿Con qué frecuencia sueles tener problemas para identificar piezas en un trabajo típico?",
+            "¿Usarías una app que identifique piezas a partir de una foto de la placa del equipo?",
+            "¿Crees que la IA cambiará la forma de trabajar en el servicio de campo en los próximos años?"
+          ],
+          "explanation": "Ancla la respuesta en un hecho real y reciente. \"¿Con qué frecuencia sueles...?\" invita a un promedio inventado, y las demás piden opiniones o predicciones."
+        },
+        {
+          "question": "La síntesis de Fieldnote muestra que 8 de 10 técnicos tienen problemas con piezas, que 6 de 8 gerentes nombran las visitas repetidas como un costo principal y que solo 3 de 10 técnicos pierden una hora a la semana en papeleo. El cliente es el mismo en todos los casos. ¿Cuál es la mejor decisión?",
+          "options": [
+            "Perseverar con el papeleo como problema principal, porque algunos técnicos lo mencionaron",
+            "Pivotar a otra industria, porque una hipótesis falló",
+            "Hacer más entrevistas antes de decidir, porque los resultados no son claros",
+            "Ajustar: mantener el cliente y hacer de la reparación en la primera visita y las piezas el problema principal"
+          ],
+          "explanation": "El problema es real pero el énfasis estaba equivocado, y la evidencia es clara. Cambiar el problema principal y mantener el cliente es un ajuste respaldado por evidencia."
+        },
+        {
+          "question": "Según los rasgos de earlyvangelist de Steve Blank, ¿qué persona entrevistada es la mejor candidata para la primera prueba del MVP de Fieldnote?",
+          "options": [
+            "El dueño de un taller de 6 personas que lleva años diagnosticando él mismo cada trabajo difícil",
+            "El director de TI de un contratista grande que planea evaluar varias herramientas de IA el próximo año",
+            "Una gerente de servicio que ya tiene un chat nocturno de fotos con sus técnicos senior",
+            "Un técnico al que le interesa la IA pero que no ha tenido una visita repetida en meses"
+          ],
+          "explanation": "Los earlyvangelists saben que tienen el problema, buscan una solución, ya armaron su propia solución improvisada y pueden conseguir presupuesto. El chat de fotos es esa solución improvisada."
+        }
+      ]
+    }
+  }
+}

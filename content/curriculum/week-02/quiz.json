@@ -1,0 +1,182 @@
+{
+  "title": "Week 2 quiz: Defining the problem",
+  "passThreshold": 70,
+  "maxAttempts": 3,
+  "questions": [
+    {
+      "question": "Technicians complain constantly about paperwork, but no contractor Fieldnote has met pays to reduce it. Wrong diagnoses, by contrast, cause repeat visits that contractors track and pay for. What should the founders conclude for now?",
+      "options": [
+        "Paperwork is the better problem, because it is the complaint technicians raise most often and most strongly",
+        "Both problems look valuable, so they should build a product that solves paperwork and diagnosis at once",
+        "Diagnosis may be the more urgent, budgeted problem, and they should test that assumption before committing",
+        "Diagnosis is clearly the right problem, so they should stop interviewing and start building for it now"
+      ],
+      "correctAnswer": 2,
+      "explanation": "The loudest complaint is not always the most valuable problem. Severity and willingness to pay point toward diagnosis, but it is still an assumption to test."
+    },
+    {
+      "question": "Which behavior is the clearest sign that a prospect has a hair-on-fire problem?",
+      "options": [
+        "They already stitched together a workaround and ask when they can try even a rough version",
+        "They say they would definitely use a solution like yours and want to hear when it launches",
+        "They agree strongly that the problem is annoying and describe how much it frustrates them",
+        "They ask for a polished demo and a pricing sheet before they will discuss the problem further"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Urgent pain shows up as existing workarounds and eagerness to try even an unpolished solution. Polite agreement and hypothetical interest are not urgency."
+    },
+    {
+      "question": "Which is the best Jobs-to-be-Done statement for a field technician?",
+      "options": [
+        "When I am on a job, I want an AI voice assistant with parts lookup, so I can work faster without using my hands",
+        "Technicians need better diagnostic software, because the tools they rely on during service calls today are badly outdated",
+        "We help technicians diagnose unfamiliar units faster on every single visit with AI-powered, hands-free diagnostics",
+        "When a unit is unfamiliar and the customer is watching, I want to find the likely cause fast so I fix it this visit"
+      ],
+      "correctAnswer": 3,
+      "explanation": "A job statement describes the situation, motivation and outcome without naming a product. The other options describe features or the company's solution."
+    },
+    {
+      "question": "During empathy sessions, two technicians say paperwork is the worst part of the job, but both describe their last bad day as a misdiagnosis. How should the founders treat this?",
+      "options": [
+        "Trust what they said directly, since technicians know their own jobs better than any single story suggests",
+        "Note it as a contradiction to explore, since gaps between what people say and describe often hold insight",
+        "Discard both interviews, because inconsistent answers mean the questions were leading or unclear",
+        "Ask the technicians to rank the two problems by size, so the team gets a clear answer from users"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Contradictions between stated opinions and described behavior are a key output of the empathize mode. They often point to the real problem."
+    },
+    {
+      "question": "Which point-of-view statement best follows the d.school's user, need and insight format?",
+      "options": [
+        "Technicians need a hands-free voice app on their phones, because typing with gloves on is slow and apps are the future of field work",
+        "HVAC contractors need AI-driven disruption, because the market is large, fragmented, slow to modernize and short on skilled technicians",
+        "A newer technician working alone needs to confirm a diagnosis before ordering a part, because calling a senior feels like admitting they are not ready",
+        "Contractors need Fieldnote to reduce costs, because repeat visits and wrong parts orders eat directly into margins that are already thin"
+      ],
+      "correctAnswer": 2,
+      "explanation": "It names a specific user, expresses the need as an action rather than a product, and includes a real insight. The others name a solution or no user at all."
+    },
+    {
+      "question": "Fieldnote has an assumption map. Which assumption should they test first?",
+      "options": [
+        "Technicians carry smartphones on the job, which is important and already well supported by evidence",
+        "Contractors will want the logo and app colors to match their brand, which is unimportant and has no evidence",
+        "The team can build and launch a simple landing page in a week, which is unimportant and well supported",
+        "Contractors, not technicians, will pay for the product, which is critical and still has little evidence"
+      ],
+      "correctAnswer": 3,
+      "explanation": "The riskiest assumptions are both important and weakly supported. If contractors will not pay, the business fails, and the team has little evidence yet."
+    },
+    {
+      "question": "Fieldnote's assistant may suggest a step on a gas valve. What level of human oversight fits this decision?",
+      "options": [
+        "Inform only: show the source and confidence, and let a qualified technician decide per the manufacturer's procedure",
+        "Let the system act on its own, since gas steps are documented, and log every action for later review",
+        "Suggest the step and have the technician approve it with one tap, the same level used for ordering a part",
+        "Remove all AI suggestions from the product permanently, so that no automated advice ever touches a safety-critical step"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Safety-critical steps call for the highest oversight: the system informs, and a qualified person decides. Sources and confidence make the human review meaningful."
+    },
+    {
+      "question": "A founder plans to train a model on manuals downloaded freely from manufacturers' websites and on recordings of technicians' calls. What is the most important step before doing so?",
+      "options": [
+        "Nothing, since the manuals are free to download and the calls were recorded on company phones",
+        "Confirm the licensing terms for the manuals and get clear consent for recordings of identifiable people",
+        "Wait until after product-market fit to review data rights, since early experiments rarely draw attention",
+        "Remove the Spanish-language recordings, since bilingual data makes the first model harder to test"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Public availability does not grant training rights, and recordings of identifiable people are personal data that require consent and care under laws such as the GDPR."
+    }
+  ],
+  "translations": {
+    "es": {
+      "title": "Quiz de la semana 2: Definir el problema",
+      "questions": [
+        {
+          "question": "Los técnicos se quejan todo el tiempo del papeleo, pero ningún contratista con el que habló Fieldnote paga por reducirlo. En cambio, los diagnósticos equivocados causan visitas repetidas que los contratistas miden y pagan. ¿Qué deberían concluir los fundadores por ahora?",
+          "options": [
+            "El papeleo es el mejor problema, porque es la queja que los técnicos repiten con más frecuencia y con más fuerza",
+            "Ambos problemas parecen valiosos, así que deberían construir un producto que resuelva el papeleo y el diagnóstico a la vez",
+            "El diagnóstico puede ser el problema más urgente y con presupuesto, y deberían probar ese supuesto antes de comprometerse",
+            "El diagnóstico es sin duda el problema correcto, así que deberían dejar de entrevistar y empezar a construir ya"
+          ],
+          "explanation": "La queja más ruidosa no siempre es el problema más valioso. La gravedad y la disposición a pagar apuntan al diagnóstico, pero sigue siendo un supuesto por probar."
+        },
+        {
+          "question": "¿Qué comportamiento es la señal más clara de que un cliente potencial tiene un problema de pelo en llamas?",
+          "options": [
+            "Ya armó una solución improvisada y pregunta cuándo puede probar aunque sea una versión imperfecta",
+            "Dice que sin duda usaría una solución como la tuya y quiere saber cuándo la vas a lanzar al mercado",
+            "Está muy de acuerdo en que el problema es molesto y describe cuánto le frustra en su día a día",
+            "Pide una demo pulida y una lista de precios antes de seguir hablando del problema contigo"
+          ],
+          "explanation": "El dolor urgente se nota en las soluciones improvisadas que ya existen y en las ganas de probar incluso algo sin pulir. El acuerdo amable y el interés hipotético no son urgencia."
+        },
+        {
+          "question": "¿Cuál es el mejor enunciado Jobs-to-be-Done para un técnico de campo?",
+          "options": [
+            "Cuando estoy en un trabajo, quiero un asistente de voz con IA y búsqueda de repuestos, para trabajar más rápido sin usar las manos",
+            "Los técnicos necesitan un mejor software de diagnóstico, porque las herramientas que usan hoy en las visitas son anticuadas",
+            "Ayudamos a los técnicos a diagnosticar más rápido unidades desconocidas en cada visita con diagnósticos impulsados por IA",
+            "Cuando una unidad no me es familiar y el cliente me mira, quiero hallar rápido la causa probable para resolverlo en esta visita"
+          ],
+          "explanation": "Un enunciado del trabajo describe la situación, la motivación y el resultado sin nombrar un producto. Las otras opciones describen funciones o la solución de la empresa."
+        },
+        {
+          "question": "En las sesiones de empatía, dos técnicos dicen que el papeleo es lo peor del trabajo, pero ambos describen su último mal día como un diagnóstico equivocado. ¿Cómo deberían tratarlo los fundadores?",
+          "options": [
+            "Confiar en lo que dijeron directamente, porque los técnicos conocen su trabajo mejor de lo que sugiere cualquier historia",
+            "Anotarlo como una contradicción por explorar, porque la brecha entre lo que alguien dice y lo que describe revela mucho",
+            "Descartar ambas entrevistas, porque las respuestas inconsistentes indican que las preguntas fueron confusas o sesgadas",
+            "Pedirles a los técnicos que ordenen los dos problemas por tamaño, para que el equipo tenga una respuesta clara de los usuarios"
+          ],
+          "explanation": "Las contradicciones entre las opiniones declaradas y el comportamiento descrito son un resultado clave del modo empatizar. A menudo señalan el problema real."
+        },
+        {
+          "question": "¿Qué enunciado desde un punto de vista sigue mejor el formato usuario, necesidad y hallazgo de la d.school?",
+          "options": [
+            "Los técnicos necesitan una app de voz sin manos en el teléfono, porque escribir con guantes es lento y las apps son el futuro del trabajo de campo",
+            "Los contratistas de HVAC necesitan una transformación con IA, porque el mercado es grande, fragmentado, lento para modernizarse y le faltan técnicos calificados",
+            "Un técnico nuevo que trabaja solo necesita confirmar un diagnóstico antes de pedir un repuesto, porque llamar a alguien senior es admitir que no está listo",
+            "Los contratistas necesitan Fieldnote para reducir costos, porque las visitas repetidas y los repuestos equivocados reducen directamente márgenes que ya son bajos"
+          ],
+          "explanation": "Nombra un usuario concreto, expresa la necesidad como una acción y no como un producto, e incluye un hallazgo real. Las demás nombran una solución o ningún usuario."
+        },
+        {
+          "question": "Fieldnote tiene un mapa de supuestos. ¿Qué supuesto deberían probar primero?",
+          "options": [
+            "Los técnicos llevan smartphone en el trabajo, algo importante y ya bien respaldado por la evidencia",
+            "Los contratistas querrán que el logo y los colores coincidan con su marca, algo poco importante y sin evidencia",
+            "El equipo puede crear y lanzar una landing page simple en una semana, algo poco importante y bien respaldado",
+            "Los contratistas, y no los técnicos, pagarán por el producto, algo crítico y que todavía tiene poca evidencia"
+          ],
+          "explanation": "Los supuestos más riesgosos son importantes y tienen poco respaldo. Si los contratistas no pagan, el negocio fracasa, y el equipo todavía tiene poca evidencia."
+        },
+        {
+          "question": "El asistente de Fieldnote podría sugerir un paso sobre una válvula de gas. ¿Qué nivel de supervisión humana corresponde a esta decisión?",
+          "options": [
+            "Solo informar: mostrar la fuente y el nivel de confianza, y que un técnico calificado decida con el procedimiento del fabricante",
+            "Dejar que el sistema actúe por su cuenta, ya que los pasos de gas están documentados, y registrar cada acción para revisarla",
+            "Sugerir el paso y que el técnico lo apruebe con un toque, el mismo nivel que se usa para pedir un repuesto",
+            "Eliminar para siempre todas las sugerencias de IA del producto, para que ningún consejo automático toque un paso crítico de seguridad"
+          ],
+          "explanation": "Los pasos críticos para la seguridad requieren la mayor supervisión: el sistema informa y una persona calificada decide. Las fuentes y el nivel de confianza hacen que la revisión humana tenga sentido."
+        },
+        {
+          "question": "Un fundador planea entrenar un modelo con manuales descargados gratis de los sitios de los fabricantes y con grabaciones de llamadas de técnicos. ¿Cuál es el paso más importante antes de hacerlo?",
+          "options": [
+            "Nada, porque los manuales se pueden descargar gratis y las llamadas se grabaron en teléfonos de la empresa",
+            "Confirmar los términos de licencia de los manuales y obtener consentimiento claro para grabaciones de personas identificables",
+            "Esperar hasta tener product-market fit para revisar los derechos sobre los datos, porque los experimentos iniciales casi no llaman la atención",
+            "Eliminar las grabaciones en español, porque los datos bilingües hacen más difícil probar el primer modelo"
+          ],
+          "explanation": "Que algo esté disponible públicamente no otorga derechos de entrenamiento, y las grabaciones de personas identificables son datos personales que requieren consentimiento y cuidado según leyes como el GDPR."
+        }
+      ]
+    }
+  }
+}

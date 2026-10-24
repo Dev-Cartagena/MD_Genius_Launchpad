@@ -1,0 +1,52 @@
+{
+  "week": 6,
+  "stage": "development",
+  "orderIndex": 6,
+  "title": "Product-market fit and metrics",
+  "description": "Find out whether users truly need what you built, run the company on a small set of honest numbers that include the real cost of AI, and set a price you can test with real buyers.",
+  "objectives": [
+    "Run the Sean Ellis survey with qualified users and segment the result to find who loves the product",
+    "Build cohort retention curves and tell a flattening curve from a leaking one",
+    "Choose one primary metric and three to five input metrics, with a concrete activation event",
+    "Calculate CAC, LTV, payback and an AI gross margin that includes inference and human review",
+    "Determine whether your startup is default alive or default dead",
+    "Write a testable pricing hypothesis and design a pilot that converts to a paid contract"
+  ],
+  "resources": [
+    "How Superhuman built an engine to find product-market fit (First Round Review) — https://review.firstround.com/how-superhuman-built-an-engine-to-find-product-market-fit/",
+    "Product/Market fit survey (Sean Ellis) — https://pmfsurvey.com/",
+    "The Real Product Market Fit (Michael Seibel, YC) — https://www.ycombinator.com/blog/the-real-product-market-fit/",
+    "Default Alive or Default Dead? (Paul Graham) — https://paulgraham.com/aord.html",
+    "Key Startup Metrics, Tom Blomfield (YC Startup Library) — https://www.ycombinator.com/library/KR-key-startup-metrics",
+    "Startup pricing 101, Kevin Hale (YC Startup Library) — https://www.ycombinator.com/library/6h-startup-pricing-101",
+    "The AI pricing and monetization playbook (Bessemer Venture Partners) — https://www.bvp.com/atlas/the-ai-pricing-and-monetization-playbook"
+  ],
+  "translations": {
+    "es": {
+      "title": "Product-market fit y métricas",
+      "description": "Descubre si los usuarios de verdad necesitan lo que construiste, dirige la empresa con un conjunto pequeño de números honestos que incluyan el costo real de la IA y fija un precio que puedas probar con compradores reales.",
+      "objectives": [
+        "Aplicar la encuesta de Sean Ellis a usuarios calificados y segmentar el resultado para encontrar a quienes aman el producto",
+        "Construir curvas de retención por cohorte y distinguir una curva que se aplana de una que se vacía",
+        "Elegir una métrica principal y de tres a cinco métricas de entrada, con un evento de activación concreto",
+        "Calcular CAC, LTV, periodo de recuperación y un margen bruto de IA que incluya inferencia y revisión humana",
+        "Determinar si tu startup está en default alive o en default dead",
+        "Escribir una hipótesis de precio que se pueda probar y diseñar un piloto que se convierta en un contrato pagado"
+      ],
+      "resources": [
+        "Cómo Superhuman construyó un motor para encontrar product-market fit (First Round Review, en inglés) — https://review.firstround.com/how-superhuman-built-an-engine-to-find-product-market-fit/",
+        "Encuesta de product-market fit (Sean Ellis, en inglés) — https://pmfsurvey.com/",
+        "El verdadero product-market fit (Michael Seibel, YC, en inglés) — https://www.ycombinator.com/blog/the-real-product-market-fit/",
+        "¿Default alive o default dead? (Paul Graham, en inglés) — https://paulgraham.com/aord.html",
+        "Métricas clave para startups, Tom Blomfield (YC Startup Library, en inglés) — https://www.ycombinator.com/library/KR-key-startup-metrics",
+        "Precios para startups 101, Kevin Hale (YC Startup Library, en inglés) — https://www.ycombinator.com/library/6h-startup-pricing-101",
+        "Guía de precios y monetización para IA (Bessemer Venture Partners, en inglés) — https://www.bvp.com/atlas/the-ai-pricing-and-monetization-playbook"
+      ]
+    }
+  },
+  "lessons": [
+    { "orderIndex": 1, "file": "lesson-1", "title": "Measuring product-market fit", "es": "Cómo medir el product-market fit", "minutes": 15 },
+    { "orderIndex": 2, "file": "lesson-2", "title": "Metrics and unit economics", "es": "Métricas y economía unitaria", "minutes": 15 },
+    { "orderIndex": 3, "file": "lesson-3", "title": "Pricing AI products", "es": "Cómo fijar el precio de productos de IA", "minutes": 15 }
+  ]
+}
