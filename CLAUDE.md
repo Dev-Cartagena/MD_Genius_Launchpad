@@ -44,6 +44,15 @@ supabase orgs list                  # mdgeniusai must be listed
 - Supabase project: `md-genius-launchpad`, ref `klpwffswfhfwvsuqosct`, us-east-1, org mdgeniusai
 - Vercel project: `md-genius-launchpad`, team mdgeniusai. Production: https://launchpad.mdgeniusai.com
   (CNAME `launchpad` in GoDaddy DNS for mdgeniusai.com; md-genius-launchpad.vercel.app redirects to it)
+- Supabase Storage: `uploads` (private, signed URLs) and `lesson-media` (public, lesson videos and posters).
+- Email: Resend, sending from the verified mdgeniusai.com domain (`RESEND_API_KEY` in Vercel production).
+- Curriculum: `content/curriculum/` with importer `scripts/curriculum/import.ts`. Production cohort
+  "Launchpad Cohort 1" (Jan 11 to Mar 7, 2027, 25 seats) has it imported.
+- Lesson videos: HyperFrames projects in `~/Documents/MD_Genius_Launchpad_Videos/` (outside the repo).
+  fal.ai is used through `FAL_KEY` in the local `.env` (video production only, never deployed).
+  Do not spend on video generation without the user's approval: the budget for lessons
+  1.2 to 8.3 is pending. Spanish narration needs a pronunciation list (IA, YC…) before TTS; see
+  `w01-l1-es/REVIEW.md`.
 - Production credentials live in Vercel env vars and in the gitignored `.env.supabase`.
   Never put production credentials in `.env` (local dev must not touch production data).
 
