@@ -1,3 +1,4 @@
+import { LessonVideo, isVideoFile } from "@/components/Curriculum/LessonVideo";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -804,6 +805,7 @@ export default function CurriculumView() {
                                               {localized.text(lesson, "title")}
                                             </h4>
                                             <div className="space-y-4">
+                                              <LessonVideo lessonId={lesson.id} media={lesson.media} />
                                               {(() => {
                                                 const content = localized.text(lesson, "content");
                                                 
@@ -1152,10 +1154,10 @@ export default function CurriculumView() {
                                           </div>
                                         </div>
                                       
-                                      {/* Media Resources */}
-                                      {lesson.media && lesson.media.filter(m => m && isSafeLinkUrl(m)).length > 0 && (
+                                      {/* Media Resources (videos play inline at the top of the lesson) */}
+                                      {lesson.media && lesson.media.filter(m => m && isSafeLinkUrl(m) && !isVideoFile(m)).length > 0 && (
                                         <div className="flex flex-wrap items-center gap-2">
-                                          {lesson.media.filter(m => m && isSafeLinkUrl(m)).map((media, mediaIndex) => {
+                                          {lesson.media.filter(m => m && isSafeLinkUrl(m) && !isVideoFile(m)).map((media, mediaIndex) => {
                                             const { label, icon } = getMediaLabel(media, t);
                                             return (
                                               <Button key={mediaIndex} size="sm" variant="outline" asChild>

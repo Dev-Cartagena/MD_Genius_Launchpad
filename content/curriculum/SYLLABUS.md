@@ -1,4 +1,4 @@
-# MD Genius Launchpad: curriculum v1 (draft for review)
+# MD Genius Launchpad: curriculum v1 (approved)
 
 An eight-week program in four stages for AI startups in any industry. It draws on classic
 and modern startup playbooks: Y Combinator (Startup School, Paul Graham's essays, the YC
